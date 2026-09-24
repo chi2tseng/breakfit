@@ -223,7 +223,7 @@ function createController({ clock, selftest = false, fast = false }) {
       const mv = it.type === 'reps' ? it : it.moves[0];
       return {
         key: k, tomorrow: i === 1, label: lp.days[pd].label, title: lp.days[pd].title, time: computeSlots(data.settings)[0],
-        name: mv.name, clipUrl: mv.clipUrl, posterUrl: mv.posterUrl,
+        name: mv.name, clipUrl: mv.clipUrl, posterUrl: mv.posterUrl, item: it,
       };
     }
     return null;
@@ -491,6 +491,9 @@ function createController({ clock, selftest = false, fast = false }) {
         status: s.status,
         isLast: k === D.lastSlot(day),
         units: day.units.filter((u) => u.slot === k).map((u) => ({ name: nameIn(lang(), u.id, u.name), done: u.doneSets, target: u.targetSets })),
+        // sets actually done in this stop's break (it may have done sets carried from earlier stops)
+        sets: (day.events || []).filter((e) => (e.type === 'break_end' || e.type === 'abort') && e.detail && e.detail.mode === 'slot' && e.detail.slot === k)
+          .reduce((n, e) => n + (e.detail.sets || 0), 0),
       })),
       next: nextBreak(day, key),
       upNext: upNext(day, key),

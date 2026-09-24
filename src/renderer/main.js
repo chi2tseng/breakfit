@@ -15,17 +15,30 @@ const CYCLE_KEY = { d1: 'd1', d2: 'd2', d3: 'd3', rest: 'rest' };
 const SLOT_TXT = (st) => (st === 'pending' ? '' : st === 'empty' ? '—' : t(`slot_${st}`));
 const DAY_TXT = (st) => t(`day_${st}`);
 
+// Tab / picked day / library filter are also in the query string (?tab=history&date=…&f=d2), so a
+// reload or a bookmark of the web build comes back to the same view; ?theme / ?lang stay as they are.
+const Q0 = new URLSearchParams(location.search);
 let S = null;
 let receivedAt = 0;
 let tab = 'today';
-let libFilter = 'd1';
-let viewMonth = null; // 'YYYY-MM'
-let selDate = null;
+let libFilter = ['d1', 'd2', 'd3'].includes(Q0.get('f')) ? Q0.get('f') : 'd1';
+let selDate = /^\d{4}-\d{2}-\d{2}$/.test(Q0.get('date') || '') ? Q0.get('date') : null;
+let viewMonth = selDate ? selDate.slice(0, 7) : null; // 'YYYY-MM'
 let noteTimer = null;
 let chartW = 0; // #chart width, kept by the ResizeObserver
 
 // ---------- helpers ----------
 const pad = (n) => String(n).padStart(2, '0');
+const pct = (x) => new Intl.NumberFormat(I18N.locale(window.LANG), { style: 'percent', maximumFractionDigits: 0 }).format(x);
+function syncUrl() {
+  try {
+    const q = new URLSearchParams(location.search);
+    q.set('tab', tab);
+    q.set('f', libFilter);
+    if (selDate) q.set('date', selDate);
+    history.replaceState(null, '', `${location.pathname}?${q}${location.hash}`);
+  } catch (_) { /* no history API: the view just isn't in the URL */ }
+}
 function parseKey(key) {
   const [y, m, d] = key.split('-').map(Number);
   return { y, m, d, wd: new Date(y, m - 1, d).getDay() };
@@ -109,19 +122,23 @@ function renderHero() {
   if (nt) mountClip(clip, nt.clipUrl, nt.name, { poster: nt.posterUrl });
   clip.hidden = !nt;
   const when = nt ? (nt.tomorrow ? t('tomorrowAt', { t: nt.time }) : t('dayAt', { d: fmtKey(nt.key), t: nt.time })) : '';
+  // One large line (the state), then when (accent), the day's title, and the move that is playing.
+  const move = nt ? (nt.item ? `${nt.item.name} · ${itemMeta(nt.item)}` : nt.name) : '';
   box.innerHTML = `<div class="hero-state">${esc(word)}</div>
     ${nt ? `<div class="hero-when"><span class="hero-in">${esc(when)}</span></div>
-      <div class="hero-name">${esc(nt.title)}</div><div class="hero-meta">${esc(nt.label)}</div>` : ''}`;
+      <div class="hero-title">${esc(nt.title)}</div><div class="hero-meta">${esc(move)}</div>` : ''}`;
 }
 
 // Stop state on the day line: done / partial / missed (skipped too) / passed (nothing was owed) /
-// next (= the hero) / later (owes sets) / free (a stop ahead that owes nothing).
+// next (= the hero) / later (owes sets) / free (a stop ahead that owes nothing) / covered (owed
+// nothing on a passed day: its sets were done earlier, so it reads as done, not as a gap).
 function stopState(s, k) {
   if (S.upNext && k === S.upNext.index) return 'next';
-  if (s.status === 'pending') return s.units.some((u) => u.done < u.target) || (s.isLast && S.upNext) ? 'later' : 'free';
-  if (s.status === 'skipped' || s.status === 'missed') return 'missed';
-  if (s.status === 'notified' || s.status === 'empty') return 'passed';
-  return s.status; // done | partial
+  let st = s.status; // done | partial stay as they are
+  if (st === 'pending') st = s.units.some((u) => u.done < u.target) || (s.isLast && S.upNext) ? 'later' : 'free';
+  else if (st === 'skipped' || st === 'missed') st = 'missed';
+  else if (st === 'notified' || st === 'empty') st = 'passed';
+  return (st === 'passed' || st === 'free') && S.day.status === 'pass' ? 'covered' : st;
 }
 const STOP_TXT = { next: 'nextSlot', done: 'slot_done', partial: 'slot_partial' };
 
@@ -136,20 +153,28 @@ function renderLine() {
   // Horizontal while every stop keeps >= 46 px (a time label is ~40 px); else the vertical rows.
   const flat = lineW - 120 >= stops.length * 46;
   $('#dayLine').classList.toggle('flat', flat);
-  const units = (s) => (s.units.length
-    ? s.units.map((u) => `<span class="u ${u.done >= u.target ? 'full' : ''}">${esc(u.name)}<small>${u.done}/${u.target}</small></span>`).join('')
-    : `<span class="none">${s.isLast ? t('catchUp') : '—'}</span>`);
+  // What a stop holds: its own moves with counts; else the sets done in its break (carried from an
+  // earlier stop), 補做 on the last stop, 走動 on a stop that only sends the walk reminder.
+  const units = (s, st) => {
+    if (s.units.length) return s.units.map((u) => `<span class="u ${u.done >= u.target ? 'full' : ''}">${esc(u.name)}<small>${u.done}/${u.target}</small></span>`).join('');
+    const txt = (st === 'done' || st === 'partial') && s.sets ? t('setsN', { n: s.sets })
+      : s.isLast && (st === 'next' || st === 'later') ? t('catchUp')
+        : st === 'passed' || st === 'free' || st === 'covered' ? t('walk') : '';
+    return txt ? `<span class="none">${esc(txt)}</span>` : '';
+  };
   ol.className = flat ? 'line' : 'timeline';
   ol.innerHTML = stops.map((s, k) => {
     const st = stopState(s, k);
     const stTxt = st === 'missed' ? t(`slot_${s.status}`) : STOP_TXT[st] ? t(STOP_TXT[st]) : ''; // 跳過 vs 錯過 stays distinct
     if (!flat) {
       return `<li class="${st}"><span class="t">${s.time}</span><span class="dot"></span>
-        <div class="units">${units(s)}</div><span class="st">${stTxt}</span></li>`;
+        <div class="units">${units(s, st)}</div><span class="st">${stTxt}</span></li>`;
     }
     const edge = k < 2 ? 'start' : k > stops.length - 3 ? 'end' : '';
     const label = [s.time, stTxt, ...s.units.map((u) => `${u.name} ${u.done}/${u.target}`)].filter(Boolean).join(', ');
-    return `<li class="stop ${st} ${edge}" tabindex="0" aria-label="${esc(label)}"><span class="dot"></span><span class="t">${s.time}</span><span class="tip" role="tooltip">${units(s)}</span></li>`;
+    // the tooltip carries the status word too, so the line never relies on dot colour alone
+    const tip = (stTxt ? `<span class="tip-st">${esc(stTxt)}</span>` : '') + units(s, st);
+    return `<li class="stop ${st} ${edge}" tabindex="0" aria-label="${esc(label)}"><span class="dot"></span><span class="t">${s.time}</span>${tip ? `<span class="tip" role="tooltip">${tip}</span>` : ''}</li>`;
   }).join('');
 }
 
@@ -160,8 +185,10 @@ function renderLibrary() {
   const sig = window.LANG + list.map((m) => `${m.id}:${m.name}:${m.clipUrl || ''}`).join('|');
   if (grid.dataset.sig === sig) return;
   grid.dataset.sig = sig;
-  grid.innerHTML = list.map((m) => `<div class="lib-card" data-id="${m.id}" tabindex="0" role="button">
-      <div class="clip"></div><div class="n">${esc(m.name)}</div></div>`).join('');
+  grid.innerHTML = list.length
+    ? list.map((m) => `<button type="button" class="lib-card" data-id="${m.id}"><span class="clip"></span><span class="n">${esc(m.name)}</span></button>`).join('')
+    : `<div class="empty-state">${ICON('fitness_center')}<span>${t('noMoves')}</span></div>`;
+  libCols();
   $$('.lib-card', grid).forEach((card) => {
     const m = S.library.find((x) => x.id === card.dataset.id);
     const clip = $('.clip', card);
@@ -169,8 +196,19 @@ function renderLibrary() {
     card.addEventListener('mouseenter', () => { const v = $('video', clip); if (v) v.play().catch(() => {}); });
     card.addEventListener('mouseleave', () => { const v = $('video', clip); if (v) v.pause(); });
     card.addEventListener('click', () => openPlayer(m.id));
-    card.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPlayer(m.id); } });
   });
+}
+// Column count that divides the day's move count (6 → 3 or 6, 8 → 4 or 2), so no tile is left alone
+// on the last row; tiles stay >= 180 px. Three or fewer moves: one row in up to 3 columns.
+function libCols() {
+  const grid = $('#library');
+  const n = $$('.lib-card', grid).length;
+  const w = grid.clientWidth;
+  if (!n || !w) return;
+  const fit = Math.max(1, Math.floor((w + 16) / 196));
+  let c = n <= 3 ? Math.min(fit, 3) : fit;
+  while (n > 3 && c > 2 && n % c) c -= 1;
+  if (grid.style.getPropertyValue('--cols') !== String(c)) grid.style.setProperty('--cols', String(c));
 }
 
 function openPlayer(id) {
@@ -196,12 +234,20 @@ function renderHistory() {
   const st = S.stats;
   const mSets = S.monthSets[viewMonth] || 0;
   const days = (n) => t(n === 1 ? 'daysN1' : 'daysN', { n });
-  // The streak is the one hero numeral; the other three are a quiet inline row (DESIGN.md §5).
-  const [pre, post] = t(st.currentStreak === 1 ? 'streakHero1' : 'streakHero').split('{n}');
-  $('#streak').innerHTML = `${pre ? `<span>${esc(pre)}</span>` : ''}<b>${st.currentStreak}</b>${post ? `<span>${esc(post)}</span>` : ''}`;
+  // The streak is the one hero numeral (ink); the other three are a quiet inline row (DESIGN.md §5).
+  // No streak: the hero slot says when the next training starts instead of showing a big 0.
+  const n = st.currentStreak;
+  const nx = S.upNext || S.nextTraining;
+  let [pre, post] = t(n === 1 ? 'streakHero1' : 'streakHero').split('{n}');
+  let big = String(n);
+  if (!n && nx) {
+    [pre, post] = (S.upNext ? t('nextAt') : nx.tomorrow ? t('tomorrowAt') : t('dayAt', { d: fmtKey(nx.key) })).split('{t}');
+    big = nx.time;
+  }
+  $('#streak').innerHTML = `${pre ? `<span>${esc(pre)}</span>` : ''}<b>${esc(big)}</b>${post ? `<span>${esc(post)}</span>` : ''}`;
   const stat = (k, v) => `<span class="stat"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></span>`;
   $('#stats').innerHTML = [
-    stat(t('passRate'), st.passRate == null ? '—' : `${Math.round(st.passRate * 100)}%`),
+    stat(t('passRate'), st.passRate == null ? '—' : pct(st.passRate)),
     stat(t('longest'), days(st.longestStreak)),
     stat(t('monthShort', { m: Number(viewMonth.slice(5)), month: I18N.monthName(window.LANG, viewMonth) }), t('setsN', { n: mSets })),
   ].join('');
@@ -225,23 +271,23 @@ function renderCalendar() {
     let inner = `<span class="d">${d}</span>`;
     if (h) {
       cls.push(h.status, 'has');
-      const pct = h.total ? `${Math.round(h.pct * 100)}%` : '';
-      inner += `<span class="p">${pct}</span>`;
+      inner += `<span class="p">${h.total ? pct(h.pct) : ''}</span>`;
     }
     if (key === S.today) cls.push('today');
     if (key === selDate) cls.push('sel');
-    cells.push(`<div class="${cls.join(' ')}" data-k="${key}"${h ? ' tabindex="0" role="button"' : ''}>${inner}</div>`);
+    cells.push(h
+      ? `<button type="button" class="${cls.join(' ')}" data-k="${key}" aria-pressed="${key === selDate}">${inner}</button>`
+      : `<div class="${cls.join(' ')}">${inner}</div>`);
   }
+  const hadFocus = $('#calendar').contains(document.activeElement);
   $('#calendar').innerHTML = cells.join('');
-  $$('#calendar .cell.has').forEach((c) => {
-    const pick = () => {
-      selDate = c.dataset.k;
-      renderCalendar();
-      loadDetail();
-    };
-    c.addEventListener('click', pick);
-    c.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } });
-  });
+  if (hadFocus && selDate) { const c = $(`#calendar [data-k="${selDate}"]`); if (c) c.focus(); } // re-render replaced the focused cell
+  $$('#calendar .cell.has').forEach((c) => c.addEventListener('click', () => {
+    selDate = c.dataset.k;
+    syncUrl();
+    renderCalendar();
+    loadDetail();
+  }));
 }
 
 function renderChart() {
@@ -265,14 +311,16 @@ function renderChart() {
   let svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img">`;
   for (const g of [0, 0.5, 1]) {
     const yy = T + ih * (1 - g);
-    svg += `<line class="grid" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/><text x="${L - 6}" y="${yy + 3}" text-anchor="end">${g * 100}%</text>`;
+    svg += `<line class="grid" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/><text x="${L - 6}" y="${yy + 3}" text-anchor="end">${pct(g)}</text>`;
   }
   const off = n - data.length;
   data.forEach((h, i) => {
     const x = L + (off + i) * slot + (slot - bw) / 2;
     const bh = Math.max(2, ih * h.pct);
-    const color = h.status === 'pass' ? 'var(--accent)' : h.status === 'fail' ? 'var(--fail)' : 'var(--muted)';
-    svg += `<rect x="${x.toFixed(1)}" y="${(T + ih - bh).toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="2" fill="${color}"><title>${h.date} ${Math.round(h.pct * 100)}%</title></rect>`;
+    // pass = accent, anything else neutral: the bar height already shows the shortfall
+    const color = h.status === 'pass' ? 'var(--accent)' : 'var(--muted)';
+    const word = h.status === 'pass' || h.status === 'fail' ? ` ${DAY_TXT(h.status)}` : '';
+    svg += `<rect x="${x.toFixed(1)}" y="${(T + ih - bh).toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="2" fill="${color}"><title>${h.date} ${pct(h.pct)}${word}</title></rect>`;
     if (i % every === 0 || i === data.length - 1) {
       svg += `<text x="${(x + bw / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle">${I18N.shortDate(window.LANG, h.date)}</text>`;
     }
@@ -454,6 +502,7 @@ function bindSettings() {
 // ---------- tabs / chrome ----------
 function showTab(name) {
   tab = name;
+  syncUrl();
   $$('.nav-item').forEach((b) => b.classList.toggle('active', b.dataset.tab === name));
   $$('.tab').forEach((t) => { t.hidden = t.id !== `tab-${name}`; });
   $('#content').scrollTop = 0;
@@ -475,7 +524,7 @@ function tick() {
 }
 
 $$('.nav-item').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
-$$('#libFilter button').forEach((b) => b.addEventListener('click', () => { libFilter = b.dataset.f; renderLibrary(); }));
+$$('#libFilter button').forEach((b) => b.addEventListener('click', () => { libFilter = b.dataset.f; syncUrl(); renderLibrary(); }));
 $('#breakNowBtn').addEventListener('click', () => window.bf.breakNow());
 $('#prevMonth').addEventListener('click', () => shiftMonth(-1));
 $('#nextMonth').addEventListener('click', () => shiftMonth(1));
@@ -495,6 +544,7 @@ new ResizeObserver(() => {
   const w = Math.round($('#chart').clientWidth);
   if (S && w && w !== chartW) { chartW = w; renderChart(); }
 }).observe($('#chart'));
+new ResizeObserver(() => requestAnimationFrame(libCols)).observe($('#library')); // next frame: more rows can add a scrollbar
 new ResizeObserver(() => {
   const w = Math.round($('#dayLine').clientWidth);
   if (S && w && w !== lineW) { lineW = w; requestAnimationFrame(renderLine); } // next frame: switching flat / rows resizes the observed box
@@ -502,6 +552,7 @@ new ResizeObserver(() => {
 window.bf.onState(() => refresh());
 addEventListener('bf:lang', () => { if (S) refresh(); });
 window.bf.onNav((name) => { if (['today', 'history', 'settings'].includes(name)) showTab(name); });
+if (['history', 'settings'].includes(Q0.get('tab'))) showTab(Q0.get('tab'));
 setInterval(() => {
   tick();
   if (S && S.rate > 1) refresh(); // --fast: virtual clock runs 60×

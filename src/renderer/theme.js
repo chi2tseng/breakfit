@@ -19,8 +19,13 @@
   };
   addEventListener('load', tint);
   new MutationObserver(tint).observe(root, { attributes: true, attributeFilter: ['data-theme'] });
-  // Last input device, for the keyboard-only focus ring (base.css). Tab / arrows show it again.
+  // Last input device, for the keyboard-only focus ring (base.css). Any key except a lone modifier
+  // (Alt of Alt+Tab) or typing into a field hands the ring back to Chromium's own :focus-visible, so
+  // focus a key moves by script (Esc → 離開休息？ focuses 繼續) is still shown.
   root.dataset.input = 'pointer';
   addEventListener('pointerdown', () => { root.dataset.input = 'pointer'; }, true);
-  addEventListener('keydown', (e) => { if (!e.repeat && /^(Tab|Arrow)/.test(e.key)) root.dataset.input = 'keyboard'; }, true);
+  addEventListener('keydown', (e) => {
+    if (e.repeat || /^(Alt|AltGraph|Control|Shift|Meta|CapsLock)$/.test(e.key)) return;
+    if (/^(Tab|Arrow)/.test(e.key) || !(e.target instanceof Element && e.target.matches('input, textarea'))) root.dataset.input = 'keyboard';
+  }, true);
 }());

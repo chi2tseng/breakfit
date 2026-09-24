@@ -111,8 +111,14 @@ function initUi() {
     }
     menu.hidden = false;
     const r = anchor.getBoundingClientRect();
-    menu.style.left = `${Math.round(r.right + 8)}px`;
-    menu.style.top = `${Math.round(Math.max(8, Math.min(r.top, innerHeight - menu.offsetHeight - 8)))}px`;
+    const fit = (v, max) => Math.round(Math.max(8, Math.min(v, max - 8)));
+    if (r.right + 8 + menu.offsetWidth <= innerWidth - 8) { // sidebar: beside the button
+      menu.style.left = `${Math.round(r.right + 8)}px`;
+      menu.style.top = `${fit(r.top, innerHeight - menu.offsetHeight)}px`;
+    } else { // phone bottom tab bar: above the button
+      menu.style.left = `${fit(r.right - menu.offsetWidth, innerWidth - menu.offsetWidth)}px`;
+      menu.style.top = `${fit(r.top - 8 - menu.offsetHeight, innerHeight - menu.offsetHeight)}px`;
+    }
   }
 
   // Submenus of the tray menu (= pause) become sidebar items; the rest of the tray menu is

@@ -82,9 +82,9 @@
       <div class="set-grid">
         <div class="panel">
           <div class="panel-head"><h2 data-i18n="hours"></h2></div>
-          <div class="field"><label for="sStart" data-i18n="start"></label><input type="text" class="hm" id="sStart" maxlength="5" placeholder="10:00" spellcheck="false"></div>
-          <div class="field"><label for="sEnd" data-i18n="end"></label><input type="text" class="hm" id="sEnd" maxlength="5" placeholder="21:00" spellcheck="false"></div>
-          <div class="field"><label for="sInterval" data-i18n="interval"></label><input type="number" id="sInterval" min="5" max="600" step="5"></div>
+          <div class="field"><label for="sStart" data-i18n="start"></label><input type="text" class="hm" id="sStart" name="start" autocomplete="off" inputmode="numeric" maxlength="5" placeholder="10:00" spellcheck="false"></div>
+          <div class="field"><label for="sEnd" data-i18n="end"></label><input type="text" class="hm" id="sEnd" name="end" autocomplete="off" inputmode="numeric" maxlength="5" placeholder="21:00" spellcheck="false"></div>
+          <div class="field"><label for="sInterval" data-i18n="interval"></label><input type="number" id="sInterval" name="interval" autocomplete="off" inputmode="numeric" min="5" max="600" step="5"></div>
           <div class="field"><label data-i18n="workdays"></label><div class="days" id="sDays"></div></div>
           <div class="field"><label data-i18n="walkReminder"></label><button class="switch" id="sNotify" data-i18n-aria="walkReminder"></button></div>
         </div>

@@ -29,3 +29,25 @@
 }
 .bf-mi:hover:not(:disabled) { background: var(--surface-2); }
 .bf-mi:disabled { color: var(--muted); cursor: default; }
+
+/* Phone notches (index.html sets viewport-fit=cover): keep the sticky page head below the status
+   bar and the page clear of landscape side insets; env() is 0 everywhere else. */
+body { padding: 0 env(safe-area-inset-right) 0 env(safe-area-inset-left); }
+.page-head { padding-top: calc(12px + env(safe-area-inset-top)); }
+#content { scroll-padding-top: calc(104px + env(safe-area-inset-top)); }
+
+/* Phone (≤ 600 px): the sidebar becomes a bottom tab bar (the phone idiom) so content gets the
+   full width; the pause / notification controls sit in the same row. */
+@media (max-width: 600px) {
+  body { flex-direction: column-reverse; }
+  #content { min-height: 0; scroll-padding-top: calc(160px + env(safe-area-inset-top)); }
+  #side {
+    width: auto; flex: none; flex-direction: row; align-items: stretch; gap: 0;
+    padding: 0 8px env(safe-area-inset-bottom);
+    border-right: 0; border-top: 1px solid var(--hairline);
+  }
+  #side .brand { display: none; }
+  .bf-dock { display: contents; }
+  #side .nav-item { flex: 1; height: 56px; justify-content: center; padding: 0; border-radius: 0; }
+  #side .nav-item, #side .nav-item:hover, #side .nav-item.active { background: transparent; }
+}

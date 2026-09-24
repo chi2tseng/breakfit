@@ -564,7 +564,12 @@ async function matrix(ctl, mw) {
     await settleLayout(win);
     const [width, height] = win.getContentSize();
     const img = await win.webContents.capturePage({ x: 0, y: 0, width, height }, { stayHidden: true });
-    fs.writeFileSync(path.join(dir, `${name}.png`), img.toPNG());
+    // AV / the indexer can briefly lock or hide a just-written PNG on this box: retry, don't abort the run.
+    const png = img.toPNG();
+    for (let i = 0; ; i++) {
+      try { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, `${name}.png`), png); break; }
+      catch (e) { if (i >= 4 || !['EBUSY', 'EPERM', 'EACCES', 'ENOENT'].includes(e.code)) throw e; await delay(250); }
+    }
     if (!lintOpts) return;
     const res = await js(win, `${lintSource}(${JSON.stringify({ tokens: TOKENS, groups: GROUPS, roles: ROLES, ...lintOpts })})`);
     runs.push({ name, viewport: res.viewport, issues: res.issues, combos: res.combos });

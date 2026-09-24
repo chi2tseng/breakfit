@@ -28,7 +28,7 @@ body { display: flex; overflow: hidden; }
   font: var(--t-body); letter-spacing: var(--tr-17); white-space: nowrap;
 }
 .nav-item .ms { color: var(--muted); }
-.nav-item:hover { background: var(--side-on); }
+.nav-item:hover:not(.active) { background: color-mix(in srgb, var(--side-on) 50%, transparent); }
 .nav-item.active { background: var(--side-on); font: var(--t-headline); }
 .nav-item.active .ms { color: var(--accent-text); }
 
@@ -41,7 +41,7 @@ body { display: flex; overflow: hidden; }
 }
 
 /* ---------- layout ---------- */
-#content { flex: 1; min-width: 0; overflow-x: hidden; overflow-y: auto; padding: 0 0 32px; container: content / inline-size; }
+#content { flex: 1; min-width: 0; overflow-x: hidden; overflow-y: auto; padding: 0 0 32px; container: content / inline-size; scroll-padding-top: 104px; }
 /* Content column capped at --content-max and centred (Apple: content locks, margins absorb the
    rest); % = #content width, so it works for margins and the page-head padding alike. */
 .tab { --gutter: max(32px, calc((100% - var(--content-max)) / 2)); }
@@ -118,7 +118,7 @@ body { display: flex; overflow: hidden; }
 .hero-more .mt { color: var(--muted); white-space: nowrap; }
 .hero-state { font: var(--t-large); letter-spacing: var(--tr-display); }
 .hero.directive .hero-when { margin-top: 8px; }
-.hero.directive .hero-name { margin-top: 4px; }
+.hero-title { margin-top: 12px; font: var(--t-headline); letter-spacing: var(--tr-17); }
 @container content (min-width: 1000px) { .hero-time { font: var(--t-hero); } }
 
 /* Day line: the workday as a transit line of stops (main.js picks .flat while every stop keeps
@@ -140,10 +140,14 @@ body { display: flex; overflow: hidden; }
   position: relative; z-index: 1; width: 12px; height: 12px; margin: 6px 0; border-radius: 50%;
   background: var(--bg); box-shadow: inset 0 0 0 2px var(--muted);
 }
+/* shape carries the state (colour is a second cue): done = filled disc, partial = ring + half
+   fill, missed / skipped = red ring, later = muted ring, nothing owed = 6 px dot */
 .stop.done .dot { background: var(--accent); box-shadow: none; }
-.stop.partial .dot { background: linear-gradient(90deg, var(--accent) 50%, var(--fail) 50%); box-shadow: none; }
-.stop.missed .dot { background: var(--fail); box-shadow: none; }
-.stop:is(.passed, .free) .dot { width: 6px; height: 6px; margin: 9px 0; background: var(--muted); box-shadow: none; }
+.stop.partial .dot { background: linear-gradient(90deg, var(--accent) 50%, var(--bg) 50%); box-shadow: inset 0 0 0 2px var(--accent); }
+.stop.missed .dot { box-shadow: inset 0 0 0 2px var(--fail); }
+.stop:is(.passed, .free, .covered) .dot { width: 6px; height: 6px; margin: 9px 0; background: var(--muted); box-shadow: none; }
+.stop.covered .dot { background: var(--accent); }
+.stop.covered::before { background: var(--muted); }
 .stop.next .dot { width: 16px; height: 16px; margin: 4px 0; background: var(--accent); box-shadow: 0 0 0 5px var(--accent-soft); }
 .stop .t { font: var(--t-subhead); letter-spacing: var(--tr-15); color: var(--muted); white-space: nowrap; }
 .stop.next .t { font: var(--t-subhead-em); color: var(--accent-text); }
@@ -157,6 +161,7 @@ body { display: flex; overflow: hidden; }
 .stop:hover .tip, .stop:focus-visible .tip { display: flex; }
 .tip .u small { margin-left: 6px; font: var(--t-subhead); letter-spacing: var(--tr-15); color: var(--muted); }
 .tip .u.full, .tip .none { color: var(--muted); }
+.tip .tip-st { font: var(--t-subhead-em); letter-spacing: var(--tr-15); color: var(--muted); }
 
 /* narrow: the same stops as rows (time · dot · what it owes · status) */
 .timeline { list-style: none; margin: 0; padding: 0; }
@@ -172,23 +177,29 @@ body { display: flex; overflow: hidden; }
 .timeline .st { padding-top: 2px; font: var(--t-subhead); letter-spacing: var(--tr-15); color: var(--muted); white-space: nowrap; }
 .timeline li.done .dot { background: var(--accent); }
 .timeline li.done .st { color: var(--accent-text); }
-.timeline li.missed .dot { background: var(--fail); }
+.timeline li.missed .dot { background: transparent; box-shadow: inset 0 0 0 2px var(--fail); }
 .timeline li.missed .st { color: var(--fail-text); }
-.timeline li.partial .dot { background: linear-gradient(90deg, var(--accent) 50%, var(--fail) 50%); }
+.timeline li.partial .dot { background: linear-gradient(90deg, var(--accent) 50%, transparent 50%); box-shadow: inset 0 0 0 2px var(--accent); }
+.timeline li.covered .dot { background: var(--accent); }
 .timeline li.partial .st { color: var(--text); }
 .timeline li.next .dot { background: transparent; box-shadow: inset 0 0 0 2px var(--accent-text); }
 .timeline li.next .t { font: var(--t-headline); color: var(--accent-text); }
 .timeline li.next .st { font: var(--t-subhead-em); color: var(--accent-text); }
 
 /* library: a grid of clips on the ground, names under them */
-.lib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 24px 16px; }
-.lib-card { cursor: pointer; min-width: 0; border-radius: var(--r-md); transition: transform .1s; }
+.lib-grid { display: grid; grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); gap: 24px 16px; }
+.lib-grid > .empty-state { grid-column: 1 / -1; }
+.lib-card {
+  display: block; width: 100%; min-width: 0; padding: 0; border: 0; background: transparent; color: var(--text);
+  text-align: left; cursor: pointer; border-radius: var(--r-md); transition: transform .1s;
+}
+.lib-card .clip { display: block; }
 .lib-card:active { transform: var(--press); }
 .lib-card .clip { aspect-ratio: 16 / 9; border-radius: var(--r-md); background: var(--surface-2); }
 .lib-card .clip .ph { background: var(--surface-2); }
 .lib-card .clip .ph .ms { font-size: 32px; }
 .lib-card .clip .ph .ph-name { display: none; }
-.lib-card .n { margin-top: 8px; white-space: nowrap; }
+.lib-card .n { display: block; margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------- player modal ---------- */
 #player { position: fixed; inset: 0; background: var(--backdrop); display: flex; z-index: 20; padding: 32px; overflow-y: auto; overscroll-behavior: contain; }
@@ -218,7 +229,7 @@ body { display: flex; overflow: hidden; }
    raised surfaces; the 30-day chart sits on the ground (DESIGN.md §5). */
 .streak-row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 32px; margin-bottom: 24px; }
 .streak { margin: 0; font: var(--t-title2); letter-spacing: var(--tr-display); white-space: nowrap; }
-.streak b { font: var(--t-hero); letter-spacing: var(--tr-display); color: var(--accent-text); }
+.streak b { font: var(--t-hero); letter-spacing: var(--tr-display); }
 .stats { display: flex; flex-wrap: wrap; gap: 4px 24px; }
 .stat { display: inline-flex; align-items: baseline; gap: 8px; white-space: nowrap; }
 .stat .k { color: var(--muted); }
@@ -241,21 +252,21 @@ body { display: flex; overflow: hidden; }
 .cal-week span { padding-bottom: 8px; text-align: center; font: var(--t-subhead-em); letter-spacing: var(--tr-15); color: var(--muted); }
 .cell {
   height: 64px; min-width: 0; border-radius: var(--r-md); padding: 8px 10px; display: flex; flex-direction: column; justify-content: space-between;
-  background: transparent; border: 1px solid var(--line-soft); position: relative; text-align: left;
+  background: transparent; border: 1px solid transparent; position: relative; text-align: left; color: var(--text);
 }
 .cell.has { cursor: pointer; }
 .cell.has:hover { border-color: var(--muted); }
 .cell .d { font: var(--t-subhead-em); letter-spacing: var(--tr-15); color: var(--muted); white-space: nowrap; }
 .cell .p { font: var(--t-headline); letter-spacing: var(--tr-17); white-space: nowrap; }
-.cell.pass { background: var(--accent-soft); border-color: transparent; }
-.cell.pass .d, .cell.pass .p { color: var(--accent-on-soft); }
-.cell.fail { background: var(--fail-soft); border-color: transparent; }
+.cell.pass { background: var(--accent-fill); }
+.cell.pass .d, .cell.pass .p { color: var(--accent-ink); }
+.cell.fail { background: var(--fail-soft); }
 .cell.fail .d, .cell.fail .p { color: var(--fail-on-soft); }
-.cell.rest, .cell.off { background: var(--surface-2); border-color: transparent; }
 .cell.pending { box-shadow: inset 0 0 0 1px var(--accent-line); }
 .cell.pending .p { color: var(--text); }
 .cell.out { visibility: hidden; }
 .cell.today .d::after { content: ""; display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: var(--text); margin-left: 4px; vertical-align: middle; }
+.cell.pass.today .d::after { background: var(--accent-ink); }
 .cell.sel { outline: 2px solid var(--text); outline-offset: 2px; }
 @container content (max-width: 699px) {
   .cal-week, .cal { gap: 6px; }
@@ -276,7 +287,7 @@ body { display: flex; overflow: hidden; }
 .urow + .urow { border-top: 1px solid var(--line-soft); }
 .urow .c { font: var(--t-headline); letter-spacing: var(--tr-17); white-space: nowrap; }
 .urow .c.ok { color: var(--accent-text); }
-.urow .c.no { color: var(--fail-text); }
+.urow .c.no { color: var(--muted); }
 .urow .r { grid-column: 1 / -1; font: var(--t-subhead); letter-spacing: var(--tr-15); color: var(--muted); }
 textarea {
   display: block; width: 100%; min-height: 88px; resize: vertical; border-radius: var(--r-md); border: 1px solid var(--hairline);
@@ -285,7 +296,7 @@ textarea {
 textarea::placeholder, input::placeholder { color: var(--muted); }
 
 /* ---------- settings ---------- */
-.set-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); align-items: stretch; }
+.set-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); align-items: start; }
 .span2 { grid-column: 1 / -1; }
 /* A field = label left (one line) + control right. If the control can't fit beside the label it
    drops below, still right-aligned. */
@@ -323,10 +334,12 @@ input[type="range"]::-webkit-slider-thumb {
 .days button.on { background: var(--accent-fill); color: var(--accent-ink); font: var(--t-subhead-em); }
 .switch { width: 51px; height: 31px; border-radius: var(--r-pill); border: 0; background: var(--switch-off); position: relative; cursor: pointer; transition: background .15s; }
 .switch::after {
-  content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: var(--knob); box-shadow: 0 0 0 1px var(--hairline); transition: left .15s;
+  content: ""; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%; background: var(--knob); box-shadow: 0 0 0 1px var(--hairline); transition: transform .15s;
 }
+.switch:hover { background: color-mix(in srgb, var(--switch-off), var(--text) 8%); }
 .switch.on { background: var(--accent); }
-.switch.on::after { left: 22px; }
+.switch.on:hover { background: color-mix(in srgb, var(--accent), var(--text) 8%); }
+.switch.on::after { transform: translateX(20px); }
 
 /* 菜單組數 / 次數: one fixed-track grid for every row, header included (DESIGN.md §5). Names never
    truncate (max-content); the table goes to one column below the settings breakpoint.

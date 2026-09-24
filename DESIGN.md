@@ -64,8 +64,8 @@ Levels: ground (`--bg`: page, the day line, library, chart, section headings) �
 (`--surface` fill, **no border, no shadow**: the ground/surface step is the edge; exactly one per
 screen region, §5) → backdrop blur (the sticky page head, the one floating bar). Dialogs, the player
 card and the day-line tooltip keep a 1 px `--hairline` edge (they float over content). The only
-`box-shadow`s left are 1 px hairline rings on the switch/slider knob, the 2 px inset ring on a
-"later" stop and the 5 px `--accent-soft` halo on the next stop.
+`box-shadow`s left are 1 px hairline rings on the switch/slider knob, the 2 px inset rings on
+"later" / "partial" / "missed" stops and the 5 px `--accent-soft` halo on the next stop.
 
 ### 1.3 Colour roles (values per theme in §9)
 
@@ -79,7 +79,7 @@ card and the day-line tooltip keep a 1 px `--hairline` edge (they float over con
 | `--accent` | HIG accent for thick graphics: ring arc, 8 px bars, switch on, slider fill, chart bars, logo, dots |
 | `--accent-text` | accent as text, icons, thin (4 px) strokes, focus ring |
 | `--accent-fill` / `--accent-ink` | primary pill fill / its label (also pass pill, selected weekday) |
-| `--accent-soft` / `--accent-line` / `--accent-on-soft` | tint (pass cell, chip, cycle) / tint edge / text on the tint |
+| `--accent-soft` / `--accent-line` / `--accent-on-soft` | tint (chip, cycle, next-stop halo) / tint edge / text on the tint |
 | `--fail` / `--fail-text` / `--fail-soft` / `--fail-line` / `--fail-on-soft` | the same five roles for failure (HIG Red) |
 | `--danger` / `--danger-ink` | destructive pill (離開 / 跳過 confirm), 不合格 pill |
 | `--stage` / `--cover-bg` / `--bar-bg` / `--scrim` / `--backdrop` / `--track` / `--thumb` / `--strike` | overlay page / other monitors / frosted head / over the finished video / behind dialogs / progress + ring track / scrollbar / line-through |
@@ -205,6 +205,7 @@ follow Windows display scaling too; 965×940 at 150 % = 643×627 CSS px):
 | content < 1000 | 記錄 calendar → detail → chart in one column |
 | window < 720 | player modal padding 16 |
 | window < 560 | player one column (video above the tips); the modal scrolls, `overscroll-behavior: contain` |
+| window ≤ 600 (web build only, `src/web/main.css`) | the sidebar becomes a bottom tab bar (3 tabs + pause / notification, icons, active = accent icon, `safe-area-inset-bottom` padding); the pause menu opens above its button; the sticky head gets `safe-area-inset-top` |
 | content < 480 (phone, web build) | gutter 16, surface padding 12, page title → title2, page action drops under the title, 今天 hero one column (clip above the text), 記錄 stats wrap under the streak, calendar cells 44 px date only (colour = status, % stays in the detail), month label short (`Sep 2026`), segmented controls in a field span it, weekday toggles 30 px, menu table puts the name above its controls (`52 12 52 20 52 1fr 32`) |
 
 - **Page head:** sticky frosted bar, `min-height` 88, full-bleed (`.tab > :not(.page-head)` get
@@ -222,40 +223,58 @@ follow Windows display scaling too; 965×940 at 150 % = 643×627 CSS px):
   divider. **Directive states** (nothing owed today), same frame: state word (largeTitle) —
   `今天完成` (day passed) / `今天結束` (day failed or no stop left) / `已暫停到明天` / `今天休息` /
   `今天不用練` — then when the next training day starts (`明天 11:00` or `9月28日 週一 11:00`, title3
-  accent), its plan title (title2) and label (`第 2 天`, body muted); the clip plays that day's first
-  move, so a move is always visible and moving.
+  accent), its plan title (headline) and the move that is playing with its meta (`Y字 · 3 × 15–20 下`,
+  body muted). The state word is the only large line; no separate `第 2 天` line (the title implies
+  it). The clip plays that day's first move, so a move is always visible and moving.
 - **Day line (on the ground):** the workday as a transit line. `grid-auto-flow: column`, one equal
-  track per stop; each stop = dot + time (subheadline, muted; next = 600 accent). Dots: done =
-  accent 12, partial = accent/red split, missed or skipped = red 12, later (owes sets) = hollow 12
-  (2 px muted ring), passed / free (nothing owed) = 6 px muted, **next = accent 16 + 5 px
-  `--accent-soft` halo** (= the hero's stop). Track 2 px: `--muted` into a stop behind you,
-  `--track` ahead. Hover / keyboard focus on a stop (`tabindex=0`, `aria-label` = time, status,
-  moves) opens a tooltip below it (`--surface`, hairline, `--r-md`): `伏地挺身 5/5` per move,
-  `補做` on the last stop. The progress figure `7 / 25 組` (done count headline ink, rest body muted)
-  ends the line; in vertical mode it sits above the rows. Narrow (< 46 px per stop): the same stops as
-  the vertical rows (time · dot · moves with counts · status), no surface.
-- **Library (on the ground):** `auto-fill minmax(200px,1fr)`, gap 24 × 16 (2 columns at 800, 3 at
-  965, 5 at 1366+), clip 16:9 `--r-md` + name under it (body, one line; English may wrap), no tile
-  background; hover plays the clip, `:active` press. Header = title3 + segmented filter.
+  track per stop; each stop = dot + time (subheadline, muted; next = 600 accent). **Shape carries the
+  state, colour is the second cue:** done = filled accent 12, partial = 2 px accent ring with the left
+  half filled, missed or skipped = hollow 12 with a 2 px red ring, later (owes sets) = hollow 12 (2 px
+  muted ring), passed / free (nothing owed) = 6 px muted, covered (owed nothing on a passed day, its
+  sets were done earlier) = 6 px accent, **next = accent 16 + 5 px `--accent-soft` halo** (= the
+  hero's stop). Track 2 px: `--muted` into a stop behind you, `--track` ahead. Hover / keyboard focus
+  on a stop (`tabindex=0`, `aria-label` = time, status, moves) opens a tooltip below it (`--surface`,
+  hairline, `--r-md`): the status word (`完成` / `部分完成` / `跳過`, subheadline 600 muted), then
+  `伏地挺身 5/5` per move; a stop with no moves of its own shows the sets done in its break (`3 組`),
+  `補做` (last stop) or `走動` (walk reminder only), never `—`. The progress figure `7 / 25 組` (done
+  count headline ink, rest body muted) ends the line; in vertical mode it sits above the rows. Narrow
+  (< 46 px per stop): the same stops as the vertical rows (time · dot · moves with counts · status),
+  same dot shapes at 8 px, no surface.
+- **Library (on the ground):** `repeat(var(--cols), 1fr)`, gap 24 × 16. `main.js libCols()` picks
+  the column count that divides the day's move count, tiles ≥ 180 px, so no tile is left alone on a
+  last row: 第 1 天 (6) = 2 at 800, 3 at 965–1366, 6 at 1920+; 第 2 天 (8) = 2 / 4; 第 3 天 (2) = one
+  row in up to 3 columns; phone 1. Each tile is a `<button>`: clip 16:9 `--r-md` + name under it
+  (body, one line with an ellipsis; English may wrap), no tile background; hover plays the clip,
+  `:active` press. Header = title3 + segmented filter. No moves for a filter: an empty state.
 - **Segmented control:** equal-width segments (`inline-grid`, `grid-auto-columns: 1fr`), 2 px track
   padding, 32 px segments, selected = neutral raised thumb (`--seg-on`: white + `--seg-edge`
   shadow in light, systemGray2 in dark) with primary text; labels subheadline, never wrap.
 - **Player:** video `1fr` + side column `clamp(220px, 30%, 320px)`, title2 title, 關閉 at the bottom.
 - **History:** the streak is the hero: `連續 4 天` / `4 days in a row` with the numeral in
-  `--t-hero` accent and the words in title2, one baseline; the other three stats are a quiet inline
-  row on the same baseline, right-aligned (wraps under at narrow widths): `合格率 63%` `最長 6 天`
-  `9 月 183 組` (label body muted, value headline ink). Below, grid `1fr 320px` with areas
+  `--t-hero` ink and the words in title2, one baseline. No streak: the same slot says when the next
+  training starts (`下次 11:00` / `明天 11:00`, time in `--t-hero`), never a big `0`. The other three
+  stats are a quiet inline row on the same baseline, right-aligned (wraps under at narrow widths):
+  `合格率 63%` `最長 6 天` `9月 183 組` (label body muted, value headline ink; percentages via
+  `Intl.NumberFormat`). Below, grid `1fr 320px` with areas
   `cal detail / chart detail`: the calendar and the picked day's detail are the two raised surfaces,
   the 30-day chart sits on the ground under the calendar (title3 heading, no wrapper); one column
-  under 1000 content px (calendar → detail → chart). Calendar cells 64 px: day number (subheadline 600) + % (headline); no plan-day line; a cell with a
-  record gets a `--muted` edge on hover.
-  Chart drawn at its real pixel width (ResizeObserver), bars ≤ 16 px, date label every 5th bar
-  (every 10th under 480 px), axis footnote 13 px. Detail = date + pill, then one row per exercise
-  (name, `3/4 組`, reps `12、10、9 下` in subheadline), then the note. No subtitle, no slot strip,
-  no 已儲存 caption.
+  under 1000 content px (calendar → detail → chart). Calendar cells 64 px: day number (subheadline
+  600) + % (headline); no plan-day line. **Only results get a fill, and pass / fail differ by
+  fill type, not only hue:** pass = solid `--accent-fill` with `--accent-ink` text, fail =
+  `--fail-soft` tint with `--fail-on-soft` text, today in progress = 1 px `--accent-line` ring; every
+  other day (future, rest, off, before the first record) is a bare numeral, no border, no fill. A
+  cell with a record is a `<button>` (`aria-pressed` = picked) and gets a `--muted` edge on hover.
+  Chart drawn at its real pixel width (ResizeObserver), bars ≤ 16 px: pass = `--accent`, anything
+  else `--muted` (the height shows the shortfall; the bar `<title>` carries the % and 合格 / 不合格);
+  date label every 5th bar (every 10th under 480 px), axis footnote 13 px. Detail = date + pill,
+  then one row per exercise (name, `3/4 組` accent when complete, muted when short: the red is the
+  day pill), reps `12、10、9 下` in subheadline), then the note. No subtitle, no slot strip, no 已儲存
+  caption.
 - **Settings:** each field = label (one line, never wraps) left + control right; if the control
-  can't fit it drops below, still right-aligned. Rows ≥ 52 px with `--line-soft` dividers; both
-  top panels have 5 rows so dividers line up side by side. Inputs 88×36; switches 51×31; weekday
+  can't fit it drops below, still right-aligned. Rows ≥ 52 px with `--line-soft` dividers; the
+  two top groups are top-aligned and each ends at its last row (grouped lists, not equal-height
+  cards). Inputs 88×36 (`name`, `autocomplete="off"`, `inputmode="numeric"`); switches 51×31 (knob
+  moves by `transform`, hover = 8 % text mix); weekday
   toggles 36 px circles (built once per language, then only restyled, so a click is never lost to a
   re-render); slider 160×28 hit region with a 4 px track; `間隔（分鐘）` uses full-width
   parentheses. An invalid 開始 / 結束 time keeps the typed text with a `--fail-text` edge and
@@ -266,6 +285,13 @@ follow Windows display scaling too; 965×940 at 150 % = 643×627 CSS px):
   `column-gap: calc(var(--gap) + 2 × var(--pad))` (column 2 starts under the 一般 panel), one below.
 - **Focus ring:** keyboard only. `:focus-visible` plus `theme.js` tracking the last input device
   on `<html data-input>` (Chromium re-shows the ring on a mouse-clicked nav item after Alt+Tab).
+  Any key other than a lone modifier or typing into a field hands the ring back to Chromium's own
+  `:focus-visible`, so focus a key moves by script (Esc → 離開休息？ focuses 繼續) is shown.
+  `#content` has `scroll-padding-top` = the sticky head, so a focused item never lands under it.
+- **Navigation hover:** a 50 % `--side-on` step, lighter than the selected tab, so only one item
+  ever reads as selected.
+- **URL:** tab, picked day and library filter are in the query string (`?tab=history&date=…&f=d2`,
+  `history.replaceState`), so a reload or bookmark of the web build returns to the same view.
 
 ## 6. Text policy
 
@@ -279,7 +305,10 @@ preview, 從明天起生效, 照順序練三天休一天, 非上班日不算進�
 person says them: `胸與三頭`, `背、肩、二頭與臀腿`, `腹肌核心` (`、` between items, `與` before
 the last); separate facts are separate spans with a gap (overlay meta) or separate lines / a
 full-width space (tray menu `第 1 天　胸與三頭`, tooltip lines); lists use `、` (`12、10、9 下`);
-`+30 秒` became `延長 30 秒`. `plan.json` days carry `label` (`第 1 天`) + `title` (`胸與三頭`); ids
+`+30 秒` became `延長 30 秒`.
+**Numerals and CJK [2026-09-25]:** dates have no space (`9月15日 週二`, `2026年9月`, `9月` in the
+month stat, Apple zh-TW / `Intl`), standalone counts and ordinals do (`183 組`, `第 1 天`,
+`7 / 25 組`, `還有 25 分`). `plan.json` days carry `label` (`第 1 天`) + `title` (`胸與三頭`); ids
 and structure unchanged. English titles are names joined with `,` / `&` (`Chest & Triceps`), never
 a `·` chain (the tray header is `Day 1: Chest & Triceps`; circuit rounds `Core Round 1`).
 **One verb per action, end to end:** `現在就休息` opens the break, whose intro button is `開始`;
@@ -367,7 +396,7 @@ Bright orange stays for thick graphics only (ring, 8 px bars, switch, slider, ch
 
 **Text on tints.** No HIG orange or red reaches 4.5:1 on its own tint (#c55300 on the orange tint
 = 3.99), so in light the tints carry ink text (`--accent-on-soft` / `--fail-on-soft` = `#1d1d1f`)
-and the colour is carried by the tint + icon. Pass/fail pills are solid (`--accent-fill` /
+and the colour is carried by the tint + icon. Pass/fail pills and pass calendar cells are solid (`--accent-fill` /
 `--danger`), never tinted.
 
 **Destructive [choice].** One `--danger` = HIG Red accessible 233,21,45 in both themes: white on

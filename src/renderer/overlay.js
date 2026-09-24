@@ -151,7 +151,7 @@ function renderTop() {
   tag.textContent = modeLabel;
   const total = steps.length || 1;
   const done = st.phase === 'finish' ? total : st.phase === 'intro' ? 0 : Math.max(0, st.i);
-  $('#progFill').style.width = `${(done / total) * 100}%`;
+  $('#progFill').style.transform = `scaleX(${done / total})`;
 }
 
 // ---------- the one fixed frame (DESIGN.md §4) ----------
