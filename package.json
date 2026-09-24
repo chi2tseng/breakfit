@@ -10,7 +10,9 @@
     "test": "node --test",
     "selftest": "electron . --selftest",
     "fast": "electron . --fast",
-    "pack": "electron-packager . BreakFit --platform=win32 --arch=x64 --out=dist --overwrite --ignore=^/dist --ignore=^/selftest-out --ignore=^/test --asar.unpack=**/assets/clips/** --icon=assets/icon/icon.ico --ignore=^/assets/icon/concepts --ignore=^/assets/icon/make_icons"
+    "pack": "electron-packager . BreakFit --platform=win32 --arch=x64 --out=dist --overwrite --ignore=^/dist --ignore=^/selftest-out --ignore=^/test --ignore=^/web-dist --ignore=^/scripts --ignore=^/src/web --ignore=^/.github --asar.unpack=**/assets/clips/** --icon=assets/icon/icon.ico --ignore=^/assets/icon/concepts --ignore=^/assets/icon/make_icons",
+    "build:web": "node scripts/build-web.js",
+    "test:web": "node scripts/build-web.js && electron scripts/web-e2e.js"
   },
   "dependencies": {
     "@fontsource-variable/noto-sans-tc": "^5.3.0",
