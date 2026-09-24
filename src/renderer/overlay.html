@@ -3,12 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self'; style-src 'self' 'unsafe-inline'; media-src 'self' file:; font-src 'self' file:; img-src 'self' data: file:">
-<title>休息時間</title>
+<title data-i18n-doc="breakTime">休息時間</title>
 <link rel="stylesheet" href="../../node_modules/@fontsource/inter/400.css">
 <link rel="stylesheet" href="../../node_modules/@fontsource/inter/600.css">
 <link rel="stylesheet" href="../../node_modules/@fontsource/inter/700.css">
 <link rel="stylesheet" href="../../node_modules/@fontsource-variable/noto-sans-tc/wght.css">
 <link rel="stylesheet" href="../../node_modules/material-symbols/outlined.css">
+<script src="../i18n.js"></script>
 <script src="theme.js"></script>
 <link rel="stylesheet" href="base.css">
 <link rel="stylesheet" href="overlay.css">
@@ -20,7 +21,7 @@
       <span class="mode-tag" id="modeTag" hidden></span>
       <div class="top-prog"><div id="progFill"></div></div>
     </div>
-    <button class="btn ghost" id="leaveBtn"><span class="ms">logout</span>離開<kbd>Esc</kbd></button>
+    <button class="btn ghost" id="leaveBtn"><span class="ms">logout</span><span data-i18n="leave"></span><kbd>Esc</kbd></button>
   </header>
 
   <!-- One fixed stage for every phase: video box left, panel right (DESIGN.md §4). -->

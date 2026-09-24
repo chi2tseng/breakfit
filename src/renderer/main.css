@@ -312,3 +312,8 @@ input[type="range"]::-webkit-slider-thumb {
 }
 .ov-row .reset:hover { color: var(--text); background: var(--surface-2); }
 .ov-row .reset[disabled] { visibility: hidden; }
+
+/* Exercise names: Inter's tabular figures ("tnum", base.css) also widen the hyphen ("Push-up" in English). */
+.timeline .u, .timeline .none, .lib-card .n, .ov-row .nm, .urow > :first-child, .player-side h2 { font-feature-settings: "ss03"; }
+/* English names run longer ("Triceps push-up (kneeling)"): let them wrap instead of overflowing. */
+:lang(en) .timeline .units .u, :lang(en) .lib-card .n { white-space: normal; }

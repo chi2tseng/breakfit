@@ -533,3 +533,34 @@ test('regression: rebuild after a settings change only redistributes onto pendin
   const first = day.slots.findIndex((s) => s.status === 'pending');
   assert.ok(day.units.every((u) => u.slot >= first));
 });
+
+test('settings: language defaults to 繁中, normalises unknown values', () => {
+  assert.equal(DEFAULT_SETTINGS.lang, 'zh');
+  assert.equal(normalizeSettings({}).lang, 'zh');
+  assert.equal(normalizeSettings({ lang: 'en' }).lang, 'en');
+  for (const bad of ['EN', 'fr', null, 3, undefined]) assert.equal(normalizeSettings({ lang: bad }).lang, 'zh');
+});
+
+test('i18n: every key exists in both languages; plan has English for every visible field', () => {
+  const I = require('../src/i18n');
+  assert.deepEqual(Object.keys(I.STR.en).sort(), Object.keys(I.STR.zh).sort());
+  assert.equal(I.t('en', 'setNo', { n: 2, t: 5 }), 'Set 2/5');
+  assert.equal(I.t('zh', 'setNo', { n: 2, t: 5 }), '第 2/5 組');
+  const en = I.localizePlan(plan, 'en');
+  const cjk = /[\u3000-\u9fff\uff00-\uffef]/;
+  for (const [k, d] of Object.entries(en.days)) {
+    for (const f of ['label', 'title']) assert.ok(!cjk.test(d[f]), `${k}.${f}`);
+    for (const u of d.units) {
+      assert.ok(!cjk.test(u.name), u.id);
+      assert.ok(!cjk.test(JSON.stringify(u.tips || [])), `${u.id} tips`);
+      assert.equal((u.tips || []).length, (plan.days[k].units.find((x) => x.id === u.id).tips || []).length, `${u.id} tip count`);
+    }
+  }
+  for (const m of en.circuits.core) assert.ok(!cjk.test(m.name + m.tips.join()), m.id);
+  assert.equal(en.days.d1.units[0].name, 'Push-up');
+  assert.equal(I.localizePlan(plan, 'zh').days.d1.units[0].name, '伏地挺身');
+  assert.equal(plan.days.d1.units[0].name, '伏地挺身', 'source plan untouched');
+  assert.equal(I.dayLabel('en', '2026-09-24'), 'Thu, September 24');
+  assert.equal(I.dayLabel('zh', '2026-09-24'), '9月24日 週四');
+  assert.equal(I.weekdays('zh').join(''), '日一二三四五六');
+});

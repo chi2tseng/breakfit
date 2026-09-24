@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="../../node_modules/@fontsource/inter/700.css">
 <link rel="stylesheet" href="../../node_modules/@fontsource-variable/noto-sans-tc/wght.css">
 <link rel="stylesheet" href="../../node_modules/material-symbols/outlined.css">
+<script src="../i18n.js"></script>
 <script src="theme.js"></script>
 <link rel="stylesheet" href="base.css">
 <link rel="stylesheet" href="main.css">
@@ -16,9 +17,9 @@
 <body>
   <nav id="side">
     <div class="brand"><span class="logo"></span><span class="brand-name">BreakFit</span></div>
-    <button class="nav-item active" data-tab="today" title="今天"><span class="ms">today</span><span class="nav-label">今天</span></button>
-    <button class="nav-item" data-tab="history" title="記錄"><span class="ms">calendar_month</span><span class="nav-label">記錄</span></button>
-    <button class="nav-item" data-tab="settings" title="設定"><span class="ms">tune</span><span class="nav-label">設定</span></button>
+    <button class="nav-item active" data-tab="today" data-i18n-title="navToday"><span class="ms">today</span><span class="nav-label" data-i18n="navToday"></span></button>
+    <button class="nav-item" data-tab="history" data-i18n-title="navHistory"><span class="ms">calendar_month</span><span class="nav-label" data-i18n="navHistory"></span></button>
+    <button class="nav-item" data-tab="settings" data-i18n-title="navSettings"><span class="ms">tune</span><span class="nav-label" data-i18n="navSettings"></span></button>
   </nav>
 
   <main id="content">
@@ -26,18 +27,18 @@
     <section class="tab" id="tab-today">
       <header class="page-head">
         <div class="head-text"><div class="eyebrow" id="todayLabel"></div><h1 id="todayTitle"></h1></div>
-        <button class="btn primary" id="breakNowBtn"><span class="ms fill">play_arrow</span>現在就休息</button>
+        <button class="btn primary" id="breakNowBtn"><span class="ms fill">play_arrow</span><span data-i18n="breakNow"></span></button>
       </header>
       <div class="cards" id="todayCards"></div>
       <div class="today-grid">
         <div class="panel">
-          <div class="panel-head"><h2>時間表</h2></div>
+          <div class="panel-head"><h2 data-i18n="schedule"></h2></div>
           <ol class="timeline" id="timeline"></ol>
         </div>
         <div class="panel">
-          <div class="panel-head"><h2>動作示範庫</h2>
+          <div class="panel-head"><h2 data-i18n="library"></h2>
             <div class="seg" id="libFilter">
-              <button data-f="d1" class="on">第 1 天</button><button data-f="d2">第 2 天</button><button data-f="d3">第 3 天</button>
+              <button data-f="d1" class="on" data-i18n="d1"></button><button data-f="d2" data-i18n="d2"></button><button data-f="d3" data-i18n="d3"></button>
             </div>
           </div>
           <div class="lib-grid" id="library"></div>
@@ -47,7 +48,7 @@
 
     <!-- 記錄 -->
     <section class="tab" id="tab-history" hidden>
-      <header class="page-head"><h1>記錄</h1></header>
+      <header class="page-head"><h1 data-i18n="historyTitle"></h1></header>
       <div class="stat-cards" id="statCards"></div>
       <div class="hist-grid">
         <div class="hist-main">
@@ -57,11 +58,11 @@
               <h2 id="monthLabel"></h2>
               <button class="icon-btn" id="nextMonth"><span class="ms">chevron_right</span></button>
             </div>
-            <div class="cal-week"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+            <div class="cal-week" id="calWeek"></div>
             <div class="cal" id="calendar"></div>
           </div>
           <div class="panel" id="chartPanel">
-            <div class="panel-head"><h2>最近 30 個訓練日</h2></div>
+            <div class="panel-head"><h2 data-i18n="last30"></h2></div>
             <div id="chart"></div>
           </div>
         </div>
@@ -71,28 +72,29 @@
 
     <!-- 設定 -->
     <section class="tab" id="tab-settings" hidden>
-      <header class="page-head"><h1>設定</h1>
-        <button class="btn" id="testBreakBtn"><span class="ms">preview</span>測試休息畫面</button>
+      <header class="page-head"><h1 data-i18n="settingsTitle"></h1>
+        <button class="btn" id="testBreakBtn"><span class="ms">preview</span><span data-i18n="testBreak"></span></button>
       </header>
       <div class="set-grid">
         <div class="panel">
-          <div class="panel-head"><h2>時段</h2></div>
-          <div class="field"><label>開始</label><input type="text" class="hm" id="sStart" maxlength="5" placeholder="10:00" spellcheck="false"></div>
-          <div class="field"><label>結束</label><input type="text" class="hm" id="sEnd" maxlength="5" placeholder="21:00" spellcheck="false"></div>
-          <div class="field"><label for="sInterval">間隔（分鐘）</label><input type="number" id="sInterval" min="5" max="600" step="5"></div>
-          <div class="field"><label>上班日</label><div class="days" id="sDays"></div></div>
-          <div class="field"><label>提醒走動</label><button class="switch" id="sNotify" aria-label="提醒走動"></button></div>
+          <div class="panel-head"><h2 data-i18n="hours"></h2></div>
+          <div class="field"><label data-i18n="start"></label><input type="text" class="hm" id="sStart" maxlength="5" placeholder="10:00" spellcheck="false"></div>
+          <div class="field"><label data-i18n="end"></label><input type="text" class="hm" id="sEnd" maxlength="5" placeholder="21:00" spellcheck="false"></div>
+          <div class="field"><label for="sInterval" data-i18n="interval"></label><input type="number" id="sInterval" min="5" max="600" step="5"></div>
+          <div class="field"><label data-i18n="workdays"></label><div class="days" id="sDays"></div></div>
+          <div class="field"><label data-i18n="walkReminder"></label><button class="switch" id="sNotify" data-i18n-aria="walkReminder"></button></div>
         </div>
         <div class="panel">
-          <div class="panel-head"><h2>一般</h2></div>
-          <div class="field"><label>今天是</label><div class="seg" id="sCycle"></div></div>
-          <div class="field"><label>配色</label><div class="seg" id="sTheme"><button data-t="dark">深色</button><button data-t="light">淺色</button></div></div>
-          <div class="field"><label>示範</label><button class="switch" id="sShowDemo" aria-label="示範"></button></div>
-          <div class="field" id="sDemoRow"><label for="sDemo">示範秒數</label><div class="inline"><input type="range" id="sDemo" min="5" max="10" step="1"><span id="sDemoVal" class="val"></span></div></div>
-          <div class="field"><label>開機啟動</label><button class="switch" id="sLaunch" aria-label="開機啟動"></button></div>
+          <div class="panel-head"><h2 data-i18n="general"></h2></div>
+          <div class="field"><label data-i18n="todayIs"></label><div class="seg" id="sCycle"></div></div>
+          <div class="field"><label data-i18n="appearance"></label><div class="seg" id="sTheme"><button data-t="dark" data-i18n="dark"></button><button data-t="light" data-i18n="light"></button></div></div>
+          <div class="field"><label data-i18n="language"></label><div class="seg" id="sLang"><button data-l="zh" lang="zh-Hant-TW">繁中</button><button data-l="en" lang="en">English</button></div></div>
+          <div class="field"><label data-i18n="demo"></label><button class="switch" id="sShowDemo" data-i18n-aria="demo"></button></div>
+          <div class="field" id="sDemoRow"><label for="sDemo" data-i18n="demoSec"></label><div class="inline"><input type="range" id="sDemo" min="5" max="10" step="1"><span id="sDemoVal" class="val"></span></div></div>
+          <div class="field"><label data-i18n="launchAtLogin"></label><button class="switch" id="sLaunch" data-i18n-aria="launchAtLogin"></button></div>
         </div>
         <div class="panel span2">
-          <div class="panel-head"><h2>菜單組數 / 次數</h2></div>
+          <div class="panel-head"><h2 data-i18n="overrides"></h2></div>
           <div class="ov-grid" id="overrides"></div>
         </div>
       </div>
@@ -106,7 +108,7 @@
         <h2 id="playerName"></h2>
         <div class="player-meta" id="playerMeta"></div>
         <ul class="tips" id="playerTips"></ul>
-        <button class="btn" id="playerClose"><span class="ms">close</span>關閉</button>
+        <button class="btn" id="playerClose"><span class="ms">close</span><span data-i18n="close"></span></button>
       </div>
     </div>
   </div>

@@ -14,16 +14,27 @@
     "腰痛 = 腹部沒收緊",
     "做不完可減 1–2 組或減少次數，之後再慢慢加回來"
   ],
+  "general_en": [
+    "Each rep takes 3–5 seconds. Go slow: the goal is to work the muscle, not to race",
+    "Tuck your chin slightly; don't push your head forward (it strains your neck)",
+    "Lower-back pain = your abs aren't braced",
+    "If you can't finish, drop 1–2 sets or a few reps, then build back up"
+  ],
   "days": {
     "d1": {
       "label": "第 1 天",
+      "label_en": "Day 1",
       "title": "胸・三頭",
+      "title_en": "Chest · Triceps",
       "after": "練完花 1–2 分鐘伸展胸肌、肱三頭肌",
+      "after_en": "Afterwards, spend 1–2 minutes stretching your chest and triceps",
       "units": [
         {
           "id": "pushup",
           "name": "伏地挺身",
+          "name_en": "Push-up",
           "muscle": "胸",
+          "muscle_en": "Chest",
           "sets": 5,
           "reps": [
             8,
@@ -34,12 +45,19 @@
             "身體像平板支撐一樣成一直線，不塌腰不拱背",
             "手臂與身體約 45 度，不要垂直張開",
             "做不了標準版可改跪姿"
+          ],
+          "tips_en": [
+            "Keep your body in one straight line, like a plank: no sagging, no arching",
+            "Keep your arms at about 45° to your body; don't flare them out",
+            "If a full push-up is too hard, do it on your knees"
           ]
         },
         {
           "id": "weighted_pushup",
           "name": "負重伏地挺身",
+          "name_en": "Weighted push-up",
           "muscle": "胸",
+          "muscle_en": "Chest",
           "sets": 4,
           "reps": [
             8,
@@ -49,12 +67,18 @@
           "tips": [
             "背上放書包或其他重物",
             "要點同伏地挺身"
+          ],
+          "tips_en": [
+            "Put a backpack or something heavy on your back",
+            "Same form as the push-up"
           ]
         },
         {
           "id": "incline_pushup",
           "name": "上斜伏地挺身",
+          "name_en": "Incline push-up",
           "muscle": "胸(下胸)",
+          "muscle_en": "Lower chest",
           "sets": 4,
           "reps": [
             8,
@@ -64,12 +88,18 @@
           "tips": [
             "雙手撐在凳子、沙發或床邊",
             "要點同伏地挺身"
+          ],
+          "tips_en": [
+            "Hands on a bench, the sofa or the edge of the bed",
+            "Same form as the push-up"
           ]
         },
         {
           "id": "diamond_pushup",
           "name": "鑽石伏地挺身",
+          "name_en": "Diamond push-up",
           "muscle": "三頭",
+          "muscle_en": "Triceps",
           "sets": 4,
           "reps": [
             8,
@@ -79,12 +109,18 @@
           "tips": [
             "雙手擺成鑽石形",
             "難度高，做不了先用跪姿"
+          ],
+          "tips_en": [
+            "Put your hands together in a diamond shape",
+            "It's hard: start on your knees if you can't do it yet"
           ]
         },
         {
           "id": "triceps_pushup",
           "name": "三頭伏地挺身",
+          "name_en": "Triceps push-up (kneeling)",
           "muscle": "三頭",
+          "muscle_en": "Triceps",
           "sets": 4,
           "reps": [
             8,
@@ -94,12 +130,18 @@
           "tips": [
             "建議跪姿做",
             "不要聳肩，速度要慢"
+          ],
+          "tips_en": [
+            "Best done on your knees",
+            "Don't shrug; go slow"
           ]
         },
         {
           "id": "bench_dip",
           "name": "板凳臂屈伸",
+          "name_en": "Bench dip",
           "muscle": "三頭",
+          "muscle_en": "Triceps",
           "sets": 4,
           "reps": [
             8,
@@ -110,20 +152,30 @@
             "用沙發、凳子或床邊",
             "身體不要離凳子太遠，肩膀壓力會太大",
             "越慢越好；太輕鬆可在身上放重物"
+          ],
+          "tips_en": [
+            "Use the sofa, a bench or the edge of the bed",
+            "Keep your body close to the bench, or your shoulders take too much load",
+            "The slower the better; if it's too easy, rest a weight on your lap"
           ]
         }
       ]
     },
     "d2": {
       "label": "第 2 天",
+      "label_en": "Day 2",
       "title": "背・肩・二頭・臀腿",
+      "title_en": "Back · Shoulders · Biceps · Legs",
       "after": "練完伸展練到的肌肉",
+      "after_en": "Afterwards, stretch the muscles you trained",
       "tableNote": "影片表格寫「Z字」,但口述與示範都是 T字(05:14),以 T字 為準",
       "units": [
         {
           "id": "y_raise",
           "name": "Y字",
+          "name_en": "Y raise",
           "muscle": "背",
+          "muscle_en": "Back",
           "sets": 3,
           "reps": [
             15,
@@ -135,12 +187,20 @@
             "脊柱中立，不要彎腰駝背，核心收緊",
             "沉肩：肩膀遠離耳朵",
             "一下 3–5 秒"
+          ],
+          "tips_en": [
+            "Thumbs up",
+            "Neutral spine: don't round your back; brace your core",
+            "Shoulders down, away from your ears",
+            "3–5 seconds per rep"
           ]
         },
         {
           "id": "t_raise",
           "name": "T字",
+          "name_en": "T raise",
           "muscle": "背",
+          "muscle_en": "Back",
           "sets": 3,
           "reps": [
             15,
@@ -150,12 +210,18 @@
           "tips": [
             "大拇指朝上、脊柱中立、沉肩",
             "做起來很輕鬆 = 動作不對"
+          ],
+          "tips_en": [
+            "Thumbs up, neutral spine, shoulders down",
+            "If it feels easy, your form is off"
           ]
         },
         {
           "id": "superman",
           "name": "小燕飛",
+          "name_en": "Superman (regressed)",
           "muscle": "背",
+          "muscle_en": "Back",
           "sets": 4,
           "reps": [
             8,
@@ -167,12 +233,20 @@
             "不要聳肩",
             "下落時身體不要完全貼地，保持一點懸空",
             "腹部收緊，頂端停 1–2 秒"
+          ],
+          "tips_en": [
+            "Do the easier, regressed version",
+            "Don't shrug",
+            "On the way down, don't rest on the floor; stay slightly lifted",
+            "Brace your abs and hold 1–2 seconds at the top"
           ]
         },
         {
           "id": "rear_delt_fly",
           "name": "俯身側平舉",
+          "name_en": "Bent-over rear-delt fly",
           "muscle": "肩(後束)",
+          "muscle_en": "Rear delts",
           "sets": 4,
           "reps": [
             15,
@@ -183,12 +257,19 @@
             "可以拿兩瓶礦泉水",
             "脊柱中立、不駝背、不聳肩",
             "速度要慢"
+          ],
+          "tips_en": [
+            "Two water bottles work as weights",
+            "Neutral spine: no rounding, no shrugging",
+            "Go slow"
           ]
         },
         {
           "id": "lateral_raise",
           "name": "站姿側平舉",
+          "name_en": "Lateral raise",
           "muscle": "肩(中束)",
+          "muscle_en": "Side delts",
           "sets": 4,
           "reps": [
             15,
@@ -199,12 +280,19 @@
             "手臂微彎，不用完全伸直",
             "身體不要前後晃，腹部臀部收緊",
             "頂端停 1–2 秒"
+          ],
+          "tips_en": [
+            "Keep a slight bend in your elbows; no need to lock them straight",
+            "Don't rock back and forth; brace your abs and glutes",
+            "Hold 1–2 seconds at the top"
           ]
         },
         {
           "id": "biceps_curl",
           "name": "二頭彎舉",
+          "name_en": "Biceps curl",
           "muscle": "二頭",
+          "muscle_en": "Biceps",
           "sets": 4,
           "reps": [
             12,
@@ -215,12 +303,19 @@
             "礦泉水、米袋、書包都可以",
             "身體不晃，上臂夾緊身體兩側",
             "做完整行程"
+          ],
+          "tips_en": [
+            "Water bottles, a bag of rice or a backpack all work",
+            "Keep your body still and your upper arms pinned to your sides",
+            "Use the full range of motion"
           ]
         },
         {
           "id": "squat",
           "name": "深蹲",
+          "name_en": "Squat",
           "muscle": "臀腿",
+          "muscle_en": "Glutes & legs",
           "sets": 4,
           "reps": [
             12,
@@ -231,12 +326,19 @@
             "站寬練臀多，與肩同寬練腿多",
             "脊柱中立，不要彎腰駝背",
             "腳尖和膝蓋方向一致"
+          ],
+          "tips_en": [
+            "A wide stance works the glutes more; shoulder width works the legs more",
+            "Neutral spine: don't round your back",
+            "Keep your knees in line with your toes"
           ]
         },
         {
           "id": "bulgarian_split_squat",
           "name": "保加利亞分腿蹲",
+          "name_en": "Bulgarian split squat",
           "muscle": "臀腿",
+          "muscle_en": "Glutes & legs",
           "sets": 4,
           "reps": [
             12,
@@ -248,19 +350,28 @@
             "後腳放凳子、沙發或床邊",
             "距離抓到小腿和地面垂直",
             "腳尖和膝蓋方向一致，速度要慢"
+          ],
+          "tips_en": [
+            "Rear foot on a bench, the sofa or the edge of the bed",
+            "Stand far enough out that your front shin is vertical",
+            "Knees in line with toes; go slow"
           ]
         }
       ]
     },
     "d3": {
       "label": "第 3 天",
+      "label_en": "Day 3",
       "title": "腹肌核心",
+      "title_en": "Core",
       "after": "",
+      "after_en": "",
       "circuitNote": "每個動作 30 秒，動作之間不休息，8 個做完算 1 輪；做 2 輪，輪間休息 3–5 分鐘",
       "units": [
         {
           "id": "core_round_1",
           "name": "腹肌循環 第 1 輪",
+          "name_en": "Core · Round 1",
           "type": "circuit",
           "sets": 1,
           "moves": "core"
@@ -268,6 +379,7 @@
         {
           "id": "core_round_2",
           "name": "腹肌循環 第 2 輪",
+          "name_en": "Core · Round 2",
           "type": "circuit",
           "sets": 1,
           "moves": "core"
@@ -281,76 +393,111 @@
       {
         "id": "plank",
         "name": "平板支撐",
+        "name_en": "Plank",
         "sec": 30,
         "clip": "plank",
         "tips": [
           "腹部、核心、臀部收緊，不塌腰",
           "身體成一直線，肩胛骨穩定不鬆垮"
+        ],
+        "tips_en": [
+          "Brace your abs, core and glutes; don't let your hips sag",
+          "Body in one straight line, shoulder blades stable"
         ]
       },
       {
         "id": "crunch",
         "name": "捲腹",
+        "name_en": "Crunch",
         "sec": 30,
         "clip": "crunch",
         "tips": [
           "下背不離地，只有上背離地",
           "起來吐氣，還原吸氣，慢"
+        ],
+        "tips_en": [
+          "Keep your lower back on the floor; only your upper back lifts",
+          "Breathe out on the way up, in on the way down, slowly"
         ]
       },
       {
         "id": "plank",
         "name": "平板支撐",
+        "name_en": "Plank",
         "sec": 30,
         "clip": "plank",
         "tips": [
           "腹部、核心、臀部收緊，不塌腰"
+        ],
+        "tips_en": [
+          "Brace your abs, core and glutes; don't let your hips sag"
         ]
       },
       {
         "id": "v_crunch",
         "name": "V字捲腹",
+        "name_en": "V-up crunch",
         "sec": 30,
         "clip": "v_crunch",
         "tips": [
           "腳不要碰到地面",
           "起來吐氣，還原吸氣，慢"
+        ],
+        "tips_en": [
+          "Don't let your feet touch the floor",
+          "Breathe out on the way up, in on the way down, slowly"
         ]
       },
       {
         "id": "plank",
         "name": "平板支撐",
+        "name_en": "Plank",
         "sec": 30,
         "clip": "plank",
         "tips": [
           "腹部、核心、臀部收緊，不塌腰"
+        ],
+        "tips_en": [
+          "Brace your abs, core and glutes; don't let your hips sag"
         ]
       },
       {
         "id": "crunch_toe_touch",
         "name": "捲腹摸腳",
+        "name_en": "Toe-touch crunch",
         "sec": 30,
         "clip": "crunch_toe_touch",
         "tips": [
           "全程上背保持懸空"
+        ],
+        "tips_en": [
+          "Keep your upper back off the floor the whole time"
         ]
       },
       {
         "id": "plank",
         "name": "平板支撐",
+        "name_en": "Plank",
         "sec": 30,
         "clip": "plank",
         "tips": [
           "腹部、核心、臀部收緊，不塌腰"
+        ],
+        "tips_en": [
+          "Brace your abs, core and glutes; don't let your hips sag"
         ]
       },
       {
         "id": "alt_leg_raise",
         "name": "交替抬腿",
+        "name_en": "Alternating leg raise",
         "sec": 30,
         "clip": "alt_leg_raise",
         "tips": [
           "腹部收緊，雙腳輪流抬起"
+        ],
+        "tips_en": [
+          "Brace your abs and raise your legs one at a time"
         ]
       }
     ]
