@@ -1,0 +1,248 @@
+/* Design tokens: see DESIGN.md §1. ONE Apple design language (docs/hig/getdesign-apple.md),
+   two colour themes: dark (default, Fitness feel, HIG Green) and :root[data-theme="light"]
+   (Health feel, HIG Orange). Component rules only use these tokens — no colour literals. */
+:root {
+  /* ---- type (same in both themes) ---- */
+  --font-display: "SF Pro Display", "SF Pro Text", -apple-system, "Inter", "PingFang TC", "Microsoft JhengHei UI", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+  --font: "SF Pro Text", "SF Pro Display", -apple-system, "Inter", "PingFang TC", "Microsoft JhengHei UI", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+  --fs-fine: 12px;      /* fine-print        12 / 1.33 / 400            */
+  --fs-caption: 14px;   /* caption           14 / 1.43 / 400 · 600       */
+  --fs-body: 17px;      /* body              17 / 1.44 / 400 · 600       */
+  --fs-tagline: 21px;   /* tagline           21 / 1.19 / 600             */
+  --fs-title: 28px;     /* title             28 / 1.14 / 600             */
+  --fs-display: 34px;   /* display-md        34 / 1.12 / 600             */
+  --fs-kpi: 40px;       /* display-lg        40 / 1.10 / 600             */
+  --lh-body: 1.44;      /* Inter substitution: 1.47 − 0.03                */
+  --tr-display: -0.015em;  /* ≥ 21px: Apple −0.005em + Inter nudge −0.01em */
+  --tr-body: -0.02em;      /* 17px: −0.374px                              */
+  --tr-caption: -0.016em;  /* 14px: −0.224px                              */
+  --w-regular: 400;
+  --w-semibold: 600;
+  --w-bold: 700;
+
+  /* ---- shape / space / elevation ---- */
+  --r-xs: 5px;
+  --r-sm: 8px;
+  --r-md: 11px;
+  --r-lg: 18px;
+  --r-pill: 9999px;
+  --btn: 44px;          /* every main-window button (HIG hit region) */
+  --ctl: 36px;          /* form controls (mouse, macOS level) */
+  --blur: saturate(180%) blur(20px);
+  --press: scale(0.95);
+
+  /* ---- colour: DARK (Apple Fitness) ---- */
+  --bg: #000000;
+  --side-bg: #161617;
+  --side-on: #2c2c2e;
+  --surface: #1c1c1e;          /* cards, dialogs (systemGray6 dark) */
+  --surface-2: #2c2c2e;        /* control fill: secondary buttons, chips, seg track (systemGray5 dark) */
+  --surface-3: #3a3a3c;        /* tracks, hover (systemGray4 dark) — never under text */
+  --seg-on: #636366;           /* selected segment (systemGray2 dark) */
+  --switch-off: #3a3a3c;
+  --knob: #ffffff;             /* switch knob, both themes (iOS) */
+  --ghost: #2c2c2e;            /* secondary pill on the overlay stage */
+  --hairline: rgba(255, 255, 255, 0.08);  /* 1px card / input edge */
+  --line-soft: rgba(255, 255, 255, 0.1);  /* row dividers */
+  --text: #ffffff;
+  --muted: #98989d;
+  --faint: var(--muted);
+  --accent: #30d158;           /* HIG Green dark 48,209,88: rings, bars, switch, dots */
+  --accent-text: #30d158;      /* accent as text / icons / thin strokes */
+  --accent-fill: #30d158;      /* primary pill */
+  --accent-ink: #000000;       /* label on --accent-fill (white fails: 2.02) */
+  --accent-soft: rgba(48, 209, 88, 0.16);
+  --accent-line: rgba(48, 209, 88, 0.45);
+  --accent-on-soft: #30d158;   /* text on --accent-soft */
+  --fail: #ff4245;             /* HIG Red dark 255,66,69: graphics */
+  --fail-text: #ff6165;        /* HIG Red accessible dark 255,97,101 */
+  --fail-soft: rgba(255, 66, 69, 0.16);
+  --fail-line: rgba(255, 66, 69, 0.45);
+  --fail-on-soft: #ff6165;
+  --danger: #e9152d;           /* destructive pill fill (HIG Red accessible 233,21,45) */
+  --danger-ink: #ffffff;
+  --focus: var(--accent-text);
+  --stage: #000000;            /* break overlay page */
+  --cover-bg: #000000;         /* other monitors during a break */
+  --bar-bg: rgba(0, 0, 0, 0.8);            /* frosted sticky page head */
+  --scrim: rgba(0, 0, 0, 0.72);            /* over the video (finish) */
+  --backdrop: rgba(0, 0, 0, 0.6);          /* behind dialogs / the player */
+  --track: var(--surface-2);
+  --thumb: var(--surface-3);
+  --strike: rgba(255, 255, 255, 0.3);
+  color-scheme: dark;
+}
+
+/* ---- colour: LIGHT (Apple Health) — same tokens, only colour differs ---- */
+:root[data-theme="light"] {
+  --bg: #f5f5f7;               /* parchment */
+  --side-bg: #e8e8ed;
+  --side-on: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #e8e8ed;
+  --surface-3: #d2d2d7;
+  --seg-on: #ffffff;
+  --switch-off: #e8e8ed;
+  --ghost: #ffffff;            /* pearl capsule on parchment */
+  --hairline: rgba(0, 0, 0, 0.08);
+  --line-soft: rgba(0, 0, 0, 0.08);
+  --text: #1d1d1f;             /* ink */
+  --muted: #636366;            /* systemGray2 dark — #6e6e73 fails on --surface-2 (4.15) */
+  --accent: #c55300;           /* one orange everywhere (user: two oranges read as two colours) = HIG Orange accessible 197,83,0 */
+  --accent-text: #c55300;      /* HIG Orange accessible 197,83,0: text, icons, thin strokes */
+  --accent-fill: #c55300;      /* primary pill (white on 255,141,40 = 2.31, fails) */
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(197, 83, 0, 0.12);
+  --accent-line: rgba(197, 83, 0, 0.45);
+  --accent-on-soft: #1d1d1f;   /* no HIG orange reaches 4.5:1 on an orange tint */
+  --fail: #ff383c;             /* HIG Red 255,56,60 */
+  --fail-text: #e9152d;        /* HIG Red accessible 233,21,45 */
+  --fail-soft: rgba(255, 56, 60, 0.14);
+  --fail-line: rgba(233, 21, 45, 0.45);
+  --fail-on-soft: #1d1d1f;
+  --danger: #e9152d;
+  --danger-ink: #ffffff;
+  --stage: #f5f5f7;
+  --cover-bg: #f5f5f7;
+  --bar-bg: rgba(245, 245, 247, 0.86);
+  --scrim: rgba(245, 245, 247, 0.84);
+  --backdrop: rgba(0, 0, 0, 0.3);
+  --track: var(--surface-3);   /* #e8e8ed disappears on the parchment stage */
+  --thumb: var(--surface-3);
+  --strike: rgba(0, 0, 0, 0.3);
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-weight: var(--w-regular);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  letter-spacing: var(--tr-body);
+  font-feature-settings: "ss03";
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+button, input, select, textarea { font: inherit; letter-spacing: inherit; color: var(--text); }
+h1, h2, h3, h4 { font-family: var(--font-display); font-weight: var(--w-semibold); letter-spacing: var(--tr-display); margin: 0; }
+
+.ms {
+  font-family: "Material Symbols Outlined";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  direction: ltr;
+  -webkit-font-feature-settings: "liga";
+  font-feature-settings: "liga";
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  vertical-align: middle;
+}
+.ms.fill { font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24; }
+
+/* Buttons: two grammars only. Actions are capsules (primary = accent pill, secondary = grey pill);
+   no shadows, no borders; press = scale(0.95). */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: var(--btn);
+  padding: 0 22px;
+  border-radius: var(--r-pill);
+  border: 0;
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+  font-size: var(--fs-body);
+  font-weight: var(--w-regular);
+  white-space: nowrap;
+  transition: background 0.15s, transform 0.1s;
+}
+.btn:hover { background: var(--surface-3); }
+.btn:active { transform: var(--press); }
+.btn.primary { background: var(--accent-fill); color: var(--accent-ink); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.ghost { background: var(--surface-2); }
+.btn.danger { background: var(--danger); color: var(--danger-ink); }
+.btn.danger:hover { filter: brightness(1.08); }
+.btn:disabled { opacity: 0.4; cursor: default; }
+.btn .ms { font-size: 20px; }
+
+:focus { outline: none; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+kbd {
+  font-family: var(--font);
+  font-size: 0.75em;
+  font-weight: var(--w-regular);
+  letter-spacing: 0;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: var(--r-xs);
+  border: 1px solid color-mix(in srgb, currentColor 45%, transparent);
+}
+
+/* video / placeholder */
+.clip {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+  border-radius: var(--r-lg);
+}
+.clip video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  background: var(--surface);
+}
+.clip .ph {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--muted);
+  background: var(--surface);
+  text-align: center;
+  padding: 16px;
+}
+.clip .ph .ms { font-size: 2.5em; color: var(--faint); }
+.clip .ph .ph-name { color: var(--text); font-size: 1.125em; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--thumb); border-radius: var(--r-pill); }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* Apple-style continuous corners (squircle) on every rounded box, video frames included.
+   Falls back to plain border-radius where corner-shape is unsupported. Capsules/circles opt out:
+   any element with a pill (9999px) or 50% (circle) radius must stay a true round shape, since a
+   squircle superellipse visibly flattens a stadium/circle silhouette. */
+*, *::before, *::after { corner-shape: squircle; }
+.round, .pill, [data-shape="round"],
+::-webkit-scrollbar-thumb,
+.btn, .icon-btn, .seg, .seg button, .days button, .stepper .btn,
+.logo, .logo::after,
+.switch, .switch::after,
+.bar, .bar > div,
+.mode-tag, .top-prog, #progFill, .chip, .move-dots i, .today .bar, .today .bar div,
+.timeline .dot, .cell .d::after, .ov-row .nm.changed::after, .ov-row .reset {
+  corner-shape: round;
+}

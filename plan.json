@@ -1,0 +1,355 @@
+{
+  "source": "Bilibili BV1Gy4y1n7Pv — FitMen六六「無器械健身教程」(17:52)",
+  "cycle": [
+    "d1",
+    "d2",
+    "d3",
+    "rest"
+  ],
+  "cycleNote": "影片 15:40:照順序練三天休息一天，循環。",
+  "setRestSec": 60,
+  "general": [
+    "每一下 3–5 秒，慢慢做；目的是刺激肌肉，不是拼速度",
+    "下巴微收，頭不要往前伸(會脖子痛)",
+    "腰痛 = 腹部沒收緊",
+    "做不完可減 1–2 組或減少次數，之後再慢慢加回來"
+  ],
+  "days": {
+    "d1": {
+      "title": "第 1 天 · 胸 + 三頭",
+      "after": "練完花 1–2 分鐘伸展胸肌、肱三頭肌",
+      "units": [
+        {
+          "id": "pushup",
+          "name": "伏地挺身",
+          "muscle": "胸",
+          "sets": 5,
+          "reps": [
+            8,
+            15
+          ],
+          "clip": "pushup",
+          "tips": [
+            "身體像平板支撐一樣成一直線，不塌腰不拱背",
+            "手臂與身體約 45 度，不要垂直張開",
+            "做不了標準版可改跪姿"
+          ]
+        },
+        {
+          "id": "weighted_pushup",
+          "name": "負重伏地挺身",
+          "muscle": "胸",
+          "sets": 4,
+          "reps": [
+            8,
+            15
+          ],
+          "clip": "weighted_pushup",
+          "tips": [
+            "背上放書包或其他重物",
+            "要點同伏地挺身"
+          ]
+        },
+        {
+          "id": "incline_pushup",
+          "name": "上斜伏地挺身",
+          "muscle": "胸(下胸)",
+          "sets": 4,
+          "reps": [
+            8,
+            15
+          ],
+          "clip": "incline_pushup",
+          "tips": [
+            "雙手撐在凳子、沙發或床邊",
+            "要點同伏地挺身"
+          ]
+        },
+        {
+          "id": "diamond_pushup",
+          "name": "鑽石伏地挺身",
+          "muscle": "三頭",
+          "sets": 4,
+          "reps": [
+            8,
+            15
+          ],
+          "clip": "diamond_pushup",
+          "tips": [
+            "雙手擺成鑽石形",
+            "難度高，做不了先用跪姿"
+          ]
+        },
+        {
+          "id": "triceps_pushup",
+          "name": "三頭伏地挺身",
+          "muscle": "三頭",
+          "sets": 4,
+          "reps": [
+            8,
+            15
+          ],
+          "clip": "triceps_pushup",
+          "tips": [
+            "建議跪姿做",
+            "不要聳肩，速度要慢"
+          ]
+        },
+        {
+          "id": "bench_dip",
+          "name": "板凳臂屈伸",
+          "muscle": "三頭",
+          "sets": 4,
+          "reps": [
+            8,
+            15
+          ],
+          "clip": "bench_dip",
+          "tips": [
+            "用沙發、凳子或床邊",
+            "身體不要離凳子太遠，肩膀壓力會太大",
+            "越慢越好；太輕鬆可在身上放重物"
+          ]
+        }
+      ]
+    },
+    "d2": {
+      "title": "第 2 天 · 背 + 肩 + 二頭 + 臀腿",
+      "after": "練完伸展練到的肌肉",
+      "tableNote": "影片表格寫「Z字」,但口述與示範都是 T字(05:14),以 T字 為準",
+      "units": [
+        {
+          "id": "y_raise",
+          "name": "Y字",
+          "muscle": "背",
+          "sets": 3,
+          "reps": [
+            15,
+            20
+          ],
+          "clip": "y_raise",
+          "tips": [
+            "大拇指朝上",
+            "脊柱中立，不要彎腰駝背，核心收緊",
+            "沉肩：肩膀遠離耳朵",
+            "一下 3–5 秒"
+          ]
+        },
+        {
+          "id": "t_raise",
+          "name": "T字",
+          "muscle": "背",
+          "sets": 3,
+          "reps": [
+            15,
+            20
+          ],
+          "clip": "t_raise",
+          "tips": [
+            "大拇指朝上、脊柱中立、沉肩",
+            "做起來很輕鬆 = 動作不對"
+          ]
+        },
+        {
+          "id": "superman",
+          "name": "小燕飛",
+          "muscle": "背",
+          "sets": 4,
+          "reps": [
+            8,
+            15
+          ],
+          "clip": "superman",
+          "tips": [
+            "做退階版",
+            "不要聳肩",
+            "下落時身體不要完全貼地，保持一點懸空",
+            "腹部收緊，頂端停 1–2 秒"
+          ]
+        },
+        {
+          "id": "rear_delt_fly",
+          "name": "俯身側平舉",
+          "muscle": "肩(後束)",
+          "sets": 4,
+          "reps": [
+            15,
+            20
+          ],
+          "clip": "rear_delt_fly",
+          "tips": [
+            "可以拿兩瓶礦泉水",
+            "脊柱中立、不駝背、不聳肩",
+            "速度要慢"
+          ]
+        },
+        {
+          "id": "lateral_raise",
+          "name": "站姿側平舉",
+          "muscle": "肩(中束)",
+          "sets": 4,
+          "reps": [
+            15,
+            20
+          ],
+          "clip": "lateral_raise",
+          "tips": [
+            "手臂微彎，不用完全伸直",
+            "身體不要前後晃，腹部臀部收緊",
+            "頂端停 1–2 秒"
+          ]
+        },
+        {
+          "id": "biceps_curl",
+          "name": "二頭彎舉",
+          "muscle": "二頭",
+          "sets": 4,
+          "reps": [
+            12,
+            15
+          ],
+          "clip": "biceps_curl",
+          "tips": [
+            "礦泉水、米袋、書包都可以",
+            "身體不晃，上臂夾緊身體兩側",
+            "做完整行程"
+          ]
+        },
+        {
+          "id": "squat",
+          "name": "深蹲",
+          "muscle": "臀腿",
+          "sets": 4,
+          "reps": [
+            12,
+            15
+          ],
+          "clip": "squat",
+          "tips": [
+            "站寬練臀多，與肩同寬練腿多",
+            "脊柱中立，不要彎腰駝背",
+            "腳尖和膝蓋方向一致"
+          ]
+        },
+        {
+          "id": "bulgarian_split_squat",
+          "name": "保加利亞分腿蹲",
+          "muscle": "臀腿",
+          "sets": 4,
+          "reps": [
+            12,
+            15
+          ],
+          "clip": "bulgarian_split_squat",
+          "perSide": true,
+          "tips": [
+            "後腳放凳子、沙發或床邊",
+            "距離抓到小腿和地面垂直",
+            "腳尖和膝蓋方向一致，速度要慢"
+          ]
+        }
+      ]
+    },
+    "d3": {
+      "title": "第 3 天 · 腹肌核心",
+      "after": "",
+      "circuitNote": "每個動作 30 秒，動作之間不休息，8 個做完算 1 輪；做 2 輪，輪間休息 3–5 分鐘",
+      "units": [
+        {
+          "id": "core_round_1",
+          "name": "腹肌循環 第 1 輪",
+          "type": "circuit",
+          "sets": 1,
+          "moves": "core"
+        },
+        {
+          "id": "core_round_2",
+          "name": "腹肌循環 第 2 輪",
+          "type": "circuit",
+          "sets": 1,
+          "moves": "core"
+        }
+      ],
+      "roundRestSec": 180
+    }
+  },
+  "circuits": {
+    "core": [
+      {
+        "id": "plank",
+        "name": "平板支撐",
+        "sec": 30,
+        "clip": "plank",
+        "tips": [
+          "腹部、核心、臀部收緊，不塌腰",
+          "身體成一直線，肩胛骨穩定不鬆垮"
+        ]
+      },
+      {
+        "id": "crunch",
+        "name": "捲腹",
+        "sec": 30,
+        "clip": "crunch",
+        "tips": [
+          "下背不離地，只有上背離地",
+          "起來吐氣，還原吸氣，慢"
+        ]
+      },
+      {
+        "id": "plank",
+        "name": "平板支撐",
+        "sec": 30,
+        "clip": "plank",
+        "tips": [
+          "腹部、核心、臀部收緊，不塌腰"
+        ]
+      },
+      {
+        "id": "v_crunch",
+        "name": "V字捲腹",
+        "sec": 30,
+        "clip": "v_crunch",
+        "tips": [
+          "腳不要碰到地面",
+          "起來吐氣，還原吸氣，慢"
+        ]
+      },
+      {
+        "id": "plank",
+        "name": "平板支撐",
+        "sec": 30,
+        "clip": "plank",
+        "tips": [
+          "腹部、核心、臀部收緊，不塌腰"
+        ]
+      },
+      {
+        "id": "crunch_toe_touch",
+        "name": "捲腹摸腳",
+        "sec": 30,
+        "clip": "crunch_toe_touch",
+        "tips": [
+          "全程上背保持懸空"
+        ]
+      },
+      {
+        "id": "plank",
+        "name": "平板支撐",
+        "sec": 30,
+        "clip": "plank",
+        "tips": [
+          "腹部、核心、臀部收緊，不塌腰"
+        ]
+      },
+      {
+        "id": "alt_leg_raise",
+        "name": "交替抬腿",
+        "sec": 30,
+        "clip": "alt_leg_raise",
+        "tips": [
+          "腹部收緊，雙腳輪流抬起"
+        ]
+      }
+    ]
+  }
+}

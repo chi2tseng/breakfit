@@ -1,0 +1,24 @@
+{
+  "name": "breakfit",
+  "productName": "BreakFit",
+  "version": "1.0.0",
+  "description": "上班時段定時全螢幕休息 + 無器械訓練 + 每日記錄",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test",
+    "selftest": "electron . --selftest",
+    "fast": "electron . --fast",
+    "pack": "electron-packager . BreakFit --platform=win32 --arch=x64 --out=dist --overwrite --ignore=^/dist --ignore=^/selftest-out --ignore=^/test --asar.unpack=**/assets/clips/** --icon=assets/icon/icon.ico --ignore=^/assets/icon/concepts --ignore=^/assets/icon/make_icons"
+  },
+  "dependencies": {
+    "@fontsource-variable/noto-sans-tc": "^5.3.0",
+    "@fontsource/inter": "^5.3.0",
+    "material-symbols": "^0.47.5"
+  },
+  "devDependencies": {
+    "@electron/packager": "^20.3.0",
+    "electron": "^44.4.5"
+  }
+}

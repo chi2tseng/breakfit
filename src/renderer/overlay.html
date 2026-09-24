@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self'; style-src 'self' 'unsafe-inline'; media-src 'self' file:; font-src 'self' file:; img-src 'self' data: file:">
+<title>休息時間</title>
+<link rel="stylesheet" href="../../node_modules/@fontsource/inter/400.css">
+<link rel="stylesheet" href="../../node_modules/@fontsource/inter/600.css">
+<link rel="stylesheet" href="../../node_modules/@fontsource/inter/700.css">
+<link rel="stylesheet" href="../../node_modules/material-symbols/outlined.css">
+<script src="theme.js"></script>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="overlay.css">
+</head>
+<body>
+  <header id="top">
+    <div class="top-l">
+      <span class="slot-badge"><span class="ms">schedule</span><span id="slotText"></span></span>
+      <span class="mode-tag" id="modeTag" hidden></span>
+      <div class="top-prog"><div id="progFill"></div></div>
+    </div>
+    <button class="btn ghost" id="leaveBtn"><span class="ms">logout</span>離開<kbd>Esc</kbd></button>
+  </header>
+
+  <!-- One fixed stage for every phase: video box left, panel right (DESIGN.md §4). -->
+  <main id="stage">
+    <div class="vbox">
+      <div class="clip" id="clipMain"></div>
+      <div class="vcover" id="vCover" hidden></div>
+    </div>
+    <aside id="panel">
+      <div class="p-head">
+        <div class="p-chip" id="pChip"></div>
+        <h1 class="p-title" id="pTitle"></h1>
+        <div class="p-meta" id="pMeta"></div>
+      </div>
+      <div class="p-body" id="pBody"></div>
+      <div class="p-foot">
+        <div class="p-sec" id="pSec"></div>
+        <div class="p-pri" id="pPri"></div>
+      </div>
+    </aside>
+  </main>
+
+  <div id="modal" hidden>
+    <div class="modal-card">
+      <h3 id="mTitle"></h3>
+      <p id="mBody"></p>
+      <div class="modal-btns">
+        <button class="btn" id="mCancel"></button>
+        <button class="btn danger" id="mOk"></button>
+      </div>
+    </div>
+  </div>
+<script src="clip.js"></script>
+<script src="overlay.js"></script>
+</body>
+</html>
