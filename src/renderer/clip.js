@@ -4,7 +4,7 @@
   function placeholder(name) {
     const ph = document.createElement('div');
     ph.className = 'ph';
-    ph.innerHTML = '<span class="ms">directions_run</span><span class="ph-name"></span>';
+    ph.innerHTML = '<span aria-hidden="true" class="ms">directions_run</span><span class="ph-name"></span>';
     ph.querySelector('.ph-name').textContent = name || '';
     return ph;
   }

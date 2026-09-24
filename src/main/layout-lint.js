@@ -209,4 +209,36 @@ function lint(opts) {
   return { issues, combos, viewport: `${vw}×${vh}`, rem };
 }
 
-module.exports = { lintSource: `(${lint.toString()})` };
+// Lint options shared by the Electron matrix (selftest.js) and the web phone check (web-e2e.js).
+// Type tokens (DESIGN.md §3). Overlay sizes are rem × 16, so one list serves both windows.
+const TOKENS = [
+  { name: 'footnote', size: 13, lh: 18, weights: [400, 600] },
+  { name: 'subheadline', size: 15, lh: 20, weights: [400, 600] },
+  { name: 'body', size: 17, lh: 24, weights: [400] },
+  { name: 'headline', size: 17, lh: 24, weights: [600] },
+  { name: 'title3', size: 21, lh: 26, weights: [400, 600] },
+  { name: 'title2', size: 28, lh: 34, weights: [600] },
+  { name: 'largeTitle', size: 34, lh: 41, weights: [400, 600] },
+  { name: 'display', size: 40, lh: 48, weights: [600] },
+  { name: 'ring', size: 48, lh: 48, weights: [700] },
+  { name: 'ring3', size: 36, lh: 36, weights: [700] },
+  { name: 'hero', size: 96, lh: 96, weights: [700] },
+];
+const GROUPS = [
+  { scope: '.set-grid > .panel', row: '.field', cols: [[':scope > label', 'left'], [':scope > :last-child', 'right']] },
+  { scope: '.ov-col', row: '.ov-row', cols: [['.nm', 'left'], ['[data-k="sets"]', 'left'], ['[data-k="sets"]', 'right'], ['[data-k="a"]', 'left'], ['[data-k="b"]', 'right'], ['.reset', 'right']] },
+  { scope: '.ov-col', row: '.ov-head, .ov-row', cols: [['.l-sets, [data-k="sets"]', 'center']] },
+  { scope: '.timeline', row: 'li', cols: [['.t', 'left'], ['.st', 'right']] },
+  { scope: '.detail .sec', row: '.urow', cols: [[':scope > :first-child', 'left'], ['.c', 'right']] },
+  { scope: '.plan', row: 'li', cols: [['.nm', 'left'], ['.mt', 'right']] },
+];
+// Rule (h): comparable elements that must render with one token (DESIGN.md §3).
+const ROLES = {
+  'page title': '.page-head h1', eyebrow: '.eyebrow', 'panel title': '.panel-head h2',
+  'card title': '.card .k', 'card value': '.card .v', 'row label': '.field > label',
+  'table header': '.ov-head .lbl', 'table name': '.ov-row .nm', segment: '.seg button:not(.on)',
+  'weekday toggle': '.days button:not(.on)', 'timeline status': '.timeline li:not(.next) .st',
+  'calendar day': '.cell .d', 'overlay meta': '.p-meta',
+};
+
+module.exports = { lintSource: `(${lint.toString()})`, TOKENS, GROUPS, ROLES };

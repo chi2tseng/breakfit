@@ -90,7 +90,7 @@ function initUi() {
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMenu(); });
 
   function navBtn(icon, label, onClick) {
-    const b = el('button', 'nav-item', `<span class="ms">${icon}</span><span class="nav-label"></span>`);
+    const b = el('button', 'nav-item', `<span aria-hidden="true" class="ms">${icon}</span><span class="nav-label"></span>`);
     b.querySelector('.nav-label').textContent = label;
     b.title = label;
     b.setAttribute('aria-label', label);

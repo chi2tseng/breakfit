@@ -6,6 +6,7 @@ const { app, BrowserWindow } = require('electron');
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const { lintSource, TOKENS, GROUPS, ROLES } = require('../src/main/layout-lint');
 
 const ROOT = path.join(__dirname, '..');
 const DIST = path.join(ROOT, 'web-dist');
@@ -130,6 +131,27 @@ async function main() {
   await shot('phone-history');
   await js('__test.tab("settings")');
   await shot('phone-settings');
+  // layout lint (DESIGN.md §10) at phone widths, both languages, top and bottom of every tab
+  const phone = [];
+  for (const [pw, ph] of [[390, 844], [360, 740]]) {
+    await size(pw, ph);
+    for (const lang of ['zh', 'en']) {
+      await js(`bf.saveSettings({ lang: '${lang}' }).then(() => true)`);
+      await until(`document.documentElement.lang.startsWith('${lang}')`);
+      for (const tab of ['today', 'history', 'settings']) {
+        for (const y of [0, 100000]) {
+          await js(`__test.tab('${tab}'); __test.scroll(${y})`);
+          await js('document.fonts.ready.then(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(true)))))');
+          await sleep(150);
+          const res = await js(`${lintSource}(${JSON.stringify({ kind: 'main', tokens: TOKENS, groups: GROUPS, roles: ROLES })})`);
+          for (const i of res.issues) phone.push(`${lang} ${tab}${y ? '-bottom' : ''} ${pw}: ${i.rule} ${i.sel} ${i.msg}`);
+        }
+      }
+    }
+  }
+  check('phone layout lint 0 (390, 360 × 繁中, English)', phone.length === 0, phone.slice(0, 40));
+  await js("bf.saveSettings({ lang: 'zh' }).then(() => true)");
+  await size(390, 844);
   const pause = await js("!!document.querySelector('.bf-dock .nav-item')");
   if (pause) {
     await js("document.querySelector('.bf-dock .nav-item').click()");

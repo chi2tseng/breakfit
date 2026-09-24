@@ -19,10 +19,11 @@
       secs: '{n} 秒', inTime: '還有 {t}', startingSoon: '即將開始', close: '關閉',
       historyTitle: '記錄', last30: '最近 30 個訓練日', passRate: '合格率', streak: '目前連續合格', longest: '最長連續合格',
       daysUnit: '天', monthSets: '{m} 月完成組數', noTrainingDays: '還沒有訓練日', noRecord: '沒有記錄', repsList: '{r} 下', note: '筆記',
-      settingsTitle: '設定', testBreak: '測試休息畫面', hours: '時段', start: '開始', end: '結束', interval: '間隔（分鐘）',
+      settingsTitle: '設定', testBreak: '預覽休息畫面', hours: '時段', start: '開始', end: '結束', interval: '間隔（分鐘）',
       workdays: '上班日', walkReminder: '提醒走動', general: '一般', todayIs: '今天是', appearance: '配色', dark: '深色', light: '淺色',
       language: '語言', demo: '示範', demoSec: '示範秒數', launchAtLogin: '開機啟動', overrides: '菜單組數 / 次數',
       sets: '組數', minReps: '最少次數', maxReps: '最多次數', reset: '還原', colSets: '組', colReps: '次數',
+      prevMonth: '上個月', nextMonth: '下個月', decreaseReps: '減少次數', increaseReps: '增加次數',
       // overlay
       breakTime: '休息時間', leave: '離開', earlyBreak: '提前休息', test: '測試', skipThis: '跳過這次',
       perSide: '每邊', repsN: '{r} 下', perSideReps: '每邊 {r} 下', setNo: '第 {n}/{t} 組', timedMeta: '{n} × {s} 秒',
@@ -37,10 +38,10 @@
       walkNotify: '休息一下，起來走走', traySets: '今天 {a}/{b} 組', restToday: '今天休息', pausedToday: '今天已暫停',
       completed: '已完成', failed: '不合格', pausedUntil: '暫停到 {t}', trayNext: '下次 {t}', trayNextBreak: '下次休息 {t}',
       noMoreBreaks: '今天沒有下一次休息', m30: '30 分鐘', h1: '1 小時', h2: '2 小時', tillTomorrow: '到明天', cancelPause: '取消暫停',
-      pauseReminders: '暫停提醒', pauseRemindersUntil: '暫停提醒（到 {t}）', openMain: '打開主視窗', launchAtLoginMenu: '開機自動啟動', enableNotify: '開啟通知',
+      pauseReminders: '暫停提醒', pauseRemindersUntil: '暫停提醒（到 {t}）', openMain: '打開主視窗', launchAtLoginMenu: '開機啟動', enableNotify: '開啟通知',
       quit: '結束', pauseQ: '暫停到明天？', pauseDetail: '今天會記為不合格。', pauseOk: '暫停到明天', cancel: '取消',
       runningTitle: 'BreakFit 在右下角執行中', runningBody: '圖示可能收在 ^ 裡',
-      dataError: '讀不到記錄檔，程式先不啟動以免覆蓋資料。',
+      dataError: '讀不到記錄檔，程式先不啟動以免覆蓋資料。請關掉可能鎖住 {file} 的程式（OneDrive、防毒），再重新開啟 BreakFit。',
     },
     en: {
       navToday: 'Today', navHistory: 'History', navSettings: 'Settings',
@@ -54,13 +55,14 @@
       historyTitle: 'History', last30: 'Last 30 Training Days', passRate: 'Pass Rate', streak: 'Current Streak', longest: 'Longest Streak',
       daysUnit: 'days', monthSets: 'Sets in {month}', noTrainingDays: 'No training days yet', noRecord: 'No record', repsList: '{r} reps', note: 'Notes',
       settingsTitle: 'Settings', testBreak: 'Preview Break', hours: 'Hours', start: 'Start', end: 'End', interval: 'Interval (min)',
-      workdays: 'Workdays', walkReminder: 'Walk reminder', general: 'General', todayIs: 'Today is', appearance: 'Appearance', dark: 'Dark', light: 'Light',
-      language: 'Language', demo: 'Demo', demoSec: 'Demo length', launchAtLogin: 'Open at login', overrides: 'Sets / Reps',
-      sets: 'Sets', minReps: 'Min reps', maxReps: 'Max reps', reset: 'Reset', colSets: 'Sets', colReps: 'Reps',
-      breakTime: 'Break Time', leave: 'Leave', earlyBreak: 'Early break', test: 'Test', skipThis: 'Skip This One',
+      workdays: 'Workdays', walkReminder: 'Walk Reminder', general: 'General', todayIs: 'Today is', appearance: 'Appearance', dark: 'Dark', light: 'Light',
+      language: 'Language', demo: 'Demo', demoSec: 'Demo Length', launchAtLogin: 'Open at Login', overrides: 'Sets / Reps',
+      sets: 'Sets', minReps: 'Min Reps', maxReps: 'Max Reps', reset: 'Reset', colSets: 'Sets', colReps: 'Reps',
+      prevMonth: 'Previous Month', nextMonth: 'Next Month', decreaseReps: 'Fewer Reps', increaseReps: 'More Reps',
+      breakTime: 'Break Time', leave: 'Leave', earlyBreak: 'Early Break', test: 'Test', skipThis: 'Skip This One',
       perSide: 'Each side', repsN: '{r} reps', perSideReps: '{r} reps each side', setNo: 'Set {n}/{t}', timedMeta: '{n} × {s} s',
       yourTurn: 'Your Turn', repUnit: 'reps', tempo: '3–5 s per rep', doneSet: 'Set Done', upNext: 'Up Next', nextSet: 'Next Set',
-      nextMove: 'Next Exercise', nextRound: 'Next Round', plus30: '+30 s', skipRest: 'Skip Rest', prevSet: 'Last set',
+      nextMove: 'Next Exercise', nextRound: 'Next Round', plus30: '+30 s', skipRest: 'Skip Rest', prevSet: 'Last Set',
       done: 'Done', passedToday: 'Passed Today', failedToday: 'Failed Today', allDoneToday: 'All Done Today', nextAt: 'Next {t}',
       thisBreak: '{n} Sets This Break', continue: 'Continue', leaveQ: 'Leave this break?', leaveFails: 'Leaving means today fails',
       skipLastQ: 'Skip the last break?', skipFails: 'Skipping means today fails', skip: 'Skip',
@@ -68,10 +70,10 @@
       walkNotify: 'Time for a break. Get up and walk around.', traySets: 'Today {a}/{b} sets', restToday: 'Rest day today', pausedToday: 'Paused for today',
       completed: 'Done', failed: 'Failed', pausedUntil: 'Paused until {t}', trayNext: 'Next {t}', trayNextBreak: 'Next break {t}',
       noMoreBreaks: 'No more breaks today', m30: '30 minutes', h1: '1 hour', h2: '2 hours', tillTomorrow: 'Until tomorrow', cancelPause: 'Resume Reminders',
-      pauseReminders: 'Pause Reminders', pauseRemindersUntil: 'Pause Reminders (until {t})', openMain: 'Open BreakFit', launchAtLoginMenu: 'Open at Login', enableNotify: 'Enable notifications',
+      pauseReminders: 'Pause Reminders', pauseRemindersUntil: 'Pause Reminders (until {t})', openMain: 'Open BreakFit', launchAtLoginMenu: 'Open at Login', enableNotify: 'Enable Notifications',
       quit: 'Quit', pauseQ: 'Pause until tomorrow?', pauseDetail: 'Today will count as failed.', pauseOk: 'Pause Until Tomorrow', cancel: 'Cancel',
       runningTitle: 'BreakFit is running in the tray', runningBody: 'The icon may be hidden under ^',
-      dataError: "Can't read the data file. BreakFit won't start so your records aren't overwritten.",
+      dataError: 'Can’t read the data file. BreakFit won’t start so your records aren’t overwritten. Close anything that may lock {file} (OneDrive, antivirus), then open BreakFit again.',
     },
   };
 
@@ -118,10 +120,12 @@
       ? fmt(lang, { weekday: 'short', month: 'long', day: 'numeric' }, d)
       : `${fmt(lang, { month: 'long', day: 'numeric' }, d)} ${fmt(lang, { weekday: 'short' }, d)}`;
   }
-  const monthLabel = (lang, ym) => fmt(lang, { year: 'numeric', month: 'long' }, dateOf(`${ym}-01`));
+  // month: 'long' (September 2026) or 'short' (Sep 2026, phone calendar); 繁中 is 2026年9月 either way
+  const monthLabel = (lang, ym, month = 'long') => fmt(lang, { year: 'numeric', month: norm(lang) === 'en' ? month : 'long' }, dateOf(`${ym}-01`));
+  const shortDate = (lang, key) => fmt(lang, { month: 'numeric', day: 'numeric' }, dateOf(key)); // chart axis: 9/24
   const monthName = (lang, ym) => fmt(lang, { month: 'long' }, dateOf(`${ym}-01`));
   // 7 narrow weekday names, Sunday first (日 一 … / S M T …)
   const weekdays = (lang) => Array.from({ length: 7 }, (_, i) => fmt(lang, { weekday: 'narrow' }, new Date(2026, 8, 20 + i)));
 
-  return { STR, norm, locale, htmlLang, t, apply, localizePlan, dayLabel, monthLabel, monthName, weekdays };
+  return { STR, norm, locale, htmlLang, t, apply, localizePlan, dayLabel, monthLabel, monthName, shortDate, weekdays };
 }));

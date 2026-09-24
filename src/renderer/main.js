@@ -4,7 +4,7 @@
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const ICON = (name, cls = '') => `<span class="ms ${cls}">${name}</span>`;
+const ICON = (name, cls = '') => `<span class="ms ${cls}" aria-hidden="true">${name}</span>`;
 // Slider fill (accent left of the thumb) is drawn in CSS from --p.
 const rangeFill = (el) => el.style.setProperty('--p', `${((el.value - el.min) / (el.max - el.min)) * 100}%`);
 
@@ -22,6 +22,7 @@ let libFilter = 'd1';
 let viewMonth = null; // 'YYYY-MM'
 let selDate = null;
 let noteTimer = null;
+let chartW = 0; // #chart width, kept by the ResizeObserver
 
 // ---------- helpers ----------
 const pad = (n) => String(n).padStart(2, '0');
@@ -157,7 +158,7 @@ function renderHistory() {
 
 function renderCalendar() {
   const [y, m] = viewMonth.split('-').map(Number);
-  $('#monthLabel').textContent = I18N.monthLabel(window.LANG, viewMonth);
+  $('#monthLabel').innerHTML = `<span class="ml-long">${I18N.monthLabel(window.LANG, viewMonth)}</span><span class="ml-short">${I18N.monthLabel(window.LANG, viewMonth, 'short')}</span>`;
   $('#calWeek').innerHTML = WD().map((w) => `<span>${w}</span>`).join('');
   const first = new Date(y, m - 1, 1).getDay();
   const days = new Date(y, m, 0).getDate();
@@ -195,7 +196,8 @@ function renderChart() {
     $('#chart').innerHTML = `<div class="empty-state">${ICON('bar_chart')}<span>${t('noTrainingDays')}</span></div>`;
     return;
   }
-  const W = Math.max(280, Math.round($('#chart').clientWidth || 660));
+  if (!chartW) chartW = Math.round($('#chart').clientWidth); // measured once here, then only by the ResizeObserver
+  const W = Math.max(200, chartW || 660);
   const H = 180;
   const L = 40;
   const R = 16;
@@ -218,8 +220,7 @@ function renderChart() {
     const color = h.status === 'pass' ? 'var(--accent)' : h.status === 'fail' ? 'var(--fail)' : 'var(--muted)';
     svg += `<rect x="${x.toFixed(1)}" y="${(T + ih - bh).toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="2" fill="${color}"><title>${h.date} ${Math.round(h.pct * 100)}%</title></rect>`;
     if (i % every === 0 || i === data.length - 1) {
-      const { m, d } = parseKey(h.date);
-      svg += `<text x="${(x + bw / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle">${m}/${d}</text>`;
+      svg += `<text x="${(x + bw / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle">${I18N.shortDate(window.LANG, h.date)}</text>`;
     }
   });
   svg += '</svg>';
@@ -252,7 +253,7 @@ async function loadDetail() {
     html += `<div class="sec"><div class="empty-state">${ICON(sm.planDay === 'off' ? 'event_busy' : 'self_improvement')}<span>${sm.planDay === 'off' ? t('dayOff') : t('restDay')}</span></div></div>`;
   }
   if (det.day) {
-    html += `<div class="sec"><textarea id="note" placeholder="${t('note')}">${esc(det.day.note || '')}</textarea></div>`;
+    html += `<div class="sec"><textarea id="note" placeholder="${t('note')}" aria-label="${t('note')}">${esc(det.day.note || '')}</textarea></div>`;
   }
   box.innerHTML = html;
   const ta = $('#note');
@@ -266,7 +267,7 @@ async function loadDetail() {
 
 // ---------- 設定 ----------
 function setVal(el, v) {
-  if (document.activeElement !== el) el.value = v;
+  if (document.activeElement !== el && !el.classList.contains('bad')) el.value = v;
 }
 
 function renderSettings() {
@@ -274,19 +275,26 @@ function renderSettings() {
   setVal($('#sStart'), s.start);
   setVal($('#sEnd'), s.end);
   setVal($('#sInterval'), s.interval);
-  $('#sDays').innerHTML = [1, 2, 3, 4, 5, 6, 0].map((d) => `<button data-d="${d}" class="${s.activeWeekdays.includes(d) ? 'on' : ''}">${WD()[d]}</button>`).join('');
-  $$('#sDays button').forEach((b) => b.addEventListener('click', () => {
-    const d = Number(b.dataset.d);
-    const set = new Set(S.settings.activeWeekdays);
-    if (set.has(d)) set.delete(d); else set.add(d);
-    save({ activeWeekdays: [...set] });
-  }));
+  // Buttons are built once per language and only restyled after that: rebuilding them on every
+  // refresh swallowed a click whose mousedown blurred an edited field (change → save → refresh).
+  const sd = $('#sDays');
+  if (sd.dataset.lang !== window.LANG) {
+    sd.dataset.lang = window.LANG;
+    sd.innerHTML = [1, 2, 3, 4, 5, 6, 0].map((d) => `<button data-d="${d}">${WD()[d]}</button>`).join('');
+  }
+  $$('button', sd).forEach((b) => {
+    const on = s.activeWeekdays.includes(Number(b.dataset.d));
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
 
   const idx = ['d1', 'd2', 'd3', 'rest'].indexOf(S.day.planDay);
-  $('#sCycle').innerHTML = ['d1', 'd2', 'd3', 'rest'].map((k, i) => `<button data-i="${i}" class="${i === idx ? 'on' : ''}">${t(CYCLE_KEY[k])}</button>`).join('');
-  $$('#sCycle button').forEach((b) => b.addEventListener('click', async () => {
-    await window.bf.setCycleToday(Number(b.dataset.i));
-  }));
+  const sc = $('#sCycle');
+  if (sc.dataset.lang !== window.LANG) {
+    sc.dataset.lang = window.LANG;
+    sc.innerHTML = ['d1', 'd2', 'd3', 'rest'].map((k, i) => `<button data-i="${i}">${t(CYCLE_KEY[k])}</button>`).join('');
+  }
+  $$('button', sc).forEach((b) => b.classList.toggle('on', Number(b.dataset.i) === idx));
 
   document.documentElement.dataset.theme = s.theme;
   $$('#sTheme button').forEach((b) => b.classList.toggle('on', b.dataset.t === s.theme));
@@ -320,9 +328,9 @@ function renderOverrides() {
         <input type="number" min="1" max="100" value="${reps[0]}" data-k="a" aria-label="${t('minReps')}">
         <span class="dash">–</span>
         <input type="number" min="1" max="100" value="${reps[1]}" data-k="b" aria-label="${t('maxReps')}">
-        <button class="reset" title="${t('reset')}" ${changed ? '' : 'disabled'}>${ICON('undo')}</button></div>`;
+        <button class="reset" title="${t('reset')}" aria-label="${t('reset')}" ${changed ? '' : 'disabled'}>${ICON('undo')}</button></div>`;
     }).join('');
-    return `<div class="ov-col"><div class="ov-head"><h4>${esc(t(pd))}</h4><span class="lbl l-sets">${t('colSets')}</span><span class="lbl l-reps">${t('colReps')}</span></div>${rows}</div>`;
+    return `<div class="ov-col"><div class="ov-head"><h3>${esc(t(pd))}</h3><span class="lbl l-sets">${t('colSets')}</span><span class="lbl l-reps">${t('colReps')}</span></div>${rows}</div>`;
   }).join('');
   $$('.ov-row', box).forEach((row) => {
     const id = row.dataset.id;
@@ -358,8 +366,23 @@ async function save(patch, rerenderOverrides = false) {
 function bindSettings() {
   const timeField = (id, key) => $(id).addEventListener('change', (e) => {
     const m = /^(\d{1,2})[:：]?(\d{2})$/.exec(e.target.value.trim());
-    if (m && Number(m[1]) < 24 && Number(m[2]) < 60) save({ [key]: `${pad(Number(m[1]))}:${m[2]}` }).then(() => { e.target.value = S.settings[key]; });
-    else e.target.value = S.settings[key];
+    const ok = m && Number(m[1]) < 24 && Number(m[2]) < 60;
+    // invalid: keep the typed text, red edge + aria-invalid until it is fixed (no microcopy: brief)
+    e.target.classList.toggle('bad', !ok);
+    e.target.setAttribute('aria-invalid', String(!ok));
+    if (ok) save({ [key]: `${pad(Number(m[1]))}:${m[2]}` }).then(() => { e.target.value = S.settings[key]; });
+  });
+  $('#sDays').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    const d = Number(b.dataset.d);
+    const set = new Set(S.settings.activeWeekdays);
+    if (set.has(d)) set.delete(d); else set.add(d);
+    save({ activeWeekdays: [...set] }).then(renderSettings);
+  });
+  $('#sCycle').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (b) window.bf.setCycleToday(Number(b.dataset.i));
   });
   timeField('#sStart', 'start');
   timeField('#sEnd', 'end');
@@ -409,7 +432,6 @@ function shiftMonth(d) {
 }
 
 bindSettings();
-let chartW = 0;
 new ResizeObserver(() => {
   const w = Math.round($('#chart').clientWidth);
   if (S && w && w !== chartW) { chartW = w; renderChart(); }

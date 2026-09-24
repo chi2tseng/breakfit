@@ -193,11 +193,14 @@ follow Windows display scaling too; 965×940 at 150 % = 643×627 CSS px):
 | content < 700 | calendar gap 6, cell padding 6 |
 | content < 960 | 設定 panels stack; menu table one column |
 | content < 1000 | 記錄 stat cards 2 × 2; calendar → detail → chart in one column (detail not sticky) |
-| window < 720 | player modal padding 16 (side column `clamp(220px, 30%, 320px)` always) |
+| window < 720 | player modal padding 16 |
+| window < 560 | player one column (video above the tips); the modal scrolls, `overscroll-behavior: contain` |
+| content < 480 (phone, web build) | gutter 16, card padding 12, page title → title2, page action drops under the title, 記錄 stat cards one column as rows (title left, value right), calendar cells 44 px date only (colour = status, % stays in the detail), month label short (`Sep 2026`), segmented controls in a field span it, weekday toggles 30 px, menu table puts the name above its controls (`52 12 52 20 52 1fr 32`) |
 
 - **Page head:** sticky frosted bar, `min-height` 88, full-bleed (`.tab > :not(.page-head)` get
   the gutter instead of negative margins). 今天 = eyebrow `第 1 天` (subheadline 600, muted) above
-  the large title = plan `title` (`胸・三頭`, `背・肩・二頭・臀腿`, `腹肌核心`). Titles never wrap.
+  the large title = plan `title` (`胸・三頭`, `背・肩・二頭・臀腿`, `腹肌核心`; English `Chest & Triceps`,
+  `Back, Shoulders, Biceps & Legs`, `Core`). Titles never wrap.
 - **今天:** two cards (今天進度, 下次休息) over two panels (時間表, 動作示範庫), same
   grid so the column edges line up: `repeat(2, 1fr)` below 960 content px, `3fr 5fr` from 960. The 循環 card is gone: the eyebrow
   already says 第 N 天, and changing the day is a setting (設定 → 今天是). Card = accent headline
@@ -210,7 +213,8 @@ follow Windows display scaling too; 965×940 at 150 % = 643×627 CSS px):
   shadow in light, systemGray2 in dark) with primary text; labels subheadline, never wrap.
 - **Player:** video `1fr` + side column `clamp(220px, 30%, 320px)`, title2 title, 關閉 at the bottom.
 - **History:** stat cards `repeat(3,1fr) 320px`, lower grid `1fr 320px` (detail under the 4th
-  card). Calendar cells 64 px: day number (subheadline 600) + % (headline); no plan-day line.
+  card). Calendar cells 64 px: day number (subheadline 600) + % (headline); no plan-day line; a cell with a
+  record gets a `--muted` edge on hover.
   Chart drawn at its real pixel width (ResizeObserver), bars ≤ 16 px, date label every 5th bar
   (every 10th under 480 px), axis footnote 13 px. Detail = date + pill, then one row per exercise
   (name, `3/4 組`, reps `12、10、9 下` in subheadline), then the note. No subtitle, no slot strip,
@@ -218,8 +222,10 @@ follow Windows display scaling too; 965×940 at 150 % = 643×627 CSS px):
 - **Settings:** each field = label (one line, never wraps) left + control right; if the control
   can't fit it drops below, still right-aligned. Rows ≥ 52 px with `--line-soft` dividers; both
   top panels have 5 rows so dividers line up side by side. Inputs 88×36; switches 51×31; weekday
-  toggles 36 px circles; slider 160×28 hit region with a 4 px track; `間隔（分鐘）` uses
-  full-width parentheses.
+  toggles 36 px circles (built once per language, then only restyled, so a click is never lost to a
+  re-render); slider 160×28 hit region with a 4 px track; `間隔（分鐘）` uses full-width
+  parentheses. An invalid 開始 / 結束 time keeps the typed text with a `--fail-text` edge and
+  `aria-invalid` until it is fixed; nothing is saved and no error text is added (§6).
 - **Menu table (菜單組數 / 次數):** one fixed-track grid per row, header included:
   `minmax(max-content,1fr) 56 12 56 20 56 12 32` = name | 組 | · | min | – | max | · | reset.
   Names never truncate (longest 保加利亞分腿蹲). Two columns ≥ 960 content px with
@@ -239,6 +245,12 @@ preview, 從明天起生效, 照順序練三天休一天, 非上班日不算進�
 separate spans with a gap (overlay meta) or separate lines (tray tooltip, tray menu:
 `第 1 天　胸・三頭` / `今天 7/25 組`); lists use `、` (`12、10、9 下`); `+30 秒` became `延長 30 秒`.
 `plan.json` days carry `label` (`第 1 天`) + `title` (`胸・三頭`); ids and structure unchanged.
+English has no `・` convention, so English titles are names joined with `,` / `&`
+(`Chest & Triceps`), never a `·` chain. English copy uses curly apostrophes (`don’t`) and Title
+Case for labels and buttons (`Walk Reminder`, `Open at Login`). One term per feature in both
+places it shows (`開機啟動` in settings and the tray; `預覽休息畫面` / `Preview Break`). The one
+error the user can hit before the app starts (`dataError`) names the file and the fix; empty
+states stay bare (`沒有記錄`), per the minimal-text brief.
 
 ## 7. Demo clip assets (`assets/clips/*.mp4`)
 
@@ -272,6 +284,17 @@ The video box is always visible, so the footage itself must be clean. Every clip
   systemGray2/4/5/6).
 - **Corners**: `corner-shape: squircle` (supported in this Electron, Chrome 152); pills and circles
   opt out to `round`.
+- **Assistive tech**: every Material Symbol is `aria-hidden` (ICON() in main.js / overlay.js,
+  clip.js, static markup), so buttons read their text label, not `play_arrow`. Icon-only buttons
+  carry an `aria-label` (month arrows, rep stepper, menu reset); 開始 / 結束 labels use `for`;
+  the note has an `aria-label`; weekday toggles expose `aria-pressed`. Headings go h1 → h2 → h3
+  (overlay dialog title h2, menu table day h3). `BreakFit` is `translate="no"`.
+- **Motion**: `prefers-reduced-motion: reduce` makes every UI transition instant and drops the
+  press scale. The demo clip keeps playing: it is the exercise instruction, and 設定 → 示範
+  turns it off.
+- **Touch (web build)**: `touch-action: manipulation` on controls, no tap highlight (the press
+  scale is the feedback), `viewport-fit=cover` + safe-area insets on the phone break overlay,
+  `<meta name="theme-color">` follows `--bg` (theme.js).
 
 ## 9. Themes (設定 → 配色)
 
@@ -397,5 +420,10 @@ detail rows, overlay plan rows); (f) font-size / line-height / weight not a §3 
 rendered; (g) hit targets: main window ≥ 28×28 (macOS default control size), `.btn` ≥ 44 high;
 overlay ≥ 44×44.
 
+Phone widths (web build only; the desktop window's minimum is 800×600): `npm.cmd run test:web`
+runs the same lint (`TOKENS` / `GROUPS` / `ROLES` exported from `layout-lint.js`) at 390×844 and
+360×740, 繁中 + English, top and bottom of 今天 / 記錄 / 設定; any issue fails the run.
+
 Result 2026-09-24: 6444 issues before (1280×720 alone: 348) → **0** at every size, both themes (256 screens incl. main 2560×1440).
+Result 2026-09-25: phone widths 750 issues → **0**; matrix still 0 (306 screens).
 Intentional exceptions: none.

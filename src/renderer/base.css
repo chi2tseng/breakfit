@@ -128,6 +128,16 @@
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
+/* Touch (web build on phones): no double-tap-zoom delay on controls, no grey tap flash —
+   :active { transform: var(--press) } is the tap feedback. */
+html { -webkit-tap-highlight-color: transparent; }
+button, input, textarea, label, [role="button"] { touch-action: manipulation; }
+/* Reduced motion: UI transitions become instant. The demo clip still plays — it is the
+   exercise instruction itself, and the 示範 setting turns it off (DESIGN.md §8). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0s !important; animation-duration: 0s !important; scroll-behavior: auto !important; }
+  .btn:active, .icon-btn:active, .lib-card:active { transform: none; }
+}
 
 html, body {
   margin: 0;

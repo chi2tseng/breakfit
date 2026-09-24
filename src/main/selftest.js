@@ -15,7 +15,7 @@ const T = require('../core/time');
 const D = require('../core/day');
 const C = require('../core/cycle');
 const plan = require('../../plan.json');
-const { lintSource } = require('./layout-lint');
+const { lintSource, TOKENS, GROUPS, ROLES } = require('./layout-lint');
 
 const MATRIX = process.argv.includes('--matrix'); // `npm.cmd run selftest -- --matrix`: size matrix + layout lint only
 const QUICK = process.argv.includes('--quick'); // with --matrix: main window at 965/1366/1920/2560 only, no zoom, no overlay
@@ -514,36 +514,6 @@ async function main() {
 }
 
 // ---------- size matrix + layout lint (DESIGN.md §10) ----------
-// Type tokens (DESIGN.md §3). Overlay sizes are rem × 16, so one list serves both windows.
-const TOKENS = [
-  { name: 'footnote', size: 13, lh: 18, weights: [400, 600] },
-  { name: 'subheadline', size: 15, lh: 20, weights: [400, 600] },
-  { name: 'body', size: 17, lh: 24, weights: [400] },
-  { name: 'headline', size: 17, lh: 24, weights: [600] },
-  { name: 'title3', size: 21, lh: 26, weights: [400, 600] },
-  { name: 'title2', size: 28, lh: 34, weights: [600] },
-  { name: 'largeTitle', size: 34, lh: 41, weights: [400, 600] },
-  { name: 'display', size: 40, lh: 48, weights: [600] },
-  { name: 'ring', size: 48, lh: 48, weights: [700] },
-  { name: 'ring3', size: 36, lh: 36, weights: [700] },
-  { name: 'hero', size: 96, lh: 96, weights: [700] },
-];
-const GROUPS = [
-  { scope: '.set-grid > .panel', row: '.field', cols: [[':scope > label', 'left'], [':scope > :last-child', 'right']] },
-  { scope: '.ov-col', row: '.ov-row', cols: [['.nm', 'left'], ['[data-k="sets"]', 'left'], ['[data-k="sets"]', 'right'], ['[data-k="a"]', 'left'], ['[data-k="b"]', 'right'], ['.reset', 'right']] },
-  { scope: '.ov-col', row: '.ov-head, .ov-row', cols: [['.l-sets, [data-k="sets"]', 'center']] },
-  { scope: '.timeline', row: 'li', cols: [['.t', 'left'], ['.st', 'right']] },
-  { scope: '.detail .sec', row: '.urow', cols: [[':scope > :first-child', 'left'], ['.c', 'right']] },
-  { scope: '.plan', row: 'li', cols: [['.nm', 'left'], ['.mt', 'right']] },
-];
-// Rule (h): comparable elements that must render with one token (DESIGN.md §3).
-const ROLES = {
-  'page title': '.page-head h1', eyebrow: '.eyebrow', 'panel title': '.panel-head h2',
-  'card title': '.card .k', 'card value': '.card .v', 'row label': '.field > label',
-  'table header': '.ov-head .lbl', 'table name': '.ov-row .nm', segment: '.seg button:not(.on)',
-  'weekday toggle': '.days button:not(.on)', 'timeline status': '.timeline li:not(.next) .st',
-  'calendar day': '.cell .d', 'overlay meta': '.p-meta',
-};
 const MAIN_SIZES = [[800, 600], [900, 700], [965, 940], [1024, 768], [1280, 720], [1366, 768], [1440, 900], [1600, 900], [1920, 1080], [2560, 1440]];
 const ZOOMS = [[965, 940, 1.25], [965, 940, 1.5]];
 const EN_MAIN_SIZES = [[800, 600], [965, 940], [1366, 768], [1920, 1080], [2560, 1440]];

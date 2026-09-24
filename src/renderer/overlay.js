@@ -3,7 +3,7 @@
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const ICON = (name, cls = '') => `<span class="ms ${cls}">${name}</span>`;
+const ICON = (name, cls = '') => `<span class="ms ${cls}" aria-hidden="true">${name}</span>`;
 
 const INTRO_SEC = 10;
 const PREVIEW_SEC = 5;
@@ -301,7 +301,7 @@ function adjustHTML() {
   const prev = steps[st.i - 1];
   return prev && prev.kind === 'work' && st.lastRec
     ? `<div class="adjust"><span class="lbl">${t('prevSet')}</span><div class="stepper">
-        <button class="btn" id="repMinus">${ICON('remove')}</button><span class="val" id="repVal">${st.lastRec.reps}</span><button class="btn" id="repPlus">${ICON('add')}</button></div></div>`
+        <button class="btn" id="repMinus" aria-label="${t('decreaseReps')}">${ICON('remove')}</button><span class="val" id="repVal">${st.lastRec.reps}</span><button class="btn" id="repPlus" aria-label="${t('increaseReps')}">${ICON('add')}</button></div></div>`
     : '';
 }
 function bindAdjust(html) {

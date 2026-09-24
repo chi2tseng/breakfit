@@ -3,7 +3,7 @@
 @media (max-width: 719px), (max-aspect-ratio: 1/1) {
   html { font-size: 16px; }
   :root { --vw: calc(100vw - 2rem); --pw: calc(100vw - 2rem); }
-  #top { grid-template-columns: minmax(0, 1fr) auto; column-gap: 1rem; padding: 0 1rem; }
+  #top { grid-template-columns: minmax(0, 1fr) auto; column-gap: 1rem; padding: env(safe-area-inset-top) 1rem 0; height: calc(4rem + env(safe-area-inset-top)); }
   #stage {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(26rem, 1fr);

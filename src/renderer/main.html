@@ -2,8 +2,10 @@
 <html lang="zh-Hant-TW">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#000000">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self'; style-src 'self' 'unsafe-inline'; media-src 'self' file:; font-src 'self' file:; img-src 'self' data: file:">
-<title>BreakFit</title>
+<title translate="no">BreakFit</title>
 <link rel="stylesheet" href="../../node_modules/@fontsource/inter/400.css">
 <link rel="stylesheet" href="../../node_modules/@fontsource/inter/600.css">
 <link rel="stylesheet" href="../../node_modules/@fontsource/inter/700.css">
@@ -16,10 +18,10 @@
 </head>
 <body>
   <nav id="side">
-    <div class="brand"><span class="logo"></span><span class="brand-name">BreakFit</span></div>
-    <button class="nav-item active" data-tab="today" data-i18n-title="navToday"><span class="ms">today</span><span class="nav-label" data-i18n="navToday"></span></button>
-    <button class="nav-item" data-tab="history" data-i18n-title="navHistory"><span class="ms">calendar_month</span><span class="nav-label" data-i18n="navHistory"></span></button>
-    <button class="nav-item" data-tab="settings" data-i18n-title="navSettings"><span class="ms">tune</span><span class="nav-label" data-i18n="navSettings"></span></button>
+    <div class="brand"><span class="logo"></span><span class="brand-name" translate="no">BreakFit</span></div>
+    <button class="nav-item active" data-tab="today" data-i18n-title="navToday"><span aria-hidden="true" class="ms">today</span><span class="nav-label" data-i18n="navToday"></span></button>
+    <button class="nav-item" data-tab="history" data-i18n-title="navHistory"><span aria-hidden="true" class="ms">calendar_month</span><span class="nav-label" data-i18n="navHistory"></span></button>
+    <button class="nav-item" data-tab="settings" data-i18n-title="navSettings"><span aria-hidden="true" class="ms">tune</span><span class="nav-label" data-i18n="navSettings"></span></button>
   </nav>
 
   <main id="content">
@@ -27,7 +29,7 @@
     <section class="tab" id="tab-today">
       <header class="page-head">
         <div class="head-text"><div class="eyebrow" id="todayLabel"></div><h1 id="todayTitle"></h1></div>
-        <button class="btn primary" id="breakNowBtn"><span class="ms fill">play_arrow</span><span data-i18n="breakNow"></span></button>
+        <button class="btn primary" id="breakNowBtn"><span aria-hidden="true" class="ms fill">play_arrow</span><span data-i18n="breakNow"></span></button>
       </header>
       <div class="cards" id="todayCards"></div>
       <div class="today-grid">
@@ -54,9 +56,9 @@
         <div class="hist-main">
           <div class="panel" id="calPanel">
             <div class="panel-head cal-head">
-              <button class="icon-btn" id="prevMonth"><span class="ms">chevron_left</span></button>
+              <button class="icon-btn" id="prevMonth" data-i18n-aria="prevMonth"><span aria-hidden="true" class="ms">chevron_left</span></button>
               <h2 id="monthLabel"></h2>
-              <button class="icon-btn" id="nextMonth"><span class="ms">chevron_right</span></button>
+              <button class="icon-btn" id="nextMonth" data-i18n-aria="nextMonth"><span aria-hidden="true" class="ms">chevron_right</span></button>
             </div>
             <div class="cal-week" id="calWeek"></div>
             <div class="cal" id="calendar"></div>
@@ -73,13 +75,13 @@
     <!-- 設定 -->
     <section class="tab" id="tab-settings" hidden>
       <header class="page-head"><h1 data-i18n="settingsTitle"></h1>
-        <button class="btn" id="testBreakBtn"><span class="ms">preview</span><span data-i18n="testBreak"></span></button>
+        <button class="btn" id="testBreakBtn"><span aria-hidden="true" class="ms">preview</span><span data-i18n="testBreak"></span></button>
       </header>
       <div class="set-grid">
         <div class="panel">
           <div class="panel-head"><h2 data-i18n="hours"></h2></div>
-          <div class="field"><label data-i18n="start"></label><input type="text" class="hm" id="sStart" maxlength="5" placeholder="10:00" spellcheck="false"></div>
-          <div class="field"><label data-i18n="end"></label><input type="text" class="hm" id="sEnd" maxlength="5" placeholder="21:00" spellcheck="false"></div>
+          <div class="field"><label for="sStart" data-i18n="start"></label><input type="text" class="hm" id="sStart" maxlength="5" placeholder="10:00" spellcheck="false"></div>
+          <div class="field"><label for="sEnd" data-i18n="end"></label><input type="text" class="hm" id="sEnd" maxlength="5" placeholder="21:00" spellcheck="false"></div>
           <div class="field"><label for="sInterval" data-i18n="interval"></label><input type="number" id="sInterval" min="5" max="600" step="5"></div>
           <div class="field"><label data-i18n="workdays"></label><div class="days" id="sDays"></div></div>
           <div class="field"><label data-i18n="walkReminder"></label><button class="switch" id="sNotify" data-i18n-aria="walkReminder"></button></div>
@@ -108,7 +110,7 @@
         <h2 id="playerName"></h2>
         <div class="player-meta" id="playerMeta"></div>
         <ul class="tips" id="playerTips"></ul>
-        <button class="btn" id="playerClose"><span class="ms">close</span><span data-i18n="close"></span></button>
+        <button class="btn" id="playerClose"><span aria-hidden="true" class="ms">close</span><span data-i18n="close"></span></button>
       </div>
     </div>
   </div>

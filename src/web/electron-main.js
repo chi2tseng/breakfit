@@ -69,7 +69,6 @@ class BrowserWindow {
     const f = document.createElement('iframe');
     f.className = 'bf-window';
     f.setAttribute('allow', 'fullscreen; autoplay');
-    f.setAttribute('allowfullscreen', '');
     f.tabIndex = -1;
     f.src = siteUrl(file) + q;
     this.frame = f;

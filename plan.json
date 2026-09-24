@@ -1,5 +1,5 @@
 {
-  "source": "Bilibili BV1Gy4y1n7Pv — FitMen六六「無器械健身教程」(17:52)",
+  "source": "Bilibili BV1Gy4y1n7Pv：FitMen六六「無器械健身教程」(17:52)",
   "cycle": [
     "d1",
     "d2",
@@ -16,16 +16,16 @@
   ],
   "general_en": [
     "Each rep takes 3–5 seconds. Go slow: the goal is to work the muscle, not to race",
-    "Tuck your chin slightly; don't push your head forward (it strains your neck)",
-    "Lower-back pain = your abs aren't braced",
-    "If you can't finish, drop 1–2 sets or a few reps, then build back up"
+    "Tuck your chin slightly; don’t push your head forward (it strains your neck)",
+    "Lower-back pain = your abs aren’t braced",
+    "If you can’t finish, drop 1–2 sets or a few reps, then build back up"
   ],
   "days": {
     "d1": {
       "label": "第 1 天",
       "label_en": "Day 1",
       "title": "胸・三頭",
-      "title_en": "Chest · Triceps",
+      "title_en": "Chest & Triceps",
       "after": "練完花 1–2 分鐘伸展胸肌、肱三頭肌",
       "after_en": "Afterwards, spend 1–2 minutes stretching your chest and triceps",
       "units": [
@@ -48,7 +48,7 @@
           ],
           "tips_en": [
             "Keep your body in one straight line, like a plank: no sagging, no arching",
-            "Keep your arms at about 45° to your body; don't flare them out",
+            "Keep your arms at about 45° to your body; don’t flare them out",
             "If a full push-up is too hard, do it on your knees"
           ]
         },
@@ -112,7 +112,7 @@
           ],
           "tips_en": [
             "Put your hands together in a diamond shape",
-            "It's hard: start on your knees if you can't do it yet"
+            "It’s hard: start on your knees if you can’t do it yet"
           ]
         },
         {
@@ -133,7 +133,7 @@
           ],
           "tips_en": [
             "Best done on your knees",
-            "Don't shrug; go slow"
+            "Don’t shrug; go slow"
           ]
         },
         {
@@ -156,7 +156,7 @@
           "tips_en": [
             "Use the sofa, a bench or the edge of the bed",
             "Keep your body close to the bench, or your shoulders take too much load",
-            "The slower the better; if it's too easy, rest a weight on your lap"
+            "The slower the better; if it’s too easy, rest a weight on your lap"
           ]
         }
       ]
@@ -165,7 +165,7 @@
       "label": "第 2 天",
       "label_en": "Day 2",
       "title": "背・肩・二頭・臀腿",
-      "title_en": "Back · Shoulders · Biceps · Legs",
+      "title_en": "Back, Shoulders, Biceps & Legs",
       "after": "練完伸展練到的肌肉",
       "after_en": "Afterwards, stretch the muscles you trained",
       "tableNote": "影片表格寫「Z字」,但口述與示範都是 T字(05:14),以 T字 為準",
@@ -190,7 +190,7 @@
           ],
           "tips_en": [
             "Thumbs up",
-            "Neutral spine: don't round your back; brace your core",
+            "Neutral spine: don’t round your back; brace your core",
             "Shoulders down, away from your ears",
             "3–5 seconds per rep"
           ]
@@ -236,8 +236,8 @@
           ],
           "tips_en": [
             "Do the easier, regressed version",
-            "Don't shrug",
-            "On the way down, don't rest on the floor; stay slightly lifted",
+            "Don’t shrug",
+            "On the way down, don’t rest on the floor; stay slightly lifted",
             "Brace your abs and hold 1–2 seconds at the top"
           ]
         },
@@ -283,7 +283,7 @@
           ],
           "tips_en": [
             "Keep a slight bend in your elbows; no need to lock them straight",
-            "Don't rock back and forth; brace your abs and glutes",
+            "Don’t rock back and forth; brace your abs and glutes",
             "Hold 1–2 seconds at the top"
           ]
         },
@@ -329,7 +329,7 @@
           ],
           "tips_en": [
             "A wide stance works the glutes more; shoulder width works the legs more",
-            "Neutral spine: don't round your back",
+            "Neutral spine: don’t round your back",
             "Keep your knees in line with your toes"
           ]
         },
@@ -401,7 +401,7 @@
           "身體成一直線，肩胛骨穩定不鬆垮"
         ],
         "tips_en": [
-          "Brace your abs, core and glutes; don't let your hips sag",
+          "Brace your abs, core and glutes; don’t let your hips sag",
           "Body in one straight line, shoulder blades stable"
         ]
       },
@@ -430,7 +430,7 @@
           "腹部、核心、臀部收緊，不塌腰"
         ],
         "tips_en": [
-          "Brace your abs, core and glutes; don't let your hips sag"
+          "Brace your abs, core and glutes; don’t let your hips sag"
         ]
       },
       {
@@ -444,7 +444,7 @@
           "起來吐氣，還原吸氣，慢"
         ],
         "tips_en": [
-          "Don't let your feet touch the floor",
+          "Don’t let your feet touch the floor",
           "Breathe out on the way up, in on the way down, slowly"
         ]
       },
@@ -458,7 +458,7 @@
           "腹部、核心、臀部收緊，不塌腰"
         ],
         "tips_en": [
-          "Brace your abs, core and glutes; don't let your hips sag"
+          "Brace your abs, core and glutes; don’t let your hips sag"
         ]
       },
       {
@@ -484,7 +484,7 @@
           "腹部、核心、臀部收緊，不塌腰"
         ],
         "tips_en": [
-          "Brace your abs, core and glutes; don't let your hips sag"
+          "Brace your abs, core and glutes; don’t let your hips sag"
         ]
       },
       {

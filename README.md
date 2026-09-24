@@ -4,13 +4,13 @@ Windows 托盤程式：上班時段每隔 N 分鐘跳出全螢幕休息，把當
 
 A Windows tray app that turns your work breaks into short no-equipment workouts. Every N minutes a full-screen break shows a looping demo and walks you through sets with rest timers. Skipped sets roll over to the next break; the last break of the day must clear everything, or the day is marked as failed.
 
-> 開發中(work in progress)。English UI is coming.
+> 介面有繁中與 English(設定 → 語言)。The UI is in 繁體中文 and English (Settings → Language).
 
 ## 菜單與示範片來源 / Credits
 
 訓練菜單與示範片段取自 **FitMen六六** 的 Bilibili 影片「無器械健身教程」:<https://www.bilibili.com/video/BV1Gy4y1n7Pv/>。版權屬原作者所有，這裡的片段僅供示範動作使用。
 
-The workout plan and demo clips come from **FitMen六六**'s Bilibili tutorial (link above). All rights to the footage belong to the original creator.
+The workout plan and demo clips come from **FitMen六六**’s Bilibili tutorial (link above). All rights to the footage belong to the original creator.
 
 ## 執行 / Run
 
@@ -24,11 +24,11 @@ npm.cmd run pack         # → dist\BreakFit-win32-x64\BreakFit.exe
 ```
 
 - 關掉主視窗只會縮到托盤；要結束請用托盤選單「結束」。
-- 打包版第一次啟動會註冊開機自動啟動(設定頁可關)。
+- 打包版第一次啟動會註冊開機啟動(設定頁可關)。
 
 ## 網頁版 / Web
 
-**<https://chi2tseng.github.io/breakfit/>** — 不用安裝，瀏覽器開著就會照時間表跳休息。
+**<https://chi2tseng.github.io/breakfit/>**:不用安裝，瀏覽器開著就會照時間表跳休息;手機也能用。
 
 - 分頁要開著(可以在背景);休息畫面蓋在頁面上，按「開始」後進全螢幕。
 - 側欄「開啟通知」:分頁在背景時，休息時間到會跳系統通知。
@@ -36,7 +36,7 @@ npm.cmd run pack         # → dist\BreakFit-win32-x64\BreakFit.exe
 - 記錄存在這個瀏覽器的 localStorage(清除網站資料就會不見;不同瀏覽器、裝置不共用)。
 - 沒有開機啟動、托盤;要常駐提醒請用 Windows 版。
 
-No install: keep the tab open (background is fine) and breaks open on schedule as an in-page layer; the Start button switches to full screen. Use "Enable notifications" in the sidebar to get a system notification when a break is due while the tab is in the background, and the pause item for 30 min / 1 h / 2 h / until tomorrow. Records stay in this browser's localStorage (per browser and device; clearing site data erases them). Start-at-login and the tray exist only in the Windows app.
+No install: keep the tab open (background is fine) and breaks open on schedule as an in-page layer; the Start button switches to full screen. Use “Enable Notifications” in the sidebar to get a system notification when a break is due while the tab is in the background, and the pause item for 30 min / 1 h / 2 h / until tomorrow. Records stay in this browser’s localStorage (per browser and device; clearing site data erases them). Start-at-login and the tray exist only in the Windows app.
 
 ```powershell
 npm.cmd run build:web    # → web-dist\(相對路徑，可放在任何子路徑下 / relative paths, works under /breakfit/)

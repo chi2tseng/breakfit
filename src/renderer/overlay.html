@@ -2,6 +2,8 @@
 <html lang="zh-Hant-TW">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#000000">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' file:; script-src 'self'; style-src 'self' 'unsafe-inline'; media-src 'self' file:; font-src 'self' file:; img-src 'self' data: file:">
 <title data-i18n-doc="breakTime">休息時間</title>
 <link rel="stylesheet" href="../../node_modules/@fontsource/inter/400.css">
@@ -17,11 +19,11 @@
 <body>
   <header id="top">
     <div class="top-l">
-      <span class="slot-badge"><span class="ms">schedule</span><span id="slotText"></span></span>
+      <span class="slot-badge"><span aria-hidden="true" class="ms">schedule</span><span id="slotText"></span></span>
       <span class="mode-tag" id="modeTag" hidden></span>
       <div class="top-prog"><div id="progFill"></div></div>
     </div>
-    <button class="btn ghost" id="leaveBtn"><span class="ms">logout</span><span data-i18n="leave"></span><kbd>Esc</kbd></button>
+    <button class="btn ghost" id="leaveBtn"><span aria-hidden="true" class="ms">logout</span><span data-i18n="leave"></span><kbd>Esc</kbd></button>
   </header>
 
   <!-- One fixed stage for every phase: video box left, panel right (DESIGN.md §4). -->
@@ -46,7 +48,7 @@
 
   <div id="modal" hidden>
     <div class="modal-card">
-      <h3 id="mTitle"></h3>
+      <h2 id="mTitle"></h2>
       <p id="mBody"></p>
       <div class="modal-btns">
         <button class="btn" id="mCancel"></button>

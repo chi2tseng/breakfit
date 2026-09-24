@@ -140,7 +140,8 @@ function build() {
   // index.html = the main window, served from the site root
   const main = fs.readFileSync(path.join(R, 'main.html'), 'utf8');
   let index = webPage(main, { name: 'main', fromRoot: '', scriptDir: 'src/renderer/' });
-  index = index.replace('</head>', '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n<link rel="icon" href="assets/icon/icon-256.png">\n</head>');
+  index = index.replace('initial-scale=1">', 'initial-scale=1, viewport-fit=cover">')
+    .replace('</head>', '<link rel="icon" href="assets/icon/icon-256.png">\n</head>');
   fs.writeFileSync(path.join(OUT, 'index.html'), index);
 
   for (const dir of ['assets/clips', 'assets/icon']) {

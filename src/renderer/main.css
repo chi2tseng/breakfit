@@ -150,10 +150,10 @@ body { display: flex; overflow: hidden; }
 .lib-card .n { white-space: nowrap; }
 
 /* ---------- player modal ---------- */
-#player { position: fixed; inset: 0; background: var(--backdrop); display: flex; align-items: center; justify-content: center; z-index: 20; padding: 32px; }
+#player { position: fixed; inset: 0; background: var(--backdrop); display: flex; z-index: 20; padding: 32px; overflow-y: auto; overscroll-behavior: contain; }
 #player[hidden] { display: none; }
 .player-card {
-  width: min(1040px, 100%); display: grid; grid-template-columns: minmax(0, 1fr) clamp(220px, 30%, 320px); gap: 24px; align-items: stretch;
+  margin: auto; width: min(1040px, 100%); display: grid; grid-template-columns: minmax(0, 1fr) clamp(220px, 30%, 320px); gap: 24px; align-items: stretch;
   background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-lg); padding: 24px;
 }
 .player-card .clip { width: 100%; aspect-ratio: 16 / 9; border-radius: var(--r-md); }
@@ -170,6 +170,7 @@ body { display: flex; overflow: hidden; }
   #player { padding: 16px; }
   .player-card { padding: 16px; gap: 16px; }
 }
+@media (max-width: 559px) { .player-card { grid-template-columns: minmax(0, 1fr); } .player-side .btn { margin-top: 16px; } }
 
 /* ---------- history ---------- */
 .stat-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) 320px; gap: var(--gap); margin-bottom: var(--gap); }
@@ -186,6 +187,7 @@ body { display: flex; overflow: hidden; }
 }
 .cal-head { justify-content: flex-start; flex-wrap: nowrap; gap: 8px; }
 .cal-head h2 { min-width: 132px; text-align: center; }
+.cal-head .ml-short { display: none; }
 .cal-week, .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 8px; }
 .cal-week span { padding-bottom: 8px; text-align: center; font: var(--t-subhead-em); letter-spacing: var(--tr-15); color: var(--muted); }
 .cell {
@@ -193,6 +195,7 @@ body { display: flex; overflow: hidden; }
   background: transparent; border: 1px solid var(--line-soft); position: relative; text-align: left;
 }
 .cell.has { cursor: pointer; }
+.cell.has:hover { border-color: var(--muted); }
 .cell .d { font: var(--t-subhead-em); letter-spacing: var(--tr-15); color: var(--muted); white-space: nowrap; }
 .cell .p { font: var(--t-headline); letter-spacing: var(--tr-17); white-space: nowrap; }
 .cell.pass { background: var(--accent-soft); border-color: transparent; }
@@ -251,6 +254,7 @@ input.hm, input[type="number"] {
 input.hm, .field input[type="number"] { width: 88px; }
 input[type="number"]::-webkit-inner-spin-button, input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 input:focus { border-color: var(--accent-line); }
+input.bad, input.bad:focus { border-color: var(--fail-text); }
 /* slider: 28 px hit region, 4 px pill track, accent fill left of the knob (--p from main.js) */
 input[type="range"] { -webkit-appearance: none; appearance: none; width: 160px; height: 28px; margin: 0; background: transparent; cursor: pointer; }
 input[type="range"]::-webkit-slider-runnable-track {
@@ -291,7 +295,7 @@ input[type="range"]::-webkit-slider-thumb {
   min-height: 52px;
 }
 .ov-head { min-height: 40px; }
-.ov-head h4 { grid-column: 1; font: var(--t-headline); letter-spacing: var(--tr-17); white-space: nowrap; }
+.ov-head h3 { grid-column: 1; font: var(--t-headline); letter-spacing: var(--tr-17); white-space: nowrap; }
 .ov-head .lbl { font: var(--t-subhead-em); letter-spacing: var(--tr-15); color: var(--muted); text-align: center; white-space: nowrap; }
 .ov-head .l-sets { grid-column: 2; }
 .ov-head .l-reps { grid-column: 4 / 7; }
@@ -317,3 +321,39 @@ input[type="range"]::-webkit-slider-thumb {
 .timeline .u, .timeline .none, .lib-card .n, .ov-row .nm, .urow > :first-child, .player-side h2 { font-feature-settings: "ss03"; }
 /* English names run longer ("Triceps push-up (kneeling)"): let them wrap instead of overflowing. */
 :lang(en) .timeline .units .u, :lang(en) .lib-card .n { white-space: normal; }
+
+/* ---------- phone (web build; #content < 480 px, e.g. 390 × 844) ----------
+   Same components, tighter rhythm: 16 px gutter, 12 px card padding, page title at title2, page
+   actions drop under the title, segmented controls span the field, calendar cells show only the
+   date (colour = status; the % is in the day detail), the sets / reps table puts the name above
+   its controls. Layout lint 0 at 390 and 360 wide, with or without a classic scrollbar (npm run test:web). */
+@container content (max-width: 479px) {
+  .tab { --gutter: 16px; --pad: 12px; }
+  .page-head { flex-wrap: wrap; min-height: 72px; }
+  .page-head h1 { font: var(--t-title2); }
+  .stat-cards { grid-template-columns: minmax(0, 1fr); }
+  .stat-cards .card { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .stat-cards .card .v { margin-top: 0; }
+  .cal-week, .cal { gap: 4px; }
+  .cell { height: 44px; padding: 0; align-items: center; justify-content: center; }
+  .cell .p { display: none; }
+  .cal-head .ml-long { display: none; }
+  .cal-head .ml-short { display: inline; }
+  .cal-head h2 { min-width: 0; flex: 1; }
+  .field > .seg { width: 100%; }
+  .field > .seg button { padding: 0 4px; }
+  .days { gap: 2px; }
+  .days button { width: 30px; height: 30px; }
+  .panel-head .seg button { padding: 0 10px; }
+  .timeline li { column-gap: 8px; }
+  .ov-head, .ov-row { grid-template-columns: 52px 12px 52px 20px 52px minmax(0, 1fr) 32px; row-gap: 4px; padding: 8px 0; }
+  .ov-row input[type="number"] { width: 52px; }
+  .ov-head h3, .ov-row .nm { grid-column: 1 / -1; grid-row: 1; padding-right: 0; }
+  .ov-head .lbl, .ov-row > :not(.nm) { grid-row: 2; }
+  .ov-head .l-sets, .ov-row [data-k="sets"] { grid-column: 1; }
+  .ov-head .l-reps { grid-column: 3 / 6; }
+  .ov-row [data-k="a"] { grid-column: 3; }
+  .ov-row .dash { grid-column: 4; }
+  .ov-row [data-k="b"] { grid-column: 5; }
+  .ov-row .reset { grid-column: 7; }
+}

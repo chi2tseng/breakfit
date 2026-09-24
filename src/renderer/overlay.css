@@ -177,7 +177,7 @@ kbd { font: var(--o-footnote-em); letter-spacing: var(--tr-13); padding: 0.125re
 }
 #modal[hidden] { display: none; }
 .modal-card { width: 30rem; padding: 2rem; border-radius: var(--o-r-lg); background: var(--surface); border: 1px solid var(--hairline); }
-.modal-card h3 { font: var(--o-title2); letter-spacing: var(--tr-display); }
+.modal-card h2 { font: var(--o-title2); letter-spacing: var(--tr-display); }
 .modal-card p { margin: 0.5rem 0 0; color: var(--fail-text); }
 .modal-card p:empty { display: none; }
 .modal-btns { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 2rem; }

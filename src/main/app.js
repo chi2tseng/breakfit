@@ -691,7 +691,7 @@ function start({ fast = false, hidden = false } = {}) {
       // data.json unreadable (locked / unmovable): never start on empty data, never overwrite it
       // settings are unreadable too: pick the language from the OS
       const osLang = /^zh/i.test((app.getPreferredSystemLanguages() || [])[0] || '') ? 'zh' : 'en';
-      dialog.showErrorBox('BreakFit', `${I18N.t(osLang, 'dataError')}\n${e && e.message}`);
+      dialog.showErrorBox('BreakFit', `${I18N.t(osLang, 'dataError', { file: path.join(app.getPath('userData'), 'data.json') })}\n${e && e.message}`);
       app.exit(1);
       return;
     }
