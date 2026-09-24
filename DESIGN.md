@@ -7,7 +7,11 @@ player), break overlay (every phase + dialogs), cover windows.
 from `docs/hig/getdesign-apple.md` (typography, radius, spacing, elevation, pill CTA) and the HIG
 text in `docs/hig/*.txt` (system colours, contrast, hit regions). The user asked for the same
 「字體感覺」 across everything. Dark = Apple Fitness (black, HIG Green); light = Apple Health
-(parchment + white cards, HIG Orange). **Only colour tokens differ between the themes.**
+(parchment + white surfaces, HIG Orange). **Only colour tokens differ between the themes.**
+
+**Hero pass (2026-09-25, `docs/DESIGN-PLAN.md`).** Anti card-kit: one raised surface per screen
+region, everything else on the ground; one hero per screen (今天 = the stop you owe next with its
+move playing, 記錄 = the streak numeral); radii follow the hierarchy (§1.2).
 
 Standing rules from the user: the demo video always stays left at one size, all controls stay
 right, no explanatory grey microcopy, aligned grids, Material Symbols (never emoji), Traditional
@@ -26,7 +30,7 @@ process mirrors `--bg` / `--stage` in `app.js` `BG` / `STAGE_BG` for the Browser
 | `--font-display` / `--font` | `"SF Pro Display"/"SF Pro Text", -apple-system, "Inter", "PingFang TC", "Noto Sans TC Variable", "Noto Sans TC", "Microsoft JhengHei UI", …` |
 | features | `font-feature-settings: "ss03", "tnum"` on `body` (tabular digits live in the feature list because the `font` shorthand resets `font-variant-numeric`) |
 | weights | 400 · 600 · 700 only. No 500 |
-| type tokens | `--t-footnote(-em)` · `--t-subhead(-em)` · `--t-body` · `--t-headline` · `--t-title3` · `--t-title2` · `--t-large` · `--t-display` (full `font` shorthands, §3); overlay `--o-*` rem twins in `overlay.css` |
+| type tokens | `--t-footnote(-em)` · `--t-subhead(-em)` · `--t-body` · `--t-headline` · `--t-title3` · `--t-title2` · `--t-large` · `--t-ring` · `--t-hero` (full `font` shorthands, §3); overlay `--o-*` rem twins in `overlay.css` |
 | tracking | `--tr-13` 0 · `--tr-15` −0.016em · `--tr-17` −0.02em · `--tr-display` −0.015em (≥ 21 px) |
 
 **Fonts [choice, 2026-09-24].** Latin and digits: SF Pro where the OS has it, otherwise Inter
@@ -42,31 +46,35 @@ JhengHei is last-resort only: it has just Regular/Bold, so 600 rendered as a fau
 | Token | Value | Use |
 |---|---|---|
 | `--r-xs` | 5 px | `kbd` |
-| `--r-sm` | 8 px | nav items, inputs, cycle cells |
-| `--r-md` | 11 px | library cards, calendar cells, player video, textarea |
-| `--r-lg` | 18 px | cards, panels, player card, overlay video + dialog (`--o-r-lg` 1.125rem) |
+| `--r-sm` | 8 px | nav items, text inputs, a day-line stop's focus ring |
+| `--r-md` | 11 px | media and things inside a surface: hero clip, library clips, player video, calendar cells, day-line tooltip, textarea |
+| `--r-lg` | 18 px | the raised surfaces only: 今天 hero, 記錄 calendar + detail, 設定 groups, player card, overlay video + dialog (`--o-r-lg` 1.125rem) |
 | `--r-pill` | 9999 px | every button, segmented control, pills/chips, switch, progress bars |
 | `--btn` / `--ctl` | 44 / 36 px | main-window buttons (HIG 44 pt hit region) / form controls |
 | `--press` | `scale(0.95)` | `:active` on buttons, icon buttons, library cards |
 | `--blur` | `saturate(180%) blur(20px)` | the frosted sticky page head only |
 
-Squircle: `corner-shape: squircle` on every box; everything pill/circle opts out with
+**Radii follow hierarchy [choice, 2026-09-25]:** surface 18 → media 11 → controls pill; never one
+radius on everything. Squircle: `corner-shape: squircle` on every box; everything pill/circle opts out with
 `corner-shape: round` (list in `base.css`, now including `.btn`, `.icon-btn`, `.seg`, day
 toggles, stepper and the slider).
 
 **Elevation [Apple: no shadows on cards or buttons].** `--shadow` / `--shadow-pop` are gone.
-Levels: flat (page, sidebar) → 1 px `--hairline` rgba edge (cards, panels, dialogs, player) →
-backdrop blur (the sticky page head, the one floating bar). The only `box-shadow`s left are
-1 px hairline rings on the switch/slider knob and the 1–2 px inset ring on the "next" timeline dot.
+Levels: ground (`--bg`: page, the day line, library, chart, section headings) → raised surface
+(`--surface` fill, **no border, no shadow**: the ground/surface step is the edge; exactly one per
+screen region, §5) → backdrop blur (the sticky page head, the one floating bar). Dialogs, the player
+card and the day-line tooltip keep a 1 px `--hairline` edge (they float over content). The only
+`box-shadow`s left are 1 px hairline rings on the switch/slider knob, the 2 px inset ring on a
+"later" stop and the 5 px `--accent-soft` halo on the next stop.
 
 ### 1.3 Colour roles (values per theme in §9)
 
 | Token | Role |
 |---|---|
 | `--bg` / `--side-bg` / `--side-on` | page / sidebar / selected nav item |
-| `--surface` / `--surface-2` / `--surface-3` | cards + dialogs / control fill (secondary pill, chip, seg track, input) / track + hover (never under muted text) |
+| `--surface` / `--surface-2` / `--surface-3` | raised surfaces + dialogs / control fill (secondary pill, chip, seg track, input, clip placeholder) / hover (never under muted text) |
 | `--seg-on` · `--switch-off` · `--knob` · `--ghost` | selected segment · switch off track · switch + slider knob · secondary pill on the overlay stage |
-| `--hairline` / `--line-soft` | 1 px card/input edge / row dividers |
+| `--hairline` / `--line-soft` | 1 px dialog/tooltip/input edge / row dividers |
 | `--text` / `--muted` (`--faint` = `--muted`) | the only two text colours |
 | `--accent` | HIG accent for thick graphics: ring arc, 8 px bars, switch on, slider fill, chart bars, logo, dots |
 | `--accent-text` | accent as text, icons, thin (4 px) strokes, focus ring |
@@ -81,14 +89,15 @@ backdrop blur (the sticky page head, the one floating bar). The only `box-shadow
 Apple scale: 4 · 8 · 12 · 17 · 24 · 32 · 48 px (base 8). Structural gaps 16/24/32; 4 and 12
 inside components. Overlay rem equivalents 0.25 / 0.5 / 1 / 1.5 / 2 / 3.
 
-- Tokens: `--gap` 12 (between cards / panels), `--pad` 16 (card / panel padding), `--content-max`
+- Tokens: `--gap` 12 (between raised surfaces), `--pad` 16 (surface padding), `--content-max`
   1200 (main-window content column). Denser than Apple's 24 utility card on purpose (user: blocks
   too far apart); everything stays on the 4/8 grid.
 - Content column: gutter `max(32px, (100% − 1200px) / 2)` (24 under 600), so wide windows
   (1600, 1920, 2560) centre a 1200 px column and the margins absorb the rest (Apple content lock,
   getdesign-apple §Grid: 980–1440). Page head (sticky, frosted) 88 high, background full-bleed,
   h1 + action aligned to the same column. Content padding bottom 32.
-- Grid gap `--gap`. Card/panel padding `--pad`. Timeline rows 40 (8 + 24 + 8). Panel head 36 + 12 below.
+- Grid gap `--gap`. Surface padding `--pad`. Hero → day line 24, day line → library 40. Timeline rows 40
+  (8 + 24 + 8). Section head 36 + 12 below. Library gap 24 × 16.
 - Sidebar 200 wide, padding 24 12, brand 44 high, nav items 40 high, gap 4.
 
 ## 3. Type scale
@@ -101,17 +110,18 @@ then ≥ 15 px in `--muted` (≥ 4.5:1, §9).
 | Token | px / line-height / weight | Main window | Overlay (rem = px/16) |
 |---|---|---|---|
 | footnote | 13 / 18 / 400·600 | chart axis (400), pass/fail pill (600) | kbd, mode tag (600) |
-| subheadline | 15 / 20 / 400·600 | segments (selected 600), timeline counts + status, `還有 00:30`, reps line, weekday toggles; 600: eyebrow `第 1 天`, table headers `組` `次數`, calendar weekday row + day numbers | — |
-| body | 17 / 24 / 400 | default: nav, row labels, inputs, buttons, timeline names, library names, tips, units after KPI values | slot time, plan rows, tips, `上一組` |
-| headline | 17 / 24 / 600 | card titles (accent colour), active nav, table day header, calendar %, detail counts, next slot time | chips, every button |
-| title3 | 21 / 26 / 600 (400 overlay meta) | panel titles, detail date, brand | meta line (400), unit `下` (400), `13 / 25 組` (600) |
-| title2 | 28 / 34 / 600 | player title | dialog title |
-| largeTitle | 34 / 41 / 600 | page h1 | stopwatch (400), stepper value (600) |
-| display | 40 / 48 / 600 | KPI values | phase title |
-| ring / ring3 / hero | 48/48 · 36/36 · 96/96 / 700 | — | ring number · 3-digit ring number · work target |
+| subheadline | 15 / 20 / 400·600 | segments (selected 600), timeline counts + status, day-line stop times (next 600), reps line, weekday toggles; 600: eyebrow `第 1 天`, table headers `組` `次數`, calendar weekday row + day numbers | — |
+| body | 17 / 24 / 400 | default: nav, row labels, inputs, buttons, timeline names, library names, tips, hero meta `2 × 8–15 下`, progress `7 / 25 組`, stat labels | slot time, plan rows, tips, `上一組` |
+| headline | 17 / 24 / 600 | active nav, table day header, calendar %, detail counts, next slot time (rows), stat values, the done count in `7 / 25 組` | chips, every button |
+| title3 | 21 / 26 / 600 (400 overlay meta) | section titles, detail date, brand, `還有 25 分` (accent) | meta line (400), unit `下` (400), `13 / 25 組` (600) |
+| title2 | 28 / 34 / 600 | player title, hero move name, `連續` / `天` around the streak | dialog title |
+| largeTitle | 34 / 41 / 600 | page h1, directive hero word `今天完成` | stopwatch (400), stepper value (600) |
+| display | 40 / 48 / 600 | — (KPI cards are gone) | phase title |
+| ring / ring3 / hero | 48/48 · 36/36 · 96/96 / 700 | `--t-ring`: hero time under 1000 content px; `--t-hero`: hero time ≥ 1000, streak numeral | ring number · 3-digit ring number · work target |
 
 Comparable elements share one token: all row labels = body, all section/panel titles = title3,
-all table headers = subheadline 600, all card titles = headline, all KPI values = display.
+all table headers = subheadline 600. Display numerals (next-stop time, streak) are the one 700 face
+in the main window, tabular, and there is exactly one per screen.
 Button weight: main-window pills 400 (body), overlay pills 600 (headline, read from a distance).
 
 ## 4. Break overlay: one fixed stage for every phase
@@ -163,7 +173,7 @@ floor keeps the smallest token (13 px) legal on 4:3 screens.
 
 | Phase | Video | A chip | B title | C meta | D body | E | F primary |
 |---|---|---|---|---|---|---|---|
-| intro | first item | `第 1 天` (plan `label`); last slot: `warning 最後一次` (fail) | plan `title` `胸・三頭` | — | plan rows 2.5rem: name ‹history icon if carried› · `4 × 8–15 下` | 跳過這次 | 開始 ‹10› |
+| intro | first item | `第 1 天` (plan `label`); last slot: `warning 最後一次` (fail) | plan `title` `胸與三頭` | — | plan rows 2.5rem: name ‹history icon if carried› · `4 × 8–15 下` | 跳過這次 | 開始 ‹10› |
 | demo | this move | `示範` | name | `第 3/4 組`  `8–15 下` (two spans, 1rem gap) | up to 2 tips | — | 開始 ‹8› |
 | work | same clip (keeps playing) | `換你做` (accent) | name | `第 3/4 組` | `8–15 下` 6rem + stopwatch + `3–5 秒/下` | — | 完成這組 Space |
 | rest / roundRest | next move | `下一組` / `下一個動作` / `下一輪` | next name | next target | ring + `上一組 − 12 +` stepper | 延長 30 秒 | 跳過休息 |
@@ -188,32 +198,56 @@ follow Windows display scaling too; 965×940 at 150 % = 643×627 CSS px):
 |---|---|
 | window < 720 | sidebar → 64 px icon rail (brand + nav labels hidden, `title` tooltips) |
 | content < 600 | gutter 32 → 24 |
-| content < 480 | 今天 cards stack |
-| content < 960 | 今天 timeline / library stack; ≥ 960 cards + panels use `3fr 5fr` (library 3 columns from 1366) |
+| day line < 46 px per stop (JS, `#dayLine` width − 120) | 今天 day line → vertical rows (time · dot · owed moves · status) |
+| content < 1000 | 今天 hero time `--t-ring` 48 instead of `--t-hero` 96 |
 | content < 700 | calendar gap 6, cell padding 6 |
 | content < 960 | 設定 panels stack; menu table one column |
-| content < 1000 | 記錄 stat cards 2 × 2; calendar → detail → chart in one column (detail not sticky) |
+| content < 1000 | 記錄 calendar → detail → chart in one column |
 | window < 720 | player modal padding 16 |
 | window < 560 | player one column (video above the tips); the modal scrolls, `overscroll-behavior: contain` |
-| content < 480 (phone, web build) | gutter 16, card padding 12, page title → title2, page action drops under the title, 記錄 stat cards one column as rows (title left, value right), calendar cells 44 px date only (colour = status, % stays in the detail), month label short (`Sep 2026`), segmented controls in a field span it, weekday toggles 30 px, menu table puts the name above its controls (`52 12 52 20 52 1fr 32`) |
+| content < 480 (phone, web build) | gutter 16, surface padding 12, page title → title2, page action drops under the title, 今天 hero one column (clip above the text), 記錄 stats wrap under the streak, calendar cells 44 px date only (colour = status, % stays in the detail), month label short (`Sep 2026`), segmented controls in a field span it, weekday toggles 30 px, menu table puts the name above its controls (`52 12 52 20 52 1fr 32`) |
 
 - **Page head:** sticky frosted bar, `min-height` 88, full-bleed (`.tab > :not(.page-head)` get
   the gutter instead of negative margins). 今天 = eyebrow `第 1 天` (subheadline 600, muted) above
-  the large title = plan `title` (`胸・三頭`, `背・肩・二頭・臀腿`, `腹肌核心`; English `Chest & Triceps`,
-  `Back, Shoulders, Biceps & Legs`, `Core`). Titles never wrap.
-- **今天:** two cards (今天進度, 下次休息) over two panels (時間表, 動作示範庫), same
-  grid so the column edges line up: `repeat(2, 1fr)` below 960 content px, `3fr 5fr` from 960. The 循環 card is gone: the eyebrow
-  already says 第 N 天, and changing the day is a setting (設定 → 今天是). Card = accent headline
-  title + pill (pass/fail only) → display value with a body-size muted unit → optional subheadline
-  line (`還有 00:30`, `已暫停到明天`).
-- **Library:** cards `auto-fill minmax(200px,1fr)` gap `--gap` (never a strip of tiny tiles: 2 columns at 800/1280, 3 at 965/1366/1920/2560), clip 16:9, name (body, one line). Header = title3 +
-  segmented filter; the filter drops under the title when the panel is narrow.
+  the large title = plan `title` (`胸與三頭`, `背、肩、二頭與臀腿`, `腹肌核心`; English `Chest & Triceps`,
+  `Back, Shoulders, Biceps & Legs`, `Core`). Titles never wrap. Rest / off day: no eyebrow, h1 = the
+  date (`9月24日 週四`), since the hero already says 今天休息. `現在就休息` is hidden when nothing
+  is owed today (no dead button beside a directive hero).
+- **今天 hero (the one raised surface):** `5fr 4fr` grid, clip left (16:9, `--r-md`, looping,
+  muted: the first move of the next stop that owes sets; a stop that owes nothing only sends the walk
+  reminder, so it is skipped) + text right: time (`--t-hero` / `--t-ring`, ink) and `還有 25 分` /
+  `還有 1 小時 1 分` (title3, accent; minutes rounded up, `即將開始` at 0) on one baseline, `最後一次`
+  fail pill when it is the last stop; move name (title2); meta in the overlay's intro format
+  (`2 × 8–15 下`, `8 × 30 秒`, body muted); further moves owed at the same stop as quiet rows under a
+  divider. **Directive states** (nothing owed today), same frame: state word (largeTitle) —
+  `今天完成` (day passed) / `今天結束` (day failed or no stop left) / `已暫停到明天` / `今天休息` /
+  `今天不用練` — then when the next training day starts (`明天 11:00` or `9月28日 週一 11:00`, title3
+  accent), its plan title (title2) and label (`第 2 天`, body muted); the clip plays that day's first
+  move, so a move is always visible and moving.
+- **Day line (on the ground):** the workday as a transit line. `grid-auto-flow: column`, one equal
+  track per stop; each stop = dot + time (subheadline, muted; next = 600 accent). Dots: done =
+  accent 12, partial = accent/red split, missed or skipped = red 12, later (owes sets) = hollow 12
+  (2 px muted ring), passed / free (nothing owed) = 6 px muted, **next = accent 16 + 5 px
+  `--accent-soft` halo** (= the hero's stop). Track 2 px: `--muted` into a stop behind you,
+  `--track` ahead. Hover / keyboard focus on a stop (`tabindex=0`, `aria-label` = time, status,
+  moves) opens a tooltip below it (`--surface`, hairline, `--r-md`): `伏地挺身 5/5` per move,
+  `補做` on the last stop. The progress figure `7 / 25 組` (done count headline ink, rest body muted)
+  ends the line; in vertical mode it sits above the rows. Narrow (< 46 px per stop): the same stops as
+  the vertical rows (time · dot · moves with counts · status), no surface.
+- **Library (on the ground):** `auto-fill minmax(200px,1fr)`, gap 24 × 16 (2 columns at 800, 3 at
+  965, 5 at 1366+), clip 16:9 `--r-md` + name under it (body, one line; English may wrap), no tile
+  background; hover plays the clip, `:active` press. Header = title3 + segmented filter.
 - **Segmented control:** equal-width segments (`inline-grid`, `grid-auto-columns: 1fr`), 2 px track
   padding, 32 px segments, selected = neutral raised thumb (`--seg-on`: white + `--seg-edge`
   shadow in light, systemGray2 in dark) with primary text; labels subheadline, never wrap.
 - **Player:** video `1fr` + side column `clamp(220px, 30%, 320px)`, title2 title, 關閉 at the bottom.
-- **History:** stat cards `repeat(3,1fr) 320px`, lower grid `1fr 320px` (detail under the 4th
-  card). Calendar cells 64 px: day number (subheadline 600) + % (headline); no plan-day line; a cell with a
+- **History:** the streak is the hero: `連續 4 天` / `4 days in a row` with the numeral in
+  `--t-hero` accent and the words in title2, one baseline; the other three stats are a quiet inline
+  row on the same baseline, right-aligned (wraps under at narrow widths): `合格率 63%` `最長 6 天`
+  `9 月 183 組` (label body muted, value headline ink). Below, grid `1fr 320px` with areas
+  `cal detail / chart detail`: the calendar and the picked day's detail are the two raised surfaces,
+  the 30-day chart sits on the ground under the calendar (title3 heading, no wrapper); one column
+  under 1000 content px (calendar → detail → chart). Calendar cells 64 px: day number (subheadline 600) + % (headline); no plan-day line; a cell with a
   record gets a `--muted` edge on hover.
   Chart drawn at its real pixel width (ResizeObserver), bars ≤ 16 px, date label every 5th bar
   (every 10th under 480 px), axis footnote 13 px. Detail = date + pill, then one row per exercise
@@ -241,12 +275,15 @@ preview, 從明天起生效, 照順序練三天休一天, 非上班日不算進�
 完成 0%`), slot strip, 已儲存, calendar plan-day line, sidebar date/clock, 循環 card, 秒後開始,
 共 N 組, 上次留下 (icon only), muscle line, the non-warning leave text, the warning banner.
 
-**No ASCII `+` or `·` inside CJK text.** Plan titles use `・` (`胸・三頭`); separate facts are
-separate spans with a gap (overlay meta) or separate lines (tray tooltip, tray menu:
-`第 1 天　胸・三頭` / `今天 7/25 組`); lists use `、` (`12、10、9 下`); `+30 秒` became `延長 30 秒`.
-`plan.json` days carry `label` (`第 1 天`) + `title` (`胸・三頭`); ids and structure unchanged.
-English has no `・` convention, so English titles are names joined with `,` / `&`
-(`Chest & Triceps`), never a `·` chain. English copy uses curly apostrophes (`don’t`) and Title
+**No middle dots, no ASCII `+` inside CJK text [2026-09-25].** Plan titles are written the way a
+person says them: `胸與三頭`, `背、肩、二頭與臀腿`, `腹肌核心` (`、` between items, `與` before
+the last); separate facts are separate spans with a gap (overlay meta) or separate lines / a
+full-width space (tray menu `第 1 天　胸與三頭`, tooltip lines); lists use `、` (`12、10、9 下`);
+`+30 秒` became `延長 30 秒`. `plan.json` days carry `label` (`第 1 天`) + `title` (`胸與三頭`); ids
+and structure unchanged. English titles are names joined with `,` / `&` (`Chest & Triceps`), never
+a `·` chain (the tray header is `Day 1: Chest & Triceps`; circuit rounds `Core Round 1`).
+**One verb per action, end to end:** `現在就休息` opens the break, whose intro button is `開始`;
+the last screen says `完成`. English copy uses curly apostrophes (`don’t`) and Title
 Case for labels and buttons (`Walk Reminder`, `Open at Login`). One term per feature in both
 places it shows (`開機啟動` in settings and the tray; `預覽休息畫面` / `Preview Break`). The one
 error the user can hit before the app starts (`dataError`) names the file and the fix; empty
@@ -402,7 +439,8 @@ matrix folder; add `--quick` for main window 965/1366/1920/2560 only, ≈ 25 s, 
 Hidden windows, temp profile, both themes:
 
 - Main window 800×600, 900×700, 965×940, 1024×768, 1280×720, 1366×768, 1440×900, 1600×900,
-  1920×1080, 2560×1440, plus 965×940 at zoom 125 % and 150 % → 今天 (top + bottom), player, 記錄 (detail +
+  1920×1080, 2560×1440, plus 965×940 at zoom 125 % and 150 % → 今天 (top + bottom, plus the
+  directive hero states `done` and `rest` via `__test.hero()`), player, 記錄 (detail +
   chart, top + bottom), 設定 (top + bottom incl. menu table).
 - Overlay 1024×768, 1280×720, 1280×800, 1366×768, 1440×900, 1536×864, 1920×1080, 2560×1440 →
   intro, demo, work, rest, finish, leave dialog (第 1 天) and last intro, timed, round rest,
@@ -426,4 +464,6 @@ runs the same lint (`TOKENS` / `GROUPS` / `ROLES` exported from `layout-lint.js`
 
 Result 2026-09-24: 6444 issues before (1280×720 alone: 348) → **0** at every size, both themes (256 screens incl. main 2560×1440).
 Result 2026-09-25: phone widths 750 issues → **0**; matrix still 0 (306 screens).
+Result 2026-09-25 (hero pass): matrix **0** (364 screens) incl. the new 今天 hero / day line / directive states and
+the 記錄 streak row, both themes, 繁中 + English; phone lint 0.
 Intentional exceptions: none.

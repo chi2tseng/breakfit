@@ -24,7 +24,7 @@
     "d1": {
       "label": "第 1 天",
       "label_en": "Day 1",
-      "title": "胸・三頭",
+      "title": "胸與三頭",
       "title_en": "Chest & Triceps",
       "after": "練完花 1–2 分鐘伸展胸肌、肱三頭肌",
       "after_en": "Afterwards, spend 1–2 minutes stretching your chest and triceps",
@@ -164,7 +164,7 @@
     "d2": {
       "label": "第 2 天",
       "label_en": "Day 2",
-      "title": "背・肩・二頭・臀腿",
+      "title": "背、肩、二頭與臀腿",
       "title_en": "Back, Shoulders, Biceps & Legs",
       "after": "練完伸展練到的肌肉",
       "after_en": "Afterwards, stretch the muscles you trained",
@@ -371,7 +371,7 @@
         {
           "id": "core_round_1",
           "name": "腹肌循環 第 1 輪",
-          "name_en": "Core · Round 1",
+          "name_en": "Core Round 1",
           "type": "circuit",
           "sets": 1,
           "moves": "core"
@@ -379,7 +379,7 @@
         {
           "id": "core_round_2",
           "name": "腹肌循環 第 2 輪",
-          "name_en": "Core · Round 2",
+          "name_en": "Core Round 2",
           "type": "circuit",
           "sets": 1,
           "moves": "core"

@@ -18,7 +18,8 @@
   --t-title3:      600 21px/26px var(--font-display);  /* panel titles */
   --t-title2:      600 28px/34px var(--font-display);  /* player title */
   --t-large:       600 34px/41px var(--font-display);  /* page title */
-  --t-display:     600 40px/48px var(--font-display);  /* KPI values */
+  --t-ring:        700 48px/48px var(--font-display);  /* hero time, narrow */
+  --t-hero:        700 96px/96px var(--font-display);  /* the one hero numeral per screen: next-stop time, streak */
   --tr-13: 0;
   --tr-15: -0.016em;
   --tr-17: -0.02em;
@@ -261,6 +262,6 @@ kbd {
 .switch, .switch::after,
 .bar, .bar > div,
 .mode-tag, .top-prog, #progFill, .chip, .move-dots i, .today .bar, .today .bar div,
-.timeline .dot, .cell .d::after, .ov-row .nm.changed::after, .ov-row .reset {
+.timeline .dot, .stop .dot, .cell .d::after, .ov-row .nm.changed::after, .ov-row .reset {
   corner-shape: round;
 }

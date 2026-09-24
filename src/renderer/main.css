@@ -60,7 +60,8 @@ body { display: flex; overflow: hidden; }
 .page-head .btn { flex: none; }
 @container content (max-width: 599px) { .tab { --gutter: 24px; } }
 
-.panel { background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-lg); padding: var(--pad); min-width: 0; }
+/* Raised surface: fill only, no border, no shadow (the ground/surface step is the edge). */
+.panel { background: var(--surface); border-radius: var(--r-lg); padding: var(--pad); min-width: 0; }
 .panel-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; min-height: 36px; margin-bottom: 12px; }
 .panel-head h2 { font: var(--t-title3); letter-spacing: var(--tr-display); white-space: nowrap; }
 
@@ -95,28 +96,69 @@ body { display: flex; overflow: hidden; }
 .empty-state { color: var(--muted); padding: 24px 0; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .empty-state .ms { font-size: 32px; color: var(--faint); }
 
-/* ---------- cards (今天 + 記錄): title = Headline in the accent (Apple Health), value = display ---------- */
-.card { background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-lg); padding: var(--pad); min-width: 0; }
-.card .k {
-  display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 24px;
-  font: var(--t-headline); letter-spacing: var(--tr-17); color: var(--accent-text); white-space: nowrap;
+/* ---------- today ----------
+   One raised surface (the hero: the stop you owe next, its move playing); the day line, the
+   progress figure and the library sit on the ground (DESIGN.md §5). */
+.hero {
+  display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 4fr); gap: 24px; align-items: center;
+  margin-bottom: 24px;
 }
-.card .v { margin-top: 8px; font: var(--t-display); letter-spacing: var(--tr-display); white-space: nowrap; }
-.card .v small { margin-left: 6px; font: var(--t-body); letter-spacing: var(--tr-17); color: var(--muted); }
-.card .s { margin-top: 4px; font: var(--t-subhead); letter-spacing: var(--tr-15); color: var(--muted); }
-.bar { height: 8px; border-radius: var(--r-pill); background: var(--track); overflow: hidden; margin-top: 16px; }
-.bar > div { height: 100%; background: var(--accent); border-radius: var(--r-pill); }
-.bar.fail > div { background: var(--fail); }
+.hero-clip { aspect-ratio: 16 / 9; border-radius: var(--r-md); background: var(--surface-2); }
+.hero-clip .ph { background: var(--surface-2); }
+.hero-text { min-width: 0; padding-right: 8px; }
+.hero-when { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
+.hero-time { font: var(--t-ring); letter-spacing: var(--tr-display); white-space: nowrap; }
+.hero-in { font: var(--t-title3); letter-spacing: var(--tr-display); color: var(--accent-text); white-space: nowrap; }
+.hero-when .pill { align-self: center; }
+.hero-name { margin-top: 16px; font: var(--t-title2); letter-spacing: var(--tr-display); font-feature-settings: "ss03"; }
+.hero-meta { margin-top: 4px; color: var(--muted); }
+.hero-more { list-style: none; margin: 16px 0 0; padding: 12px 0 0; border-top: 1px solid var(--line-soft); display: flex; flex-direction: column; gap: 4px; }
+.hero-more li { display: flex; justify-content: space-between; gap: 12px; }
+.hero-more .nm { min-width: 0; font-feature-settings: "ss03"; }
+.hero-more .mt { color: var(--muted); white-space: nowrap; }
+.hero-state { font: var(--t-large); letter-spacing: var(--tr-display); }
+.hero.directive .hero-when { margin-top: 8px; }
+.hero.directive .hero-name { margin-top: 4px; }
+@container content (min-width: 1000px) { .hero-time { font: var(--t-hero); } }
 
-/* ---------- today ---------- */
-.cards, .today-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); }
-.cards { margin-bottom: var(--gap); }
-.today-grid { align-items: start; }
-/* wide: timeline 3/8, library 5/8 (3 library columns ≥ 200 px from 1366); cards share the tracks */
-@container content (min-width: 960px) { .cards, .today-grid { grid-template-columns: minmax(0, 3fr) minmax(0, 5fr); } }
-@container content (max-width: 959px) { .today-grid { grid-template-columns: minmax(0, 1fr); } }
-@container content (max-width: 479px) { .cards { grid-template-columns: minmax(0, 1fr); } }
+/* Day line: the workday as a transit line of stops (main.js picks .flat while every stop keeps
+   ≥ 46 px, else the vertical rows below). Stop = dot + time; hover / keyboard focus shows what it owes. */
+.day-line { display: flex; flex-direction: column; gap: 8px; margin-bottom: 40px; }
+.day-line.flat { flex-direction: row; align-items: flex-start; gap: 24px; }
+.prog { font: var(--t-body); letter-spacing: var(--tr-17); color: var(--muted); white-space: nowrap; }
+.prog b { font: var(--t-headline); letter-spacing: var(--tr-17); color: var(--text); }
+.day-line .prog { order: -1; }
+.day-line.flat .prog { order: 1; }
 
+.line { flex: 1; min-width: 0; list-style: none; margin: 0; padding: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+.stop { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; border-radius: var(--r-sm); }
+/* the track into this stop: travelled (stop is behind you) = muted ink, ahead = the quiet track */
+.stop::before { content: ""; position: absolute; top: 11px; left: -50%; right: 50%; height: 2px; background: var(--track); }
+.stop:first-child::before { display: none; }
+.stop:is(.done, .partial, .missed, .passed)::before { background: var(--muted); }
+.stop .dot {
+  position: relative; z-index: 1; width: 12px; height: 12px; margin: 6px 0; border-radius: 50%;
+  background: var(--bg); box-shadow: inset 0 0 0 2px var(--muted);
+}
+.stop.done .dot { background: var(--accent); box-shadow: none; }
+.stop.partial .dot { background: linear-gradient(90deg, var(--accent) 50%, var(--fail) 50%); box-shadow: none; }
+.stop.missed .dot { background: var(--fail); box-shadow: none; }
+.stop:is(.passed, .free) .dot { width: 6px; height: 6px; margin: 9px 0; background: var(--muted); box-shadow: none; }
+.stop.next .dot { width: 16px; height: 16px; margin: 4px 0; background: var(--accent); box-shadow: 0 0 0 5px var(--accent-soft); }
+.stop .t { font: var(--t-subhead); letter-spacing: var(--tr-15); color: var(--muted); white-space: nowrap; }
+.stop.next .t { font: var(--t-subhead-em); color: var(--accent-text); }
+.stop .tip {
+  display: none; position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%); z-index: 4;
+  flex-direction: column; gap: 2px; padding: 8px 12px; white-space: nowrap;
+  background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-md);
+}
+.stop.start .tip { left: 0; transform: none; }
+.stop.end .tip { left: auto; right: 0; transform: none; }
+.stop:hover .tip, .stop:focus-visible .tip { display: flex; }
+.tip .u small { margin-left: 6px; font: var(--t-subhead); letter-spacing: var(--tr-15); color: var(--muted); }
+.tip .u.full, .tip .none { color: var(--muted); }
+
+/* narrow: the same stops as rows (time · dot · what it owes · status) */
 .timeline { list-style: none; margin: 0; padding: 0; }
 .timeline li { display: grid; grid-template-columns: 52px 8px minmax(0, 1fr) auto; align-items: start; column-gap: 12px; padding: 8px 0; }
 .timeline li + li { border-top: 1px solid var(--line-soft); }
@@ -126,28 +168,27 @@ body { display: flex; overflow: hidden; }
 .timeline .units .u { white-space: nowrap; }
 .timeline .units .u small { margin-left: 4px; font: var(--t-subhead); letter-spacing: var(--tr-15); color: var(--muted); }
 .timeline .units .u.full { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--strike); }
-.timeline .units .none { color: var(--faint); }
+.timeline .units .none { color: var(--muted); }
 .timeline .st { padding-top: 2px; font: var(--t-subhead); letter-spacing: var(--tr-15); color: var(--muted); white-space: nowrap; }
 .timeline li.done .dot { background: var(--accent); }
 .timeline li.done .st { color: var(--accent-text); }
-.timeline li.skipped .dot, .timeline li.missed .dot { background: var(--fail); }
-.timeline li.skipped .st, .timeline li.missed .st { color: var(--fail-text); }
+.timeline li.missed .dot { background: var(--fail); }
+.timeline li.missed .st { color: var(--fail-text); }
 .timeline li.partial .dot { background: linear-gradient(90deg, var(--accent) 50%, var(--fail) 50%); }
 .timeline li.partial .st { color: var(--text); }
 .timeline li.next .dot { background: transparent; box-shadow: inset 0 0 0 2px var(--accent-text); }
 .timeline li.next .t { font: var(--t-headline); color: var(--accent-text); }
 .timeline li.next .st { font: var(--t-subhead-em); color: var(--accent-text); }
-.timeline li.empty-state { display: flex; }
 
-.lib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--gap); }
-.lib-card { cursor: pointer; border-radius: var(--r-md); background: var(--surface-2); overflow: hidden; transition: transform .1s; min-width: 0; }
-.lib-card:hover { background: var(--surface-3); }
+/* library: a grid of clips on the ground, names under them */
+.lib-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 24px 16px; }
+.lib-card { cursor: pointer; min-width: 0; border-radius: var(--r-md); transition: transform .1s; }
 .lib-card:active { transform: var(--press); }
-.lib-card .clip { aspect-ratio: 16 / 9; border-radius: 0; }
+.lib-card .clip { aspect-ratio: 16 / 9; border-radius: var(--r-md); background: var(--surface-2); }
+.lib-card .clip .ph { background: var(--surface-2); }
 .lib-card .clip .ph .ms { font-size: 32px; }
 .lib-card .clip .ph .ph-name { display: none; }
-.lib-card .meta { padding: 10px 12px 12px; }
-.lib-card .n { white-space: nowrap; }
+.lib-card .n { margin-top: 8px; white-space: nowrap; }
 
 /* ---------- player modal ---------- */
 #player { position: fixed; inset: 0; background: var(--backdrop); display: flex; z-index: 20; padding: 32px; overflow-y: auto; overscroll-behavior: contain; }
@@ -172,18 +213,26 @@ body { display: flex; overflow: hidden; }
 }
 @media (max-width: 559px) { .player-card { grid-template-columns: minmax(0, 1fr); } .player-side .btn { margin-top: 16px; } }
 
-/* ---------- history ---------- */
-.stat-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) 320px; gap: var(--gap); margin-bottom: var(--gap); }
-.hist-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: var(--gap); align-items: start; }
-.hist-main { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }
-/* narrow: 2 × 2 stat cards; calendar → the picked day's detail → chart in one column */
+/* ---------- history ----------
+   Streak = the one hero numeral, the other stats a quiet inline row; calendar + day detail are the
+   raised surfaces; the 30-day chart sits on the ground (DESIGN.md §5). */
+.streak-row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 32px; margin-bottom: 24px; }
+.streak { margin: 0; font: var(--t-title2); letter-spacing: var(--tr-display); white-space: nowrap; }
+.streak b { font: var(--t-hero); letter-spacing: var(--tr-display); color: var(--accent-text); }
+.stats { display: flex; flex-wrap: wrap; gap: 4px 24px; }
+.stat { display: inline-flex; align-items: baseline; gap: 8px; white-space: nowrap; }
+.stat .k { color: var(--muted); }
+.stat .v { font: var(--t-headline); letter-spacing: var(--tr-17); }
+/* wide: calendar over the chart, the picked day's detail beside both; narrow: calendar → detail → chart */
+.hist-grid {
+  display: grid; grid-template-columns: minmax(0, 1fr) 320px; grid-template-rows: auto 1fr;
+  grid-template-areas: "cal detail" "chart detail"; gap: var(--gap); align-items: start;
+}
+#calPanel { grid-area: cal; }
+.detail { grid-area: detail; }
+.chart-sec { grid-area: chart; margin-top: 20px; min-width: 0; }
 @container content (max-width: 999px) {
-  .stat-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .hist-grid { grid-template-columns: minmax(0, 1fr); }
-  .hist-main { display: contents; }
-  #calPanel { order: 1; }
-  .detail { order: 2; position: static; }
-  #chartPanel { order: 3; }
+  .hist-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: none; grid-template-areas: "cal" "detail" "chart"; }
 }
 .cal-head { justify-content: flex-start; flex-wrap: nowrap; gap: 8px; }
 .cal-head h2 { min-width: 132px; text-align: center; }
@@ -218,7 +267,6 @@ body { display: flex; overflow: hidden; }
 #chart .grid { stroke: var(--line-soft); }
 #chart text { fill: var(--muted); font: var(--t-footnote); letter-spacing: var(--tr-13); }
 
-.detail { position: sticky; top: 96px; }
 .detail .dh { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 28px; }
 .detail h3 { font: var(--t-title3); letter-spacing: var(--tr-display); white-space: nowrap; }
 .detail .sec { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
@@ -318,7 +366,7 @@ input[type="range"]::-webkit-slider-thumb {
 .ov-row .reset[disabled] { visibility: hidden; }
 
 /* Exercise names: Inter's tabular figures ("tnum", base.css) also widen the hyphen ("Push-up" in English). */
-.timeline .u, .timeline .none, .lib-card .n, .ov-row .nm, .urow > :first-child, .player-side h2 { font-feature-settings: "ss03"; }
+.timeline .u, .timeline .none, .tip .u, .lib-card .n, .ov-row .nm, .urow > :first-child, .player-side h2 { font-feature-settings: "ss03"; }
 /* English names run longer ("Triceps push-up (kneeling)"): let them wrap instead of overflowing. */
 :lang(en) .timeline .units .u, :lang(en) .lib-card .n { white-space: normal; }
 
@@ -331,9 +379,9 @@ input[type="range"]::-webkit-slider-thumb {
   .tab { --gutter: 16px; --pad: 12px; }
   .page-head { flex-wrap: wrap; min-height: 72px; }
   .page-head h1 { font: var(--t-title2); }
-  .stat-cards { grid-template-columns: minmax(0, 1fr); }
-  .stat-cards .card { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .stat-cards .card .v { margin-top: 0; }
+  .hero { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .hero-text { padding-right: 0; }
+  .streak-row { margin-bottom: 16px; }
   .cal-week, .cal { gap: 4px; }
   .cell { height: 44px; padding: 0; align-items: center; justify-content: center; }
   .cell .p { display: none; }

@@ -34,13 +34,6 @@ const fmtKey = (key) => I18N.dayLabel(window.LANG, key);
 function vnow() {
   return new Date(Date.parse(S.now) + (Date.now() - receivedAt) * S.rate);
 }
-function dur(sec) {
-  sec = Math.max(0, Math.floor(sec));
-  const h = Math.floor(sec / 3600);
-  const m = Math.floor((sec % 3600) / 60);
-  const s = sec % 60;
-  return h ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
-}
 function pill(status) {
   return status === 'pass' || status === 'fail' ? `<span class="pill ${status}">${DAY_TXT(status)}</span>` : '';
 }
@@ -59,45 +52,105 @@ async function refresh() {
 }
 
 // ---------- 今天 ----------
+// Page head = which training day; hero = the stop you owe next, its move playing; below it the
+// workday as a transit line of stops (DESIGN.md §5). Rest / done / over: the hero points at the
+// next training day instead (directive, not mood).
+function repRange(it) {
+  const [a, b] = it.target;
+  return a === b ? `${a}` : `${a}–${b}`;
+}
+// Same meta as the break overlay's intro rows: `4 × 8–15 下` / `8 × 30 秒`.
+function itemMeta(it) {
+  return it.type === 'reps'
+    ? `${it.setsLeft} × ${t(it.perSide ? 'perSideReps' : 'repsN', { r: repRange(it) })}`
+    : t('timedMeta', { n: it.moves.length, s: it.moves[0].sec });
+}
+const firstMove = (it) => (it.type === 'reps' ? it : it.moves[0]);
+
 function renderToday() {
-  const d = S.day;
   const training = !!S.dayTitle;
   $('#todayLabel').textContent = training ? S.dayLabel : '';
   $('#todayLabel').hidden = !training;
-  $('#todayTitle').textContent = training ? S.dayTitle : d.planDay === 'rest' ? t('restDay') : t('noTraining');
+  $('#todayTitle').textContent = training ? S.dayTitle : fmtKey(S.today);
   $('#breakNowBtn').disabled = !S.canBreakNow;
-
-  const pct = S.total ? S.done / S.total : 0;
-  let status = d.status;
-  if (d.paused) status = 'fail';
-  const progCard = training
-    ? `<div class="card"><div class="k"><span>${t('todayProgress')}</span>${pill(status)}</div>
-        <div class="v">${S.done}<small>/ ${S.total} ${t('setsUnit')}</small></div>
-        <div class="bar ${status === 'fail' ? 'fail' : ''}"><div style="width:${pct * 100}%"></div></div>
-        ${d.paused ? `<div class="s">${t('pausedTillTomorrow')}</div>` : ''}</div>`
-    : `<div class="card"><div class="k"><span>${t('todayProgress')}</span></div>
-        <div class="v">${d.planDay === 'rest' ? t('restDay') : t('dayOff')}</div></div>`;
-  const nextCard = `<div class="card"><div class="k"><span>${t('nextBreak')}</span>${S.next && S.next.isLast ? `<span class="pill fail">${t('lastBreak')}</span>` : ''}</div>
-      <div class="v" id="nextTime">${S.next ? S.next.time : '—'}</div>
-      <div class="s" id="nextIn"></div></div>`;
-  $('#todayCards').innerHTML = progCard + nextCard;
-
-  // timeline
-  const nextIdx = S.next ? S.next.index : -1;
-  if (!S.slotsView.length) {
-    $('#timeline').innerHTML = `<li class="empty-state">${ICON('event_available')}<span>${t('noBreaksToday')}</span></li>`;
-  } else {
-    $('#timeline').innerHTML = S.slotsView.map((s, k) => {
-      const units = s.units.length
-        ? s.units.map((u) => `<span class="u ${u.done >= u.target ? 'full' : ''}">${esc(u.name)}<small>${u.done}/${u.target}</small></span>`).join('')
-        : `<span class="none">${s.isLast ? t('catchUp') : '—'}</span>`;
-      const isNext = k === nextIdx;
-      const stTxt = isNext ? t('nextSlot') : SLOT_TXT(s.status);
-      return `<li class="${s.status} ${isNext ? 'next' : ''}"><span class="t">${s.time}</span><span class="dot"></span>
-        <div class="units">${units}</div><span class="st">${stTxt}</span></li>`;
-    }).join('');
-  }
+  $('#breakNowBtn').hidden = !S.canBreakNow && !S.upNext; // nothing owed today: no dead button next to the directive hero
+  renderHero();
+  renderLine();
   renderLibrary();
+}
+
+function renderHero() {
+  const up = S.upNext;
+  const box = $('#heroText');
+  const hero = $('#hero');
+  const clip = $('#heroClip');
+  if (up) {
+    const it = up.items[0];
+    const mv = firstMove(it);
+    mountClip(clip, mv.clipUrl, mv.name, { poster: mv.posterUrl });
+    clip.hidden = false;
+    hero.classList.remove('directive');
+    const more = up.items.slice(1).map((x) => `<li><span class="nm">${esc(x.name)}</span><span class="mt">${esc(itemMeta(x))}</span></li>`).join('');
+    box.innerHTML = `<div class="hero-when"><span class="hero-time">${up.time}</span><span class="hero-in" id="nextIn"></span>${up.isLast ? `<span class="pill fail">${t('lastBreak')}</span>` : ''}</div>
+      <div class="hero-name">${esc(it.name)}</div>
+      <div class="hero-meta">${esc(itemMeta(it))}</div>
+      ${more ? `<ul class="hero-more">${more}</ul>` : ''}`;
+    tick();
+    return;
+  }
+  // No stop owes anything today: say what happens next.
+  const d = S.day;
+  const word = d.planDay === 'rest' ? t('heroRest')
+    : d.planDay === 'off' ? t('noTraining')
+      : d.paused ? t('pausedTillTomorrow')
+        : d.status === 'pass' ? t('allDone') : t('dayOver');
+  const nt = S.nextTraining;
+  hero.classList.add('directive');
+  if (nt) mountClip(clip, nt.clipUrl, nt.name, { poster: nt.posterUrl });
+  clip.hidden = !nt;
+  const when = nt ? (nt.tomorrow ? t('tomorrowAt', { t: nt.time }) : t('dayAt', { d: fmtKey(nt.key), t: nt.time })) : '';
+  box.innerHTML = `<div class="hero-state">${esc(word)}</div>
+    ${nt ? `<div class="hero-when"><span class="hero-in">${esc(when)}</span></div>
+      <div class="hero-name">${esc(nt.title)}</div><div class="hero-meta">${esc(nt.label)}</div>` : ''}`;
+}
+
+// Stop state on the day line: done / partial / missed (skipped too) / passed (nothing was owed) /
+// next (= the hero) / later (owes sets) / free (a stop ahead that owes nothing).
+function stopState(s, k) {
+  if (S.upNext && k === S.upNext.index) return 'next';
+  if (s.status === 'pending') return s.units.some((u) => u.done < u.target) || (s.isLast && S.upNext) ? 'later' : 'free';
+  if (s.status === 'skipped' || s.status === 'missed') return 'missed';
+  if (s.status === 'notified' || s.status === 'empty') return 'passed';
+  return s.status; // done | partial
+}
+const STOP_TXT = { next: 'nextSlot', done: 'slot_done', partial: 'slot_partial' };
+
+let lineW = 0; // #dayLine width, kept by the ResizeObserver
+function renderLine() {
+  const ol = $('#timeline');
+  const stops = S.slotsView;
+  $('#prog').innerHTML = S.total ? t('progressOf', { a: `<b>${S.done}</b>`, b: S.total }) : '';
+  $('#dayLine').hidden = !stops.length;
+  if (!stops.length) { ol.innerHTML = ''; return; }
+  if (!lineW) lineW = Math.round($('#dayLine').clientWidth);
+  // Horizontal while every stop keeps >= 46 px (a time label is ~40 px); else the vertical rows.
+  const flat = lineW - 120 >= stops.length * 46;
+  $('#dayLine').classList.toggle('flat', flat);
+  const units = (s) => (s.units.length
+    ? s.units.map((u) => `<span class="u ${u.done >= u.target ? 'full' : ''}">${esc(u.name)}<small>${u.done}/${u.target}</small></span>`).join('')
+    : `<span class="none">${s.isLast ? t('catchUp') : '—'}</span>`);
+  ol.className = flat ? 'line' : 'timeline';
+  ol.innerHTML = stops.map((s, k) => {
+    const st = stopState(s, k);
+    const stTxt = st === 'missed' ? t(`slot_${s.status}`) : STOP_TXT[st] ? t(STOP_TXT[st]) : ''; // 跳過 vs 錯過 stays distinct
+    if (!flat) {
+      return `<li class="${st}"><span class="t">${s.time}</span><span class="dot"></span>
+        <div class="units">${units(s)}</div><span class="st">${stTxt}</span></li>`;
+    }
+    const edge = k < 2 ? 'start' : k > stops.length - 3 ? 'end' : '';
+    const label = [s.time, stTxt, ...s.units.map((u) => `${u.name} ${u.done}/${u.target}`)].filter(Boolean).join(', ');
+    return `<li class="stop ${st} ${edge}" tabindex="0" aria-label="${esc(label)}"><span class="dot"></span><span class="t">${s.time}</span><span class="tip" role="tooltip">${units(s)}</span></li>`;
+  }).join('');
 }
 
 function renderLibrary() {
@@ -108,8 +161,7 @@ function renderLibrary() {
   if (grid.dataset.sig === sig) return;
   grid.dataset.sig = sig;
   grid.innerHTML = list.map((m) => `<div class="lib-card" data-id="${m.id}" tabindex="0" role="button">
-      <div class="clip"></div>
-      <div class="meta"><div class="n">${esc(m.name)}</div></div></div>`).join('');
+      <div class="clip"></div><div class="n">${esc(m.name)}</div></div>`).join('');
   $$('.lib-card', grid).forEach((card) => {
     const m = S.library.find((x) => x.id === card.dataset.id);
     const clip = $('.clip', card);
@@ -142,14 +194,16 @@ function closePlayer() {
 // ---------- 記錄 ----------
 function renderHistory() {
   const st = S.stats;
-  const mNum = Number(viewMonth.slice(5));
   const mSets = S.monthSets[viewMonth] || 0;
-  const card = (k, v) => `<div class="card"><div class="k"><span>${k}</span></div><div class="v">${v}</div></div>`;
-  $('#statCards').innerHTML = [
-    card(t('passRate'), st.passRate == null ? '—' : `${Math.round(st.passRate * 100)}<small>%</small>`),
-    card(t('streak'), `${st.currentStreak}<small>${t('daysUnit')}</small>`),
-    card(t('longest'), `${st.longestStreak}<small>${t('daysUnit')}</small>`),
-    card(t('monthSets', { m: mNum, month: I18N.monthName(window.LANG, viewMonth) }), `${mSets}<small>${t('setsUnit')}</small>`),
+  const days = (n) => t(n === 1 ? 'daysN1' : 'daysN', { n });
+  // The streak is the one hero numeral; the other three are a quiet inline row (DESIGN.md §5).
+  const [pre, post] = t(st.currentStreak === 1 ? 'streakHero1' : 'streakHero').split('{n}');
+  $('#streak').innerHTML = `${pre ? `<span>${esc(pre)}</span>` : ''}<b>${st.currentStreak}</b>${post ? `<span>${esc(post)}</span>` : ''}`;
+  const stat = (k, v) => `<span class="stat"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></span>`;
+  $('#stats').innerHTML = [
+    stat(t('passRate'), st.passRate == null ? '—' : `${Math.round(st.passRate * 100)}%`),
+    stat(t('longest'), days(st.longestStreak)),
+    stat(t('monthShort', { m: Number(viewMonth.slice(5)), month: I18N.monthName(window.LANG, viewMonth) }), t('setsN', { n: mSets })),
   ].join('');
   renderCalendar();
   renderChart();
@@ -405,14 +459,19 @@ function showTab(name) {
   $('#content').scrollTop = 0;
 }
 
+// `還有 25 分` / `還有 1 小時 5 分` (minutes rounded up), `即將開始` in the last seconds.
+function untilText(sec) {
+  if (sec <= 0) return t('startingSoon');
+  const min = Math.ceil(sec / 60);
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return !h ? t('inMin', { n: m }) : m ? t('inHourMin', { h, m }) : t('inHour', { h });
+}
+
 function tick() {
   if (!S) return;
-  const now = vnow();
   const el = $('#nextIn');
-  if (el && S.next) {
-    const sec = (Date.parse(S.next.at) - now.getTime()) / 1000;
-    el.textContent = sec > 0 ? t('inTime', { t: dur(sec) }) : t('startingSoon');
-  }
+  if (el && S.upNext) el.textContent = untilText((Date.parse(S.upNext.at) - vnow().getTime()) / 1000);
 }
 
 $$('.nav-item').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
@@ -436,6 +495,10 @@ new ResizeObserver(() => {
   const w = Math.round($('#chart').clientWidth);
   if (S && w && w !== chartW) { chartW = w; renderChart(); }
 }).observe($('#chart'));
+new ResizeObserver(() => {
+  const w = Math.round($('#dayLine').clientWidth);
+  if (S && w && w !== lineW) { lineW = w; requestAnimationFrame(renderLine); } // next frame: switching flat / rows resizes the observed box
+}).observe($('#dayLine'));
 window.bf.onState(() => refresh());
 addEventListener('bf:lang', () => { if (S) refresh(); });
 window.bf.onNav((name) => { if (['today', 'history', 'settings'].includes(name)) showTab(name); });
@@ -456,4 +519,17 @@ window.__test = {
   open: (id) => { openPlayer(id); return true; },
   close: () => { closePlayer(); return true; },
   scroll: (y) => { $('#content').scrollTop = y; return $('#content').scrollTop; },
+  // Directive hero states without touching the data: 'done' | 'over' | 'rest'; null = back to the real state.
+  hero: (kind) => {
+    if (!kind) { if (realS) { S = realS; realS = null; renderToday(); } return true; }
+    realS = realS || S;
+    const r = realS;
+    S = kind === 'rest'
+      ? { ...r, day: { ...r.day, planDay: 'rest', status: 'rest' }, dayTitle: null, slotsView: [], total: 0, done: 0, upNext: null, canBreakNow: false }
+      : { ...r, day: { ...r.day, status: kind === 'done' ? 'pass' : 'fail' }, done: kind === 'done' ? r.total : r.done, upNext: null, canBreakNow: false,
+        slotsView: r.slotsView.map((x) => ({ ...x, status: x.status === 'pending' ? (kind === 'done' ? 'empty' : 'missed') : x.status })) };
+    renderToday();
+    return true;
+  },
 };
+let realS = null;

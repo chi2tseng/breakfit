@@ -31,44 +31,46 @@
         <div class="head-text"><div class="eyebrow" id="todayLabel"></div><h1 id="todayTitle"></h1></div>
         <button class="btn primary" id="breakNowBtn"><span aria-hidden="true" class="ms fill">play_arrow</span><span data-i18n="breakNow"></span></button>
       </header>
-      <div class="cards" id="todayCards"></div>
-      <div class="today-grid">
-        <div class="panel">
-          <div class="panel-head"><h2 data-i18n="schedule"></h2></div>
-          <ol class="timeline" id="timeline"></ol>
-        </div>
-        <div class="panel">
-          <div class="panel-head"><h2 data-i18n="library"></h2>
-            <div class="seg" id="libFilter">
-              <button data-f="d1" class="on" data-i18n="d1"></button><button data-f="d2" data-i18n="d2"></button><button data-f="d3" data-i18n="d3"></button>
-            </div>
-          </div>
-          <div class="lib-grid" id="library"></div>
-        </div>
+      <div class="panel hero" id="hero">
+        <div class="clip hero-clip" id="heroClip"></div>
+        <div class="hero-text" id="heroText"></div>
       </div>
+      <div class="day-line" id="dayLine">
+        <ol class="line" id="timeline"></ol>
+        <div class="prog" id="prog"></div>
+      </div>
+      <section class="lib">
+        <div class="panel-head"><h2 data-i18n="library"></h2>
+          <div class="seg" id="libFilter">
+            <button data-f="d1" class="on" data-i18n="d1"></button><button data-f="d2" data-i18n="d2"></button><button data-f="d3" data-i18n="d3"></button>
+          </div>
+        </div>
+        <div class="lib-grid" id="library"></div>
+      </section>
     </section>
 
     <!-- 記錄 -->
     <section class="tab" id="tab-history" hidden>
       <header class="page-head"><h1 data-i18n="historyTitle"></h1></header>
-      <div class="stat-cards" id="statCards"></div>
+      <div class="streak-row">
+        <p class="streak" id="streak"></p>
+        <div class="stats" id="stats"></div>
+      </div>
       <div class="hist-grid">
-        <div class="hist-main">
-          <div class="panel" id="calPanel">
-            <div class="panel-head cal-head">
-              <button class="icon-btn" id="prevMonth" data-i18n-aria="prevMonth"><span aria-hidden="true" class="ms">chevron_left</span></button>
-              <h2 id="monthLabel"></h2>
-              <button class="icon-btn" id="nextMonth" data-i18n-aria="nextMonth"><span aria-hidden="true" class="ms">chevron_right</span></button>
-            </div>
-            <div class="cal-week" id="calWeek"></div>
-            <div class="cal" id="calendar"></div>
+        <div class="panel" id="calPanel">
+          <div class="panel-head cal-head">
+            <button class="icon-btn" id="prevMonth" data-i18n-aria="prevMonth"><span aria-hidden="true" class="ms">chevron_left</span></button>
+            <h2 id="monthLabel"></h2>
+            <button class="icon-btn" id="nextMonth" data-i18n-aria="nextMonth"><span aria-hidden="true" class="ms">chevron_right</span></button>
           </div>
-          <div class="panel" id="chartPanel">
-            <div class="panel-head"><h2 data-i18n="last30"></h2></div>
-            <div id="chart"></div>
-          </div>
+          <div class="cal-week" id="calWeek"></div>
+          <div class="cal" id="calendar"></div>
         </div>
         <aside class="panel detail" id="detail"></aside>
+        <section class="chart-sec" id="chartSec">
+          <div class="panel-head"><h2 data-i18n="last30"></h2></div>
+          <div id="chart"></div>
+        </section>
       </div>
     </section>
 

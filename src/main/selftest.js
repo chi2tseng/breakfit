@@ -197,6 +197,23 @@ async function main() {
   await shot(mw, '01-today', '今天：進度、下次休息、時間表、示範庫');
   await js(mw, '__test.scroll(10000)');
   await shot(mw, '02-today-bottom', '今天：捲到底');
+  // Directive hero states (no stop owes anything): the hero names the next training day instead.
+  for (const [kind, word, desc] of [['done', '今天完成', '全部完成'], ['over', '今天結束', '沒有下一站'], ['rest', '今天休息', '休息日']]) {
+    await js(mw, `__test.scroll(0); __test.hero('${kind}')`);
+    const heroTxt = await js(mw, "document.querySelector('.hero-state').textContent + '|' + document.querySelector('#heroText .hero-in').textContent + '|' + !document.getElementById('heroClip').hidden");
+    assert(heroTxt.startsWith(`${word}|明天`) && heroTxt.endsWith('|true'), `今天 hero, ${desc}: directive + next training day + its clip (${heroTxt})`);
+    await shot(mw, `01-today-${kind}`, `今天：${desc}`);
+  }
+  await js(mw, '__test.hero(null)');
+  // Day line: hovering a stop shows what it owes.
+  const stopXY = JSON.parse(await js(mw, "(() => { const r = document.querySelector('#timeline .stop.next .dot').getBoundingClientRect(); return JSON.stringify([Math.round(r.x + r.width / 2), Math.round(r.y + r.height / 2)]); })()"));
+  mw.webContents.sendInputEvent({ type: 'mouseMove', x: stopXY[0], y: stopXY[1] });
+  await delay(150);
+  const tip = await js(mw, "(() => { const t = document.querySelector('#timeline .stop.next .tip'); return getComputedStyle(t).display + '|' + t.textContent; })()");
+  assert(tip.startsWith('flex|負重伏地挺身'), `day line: hover on the next stop shows what it owes (${tip})`);
+  await shot(mw, '01-today-stop-hover', '今天：滑到下一站，顯示該做的動作');
+  mw.webContents.sendInputEvent({ type: 'mouseMove', x: 5, y: 5 });
+  assert(await js(mw, "!!document.querySelector('#heroText .hero-time')"), '今天 hero back to the next stop');
   await js(mw, "__test.scroll(0); __test.filter('d3')");
   await shot(mw, '03-library-d3', '示範庫切到第 3 天(腹肌)');
   await js(mw, "__test.open('pushup')");
@@ -557,7 +574,9 @@ async function matrix(ctl, mw) {
   const MAIN_STATES = [
     ['today', "__test.close(); __test.tab('today'); __test.filter('d1'); __test.scroll(0)", true],
     ['today-bottom', '__test.scroll(100000)', false],
-    ['player', "__test.open('pushup')", true],
+    ['today-done', "__test.scroll(0); __test.hero('done')", true],
+    ['today-rest', "__test.hero('rest')", true],
+    ['player', "__test.hero(null); __test.open('pushup')", true],
     ['history', `__test.close(); __test.tab('history'); __test.select('${failDay}').then(() => __test.scroll(0))`, true],
     ['history-bottom', '__test.scroll(100000)', false],
     ['settings', "__test.tab('settings'); __test.scroll(0)", true],

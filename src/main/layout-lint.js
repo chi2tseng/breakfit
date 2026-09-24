@@ -235,7 +235,7 @@ const GROUPS = [
 // Rule (h): comparable elements that must render with one token (DESIGN.md §3).
 const ROLES = {
   'page title': '.page-head h1', eyebrow: '.eyebrow', 'panel title': '.panel-head h2',
-  'card title': '.card .k', 'card value': '.card .v', 'row label': '.field > label',
+  'stop time': '.line .stop:not(.next) .t', 'stat label': '.stats .k', 'stat value': '.stats .v', 'row label': '.field > label',
   'table header': '.ov-head .lbl', 'table name': '.ov-row .nm', segment: '.seg button:not(.on)',
   'weekday toggle': '.days button:not(.on)', 'timeline status': '.timeline li:not(.next) .st',
   'calendar day': '.cell .d', 'overlay meta': '.p-meta',

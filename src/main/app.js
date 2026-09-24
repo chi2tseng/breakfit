@@ -13,6 +13,7 @@ const D = require('../core/day');
 const C = require('../core/cycle');
 const S = require('../core/stats');
 const { normalizeSettings } = require('../core/settings');
+const { computeSlots } = require('../core/slots');
 const I18N = require('../i18n');
 const store = require('./store');
 const { trayIcon, trayPausedIcon, windowIcon, notifyIcon } = require('./icon');
@@ -193,6 +194,39 @@ function createController({ clock, selftest = false, fast = false }) {
     if (k < 0 || day.status !== 'pending') return null;
     const t = day.slots[k].time;
     return { index: k, time: t, at: T.toDate(key, T.parseHM(t)).toISOString(), isLast: k === D.lastSlot(day) };
+  }
+
+  // 今天 hero: the first stop ahead that owes sets (a stop that owes nothing only says "walk").
+  function upNext(day, key) {
+    if (day.status !== 'pending' || day.paused) return null;
+    for (let k = Math.max(0, D.nextSlotIndex(day)); k < day.slots.length; k++) {
+      if (day.slots[k].status !== 'pending') continue;
+      const pend = D.pendingUnits(day, k);
+      if (!pend.length) continue;
+      const t = day.slots[k].time;
+      return {
+        index: k, time: t, at: T.toDate(key, T.parseHM(t)).toISOString(), isLast: k === D.lastSlot(day),
+        items: pend.map((p) => toItem(p.unit, p.carried, lang())),
+      };
+    }
+    return null;
+  }
+
+  // Rest day / done / over: the next training day, its first stop and its first move (for the hero clip).
+  function nextTraining(key) {
+    const lp = planIn(lang());
+    for (let i = 1; i <= 14; i++) {
+      const k = T.addDays(key, i);
+      const pd = C.planDayFor(k, data.settings, plan.cycle);
+      if (!lp.days[pd]) continue;
+      const it = toItem(D.buildUnits(plan, pd, data.settings.overrides)[0], false, lang());
+      const mv = it.type === 'reps' ? it : it.moves[0];
+      return {
+        key: k, tomorrow: i === 1, label: lp.days[pd].label, title: lp.days[pd].title, time: computeSlots(data.settings)[0],
+        name: mv.name, clipUrl: mv.clipUrl, posterUrl: mv.posterUrl,
+      };
+    }
+    return null;
   }
 
   function buildPayload(key, day, mode, slot = null) {
@@ -459,6 +493,8 @@ function createController({ clock, selftest = false, fast = false }) {
         units: day.units.filter((u) => u.slot === k).map((u) => ({ name: nameIn(lang(), u.id, u.name), done: u.doneSets, target: u.targetSets })),
       })),
       next: nextBreak(day, key),
+      upNext: upNext(day, key),
+      nextTraining: nextTraining(key),
       done: D.doneSets(day),
       total: D.totalSets(day),
       canBreakNow: !currentBreak && day.status === 'pending' && D.remainingSets(day) > 0,
@@ -533,7 +569,7 @@ function createController({ clock, selftest = false, fast = false }) {
       { label: tr('tillTomorrow'), enabled: pending, click: confirmPause },
     ];
     if (paused) pauseItems.push({ type: 'separator' }, { label: tr('cancelPause'), click: () => pauseFor(null) });
-    const sep = lang() === 'en' ? ' · ' : '　';
+    const sep = lang() === 'en' ? ': ' : '　'; // "Day 1: Chest & Triceps" / 「第 1 天　胸與三頭」, never a '·'
     const template = [
       { label: training ? `${lp.days[day.planDay].label}${sep}${lp.days[day.planDay].title}` : DAY_LABEL[day.planDay] ? tr(DAY_LABEL[day.planDay]) : 'BreakFit', enabled: false },
       ...(training ? [{ label: tr('traySets', { a: done, b: total }), enabled: false }] : []),
