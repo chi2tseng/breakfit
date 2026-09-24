@@ -9,6 +9,9 @@
 //   e align        rows of one list / table whose control columns differ by > 1 px
 //   f type         font-size / line-height / weight not a DESIGN.md token, or < 13 px
 //   g target       interactive element smaller than the HIG minimum (DESIGN.md §8)
+//   f also checks tracking: letter-spacing must match the size's DESIGN.md §1.1 value
+//   h role         comparable elements (opts.roles: row labels, table headers, card titles …)
+//                  rendering with more than one size / line-height / weight / tracking combo
 
 function lint(opts) {
   const kind = opts.kind; // 'main' | 'overlay'
@@ -150,6 +153,25 @@ function lint(opts) {
     if (c.eg.length < 3) c.eg.push(`${sel(el)} "${text(el).slice(0, 12)}"`);
     if (!tok) add('f-type', el, `${key} is not a type token`);
     else if (px < 12.95) add('f-type', el, `${r1(px)}px rendered (< 13 px minimum)`);
+    else if (!isSvg || cs.letterSpacing !== 'normal') {
+      // DESIGN.md §1.1 tracking: 13 → 0, 15 → −0.016em, 17 → −0.02em, ≥ 21 → −0.015em
+      const em = fs < 14 ? 0 : fs < 16 ? -0.016 : fs < 19 ? -0.02 : -0.015;
+      const ls = cs.letterSpacing === 'normal' ? 0 : parseFloat(cs.letterSpacing);
+      if (Math.abs(ls - em * px) > 0.06) add('f-type', el, `letter-spacing ${r1(ls * 100) / 100}px, token wants ${r1(em * px * 100) / 100}px`);
+    }
+  }
+
+  // (h) one role, one rendering: comparable elements must share a single token + tracking
+  for (const [role, rs] of Object.entries(opts.roles || {})) {
+    const found = {};
+    for (const el of root.querySelectorAll(rs)) {
+      if (!allSet.has(el)) continue;
+      const cs = getComputedStyle(el);
+      const k = `${r1(parseFloat(cs.fontSize) / scale)}/${cs.lineHeight === 'normal' ? 'normal' : r1(parseFloat(cs.lineHeight) / scale)}/${cs.fontWeight}/${cs.letterSpacing}`;
+      (found[k] || (found[k] = [])).push(el);
+    }
+    const ks = Object.keys(found);
+    if (ks.length > 1) add('h-role', found[ks[1]][0], `${role} renders ${ks.length} ways: ${ks.map((k) => `${k} ×${found[k].length}`).join(', ')}`);
   }
 
   // (e) column alignment inside lists / tables

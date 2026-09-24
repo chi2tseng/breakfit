@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="../../node_modules/@fontsource/inter/400.css">
 <link rel="stylesheet" href="../../node_modules/@fontsource/inter/600.css">
 <link rel="stylesheet" href="../../node_modules/@fontsource/inter/700.css">
+<link rel="stylesheet" href="../../node_modules/@fontsource-variable/noto-sans-tc/wght.css">
 <link rel="stylesheet" href="../../node_modules/material-symbols/outlined.css">
 <script src="theme.js"></script>
 <link rel="stylesheet" href="base.css">
@@ -14,18 +15,17 @@
 </head>
 <body>
   <nav id="side">
-    <div class="brand"><span class="logo"></span>BreakFit</div>
-    <button class="nav-item active" data-tab="today"><span class="ms">today</span>今天</button>
-    <button class="nav-item" data-tab="history"><span class="ms">calendar_month</span>記錄</button>
-    <button class="nav-item" data-tab="settings"><span class="ms">tune</span>設定</button>
-    <div class="side-foot" id="clockFoot"></div>
+    <div class="brand"><span class="logo"></span><span class="brand-name">BreakFit</span></div>
+    <button class="nav-item active" data-tab="today" title="今天"><span class="ms">today</span><span class="nav-label">今天</span></button>
+    <button class="nav-item" data-tab="history" title="記錄"><span class="ms">calendar_month</span><span class="nav-label">記錄</span></button>
+    <button class="nav-item" data-tab="settings" title="設定"><span class="ms">tune</span><span class="nav-label">設定</span></button>
   </nav>
 
   <main id="content">
     <!-- 今天 -->
     <section class="tab" id="tab-today">
       <header class="page-head">
-        <h1 id="todayTitle"></h1>
+        <div class="head-text"><div class="eyebrow" id="todayLabel"></div><h1 id="todayTitle"></h1></div>
         <button class="btn primary" id="breakNowBtn"><span class="ms fill">play_arrow</span>現在就休息</button>
       </header>
       <div class="cards" id="todayCards"></div>
@@ -51,7 +51,7 @@
       <div class="stat-cards" id="statCards"></div>
       <div class="hist-grid">
         <div class="hist-main">
-          <div class="panel">
+          <div class="panel" id="calPanel">
             <div class="panel-head cal-head">
               <button class="icon-btn" id="prevMonth"><span class="ms">chevron_left</span></button>
               <h2 id="monthLabel"></h2>
@@ -60,7 +60,7 @@
             <div class="cal-week"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
             <div class="cal" id="calendar"></div>
           </div>
-          <div class="panel">
+          <div class="panel" id="chartPanel">
             <div class="panel-head"><h2>最近 30 個訓練日</h2></div>
             <div id="chart"></div>
           </div>
@@ -79,7 +79,7 @@
           <div class="panel-head"><h2>時段</h2></div>
           <div class="field"><label>開始</label><input type="text" class="hm" id="sStart" maxlength="5" placeholder="10:00" spellcheck="false"></div>
           <div class="field"><label>結束</label><input type="text" class="hm" id="sEnd" maxlength="5" placeholder="21:00" spellcheck="false"></div>
-          <div class="field"><label for="sInterval">間隔(分鐘)</label><input type="number" id="sInterval" min="5" max="600" step="5"></div>
+          <div class="field"><label for="sInterval">間隔（分鐘）</label><input type="number" id="sInterval" min="5" max="600" step="5"></div>
           <div class="field"><label>上班日</label><div class="days" id="sDays"></div></div>
           <div class="field"><label>提醒走動</label><button class="switch" id="sNotify" aria-label="提醒走動"></button></div>
         </div>

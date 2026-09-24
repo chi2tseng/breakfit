@@ -179,6 +179,7 @@ function createController({ clock, selftest = false, fast = false }) {
       mode,
       isLast: mode === 'slot' && slot === D.lastSlot(day),
       slotTime: mode === 'slot' && day.slots[slot] ? day.slots[slot].time : T.fmtHM(Math.floor(T.minutesOf(clock.now()))),
+      dayLabel: (pd || plan.days.d1).label,
       dayTitle: (pd || plan.days.d1).title,
       items,
       demoSec: data.settings.demoSec,
@@ -357,11 +358,15 @@ function createController({ clock, selftest = false, fast = false }) {
       if (!selftest) { mainWin.show(); mainWin.focus(); }
       return mainWin;
     }
+    const wa = screen.getPrimaryDisplay().workAreaSize;
     mainWin = new BrowserWindow({
-      width: selftest ? 1280 : 1180,
-      height: selftest ? 800 : 820,
-      minWidth: 980,
-      minHeight: 640,
+      // content size (CSS px). Default fits a 1366×768 screen (work area ≈ 1366×728 incl. frame);
+      // minimum = the smallest size the size-matrix lint passes at (DESIGN.md §5).
+      useContentSize: true,
+      width: selftest ? 1280 : Math.min(1180, wa.width - 80),
+      height: selftest ? 800 : Math.min(760, wa.height - 60),
+      minWidth: 800,
+      minHeight: 600,
       title: 'BreakFit',
       icon: winIcon,
       backgroundColor: BG[data.settings.theme],
@@ -398,6 +403,7 @@ function createController({ clock, selftest = false, fast = false }) {
       rate: clock.rate(),
       today: key,
       day,
+      dayLabel: pd ? pd.label : null,
       dayTitle: pd ? pd.title : null,
       after: pd ? pd.after : '',
       slotsView: day.slots.map((s, k) => ({
@@ -440,14 +446,17 @@ function createController({ clock, selftest = false, fast = false }) {
     };
   }
 
+  // Tray tooltip: one fact per line (no ASCII '·' / '+' in CJK text, DESIGN.md §6).
   function trayText(st) {
-    if (st.day.planDay === 'off') return 'BreakFit · 今天不用練';
-    if (st.day.planDay === 'rest') return 'BreakFit · 今天休息';
-    if (st.day.paused) return `BreakFit · 今天已暫停 · ${st.done}/${st.total} 組`;
-    if (st.day.status === 'pass') return `BreakFit · 今天 ${st.done}/${st.total} 組 · 已完成`;
-    if (st.day.status === 'fail') return `BreakFit · 今天 ${st.done}/${st.total} 組 · 不合格`;
-    if (st.paused) return `BreakFit · 暫停到 ${T.fmtHM(st.day.pausedUntil)}`;
-    return `BreakFit · 今天 ${st.done}/${st.total} 組${st.next ? ` · 下次 ${st.next.time}` : ''}`;
+    const lines = (...l) => ['BreakFit', ...l.filter(Boolean)].join('\n');
+    const sets = `今天 ${st.done}/${st.total} 組`;
+    if (st.day.planDay === 'off') return lines('今天不用練');
+    if (st.day.planDay === 'rest') return lines('今天休息');
+    if (st.day.paused) return lines(sets, '今天已暫停');
+    if (st.day.status === 'pass') return lines(sets, '已完成');
+    if (st.day.status === 'fail') return lines(sets, '不合格');
+    if (st.paused) return lines(`暫停到 ${T.fmtHM(st.day.pausedUntil)}`);
+    return lines(sets, st.next ? `下次 ${st.next.time}` : '');
   }
 
   const DAY_LABEL = { d1: '第 1 天', d2: '第 2 天', d3: '第 3 天', rest: '休息日', off: '今天不用練' };
@@ -471,7 +480,8 @@ function createController({ clock, selftest = false, fast = false }) {
     ];
     if (paused) pauseItems.push({ type: 'separator' }, { label: '取消暫停', click: () => pauseFor(null) });
     tray.setContextMenu(Menu.buildFromTemplate([
-      { label: training ? `${DAY_LABEL[day.planDay]} · ${done}/${total} 組` : DAY_LABEL[day.planDay] || 'BreakFit', enabled: false },
+      { label: training ? `${plan.days[day.planDay].label}　${plan.days[day.planDay].title}` : DAY_LABEL[day.planDay] || 'BreakFit', enabled: false },
+      ...(training ? [{ label: `今天 ${done}/${total} 組`, enabled: false }] : []),
       { label: st.next ? `下次休息 ${st.next.time}` : '今天沒有下一次休息', enabled: false },
       { type: 'separator' },
       { label: '現在就休息', enabled: !currentBreak && day.status === 'pending' && D.remainingSets(day) > 0, click: () => openBreak('manual') },

@@ -61,6 +61,8 @@ async function refresh() {
 function renderToday() {
   const d = S.day;
   const training = !!S.dayTitle;
+  $('#todayLabel').textContent = training ? S.dayLabel : '';
+  $('#todayLabel').hidden = !training;
   $('#todayTitle').textContent = training ? S.dayTitle : d.planDay === 'rest' ? '休息日' : '今天不用練';
   $('#breakNowBtn').disabled = !S.canBreakNow;
 
@@ -77,9 +79,7 @@ function renderToday() {
   const nextCard = `<div class="card"><div class="k"><span>下次休息</span>${S.next && S.next.isLast ? '<span class="pill fail">最後一次</span>' : ''}</div>
       <div class="v" id="nextTime">${S.next ? S.next.time : '—'}</div>
       <div class="s" id="nextIn"></div></div>`;
-  const cyc = ['d1', 'd2', 'd3', 'rest'].map((k) => `<span class="${d.planDay === k ? 'on' : ''}">${CYCLE_LABEL[k]}</span>`).join('');
-  const cycleCard = `<div class="card"><div class="k"><span>循環</span></div><div class="cycle">${cyc}</div></div>`;
-  $('#todayCards').innerHTML = progCard + nextCard + cycleCard;
+  $('#todayCards').innerHTML = progCard + nextCard;
 
   // timeline
   const nextIdx = S.next ? S.next.index : -1;
@@ -169,9 +169,8 @@ function renderCalendar() {
     let inner = `<span class="d">${d}</span>`;
     if (h) {
       cls.push(h.status, 'has');
-      const pdl = CYCLE_LABEL[h.planDay] || '';
       const pct = h.total ? `${Math.round(h.pct * 100)}%` : '';
-      inner += `<span class="pd">${pdl}</span><span class="p">${pct}</span>`;
+      inner += `<span class="p">${pct}</span>`;
     }
     if (key === S.today) cls.push('today');
     if (key === selDate) cls.push('sel');
@@ -195,17 +194,18 @@ function renderChart() {
     $('#chart').innerHTML = `<div class="empty-state">${ICON('bar_chart')}<span>還沒有訓練日</span></div>`;
     return;
   }
-  const W = 660;
+  const W = Math.max(280, Math.round($('#chart').clientWidth || 660));
   const H = 180;
   const L = 40;
   const R = 16;
   const B = 24;
   const T = 8;
   const n = 30;
+  const every = W < 480 ? 10 : 5; // date labels: fewer when narrow so they never collide
   const slot = (W - L - R) / n;
-  const bw = slot * 0.62;
+  const bw = Math.min(slot * 0.62, 16);
   const ih = H - B - T;
-  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img">`;
+  let svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img">`;
   for (const g of [0, 0.5, 1]) {
     const yy = T + ih * (1 - g);
     svg += `<line class="grid" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/><text x="${L - 6}" y="${yy + 3}" text-anchor="end">${g * 100}%</text>`;
@@ -216,7 +216,7 @@ function renderChart() {
     const bh = Math.max(2, ih * h.pct);
     const color = h.status === 'pass' ? 'var(--accent)' : h.status === 'fail' ? 'var(--fail)' : 'var(--muted)';
     svg += `<rect x="${x.toFixed(1)}" y="${(T + ih - bh).toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="2" fill="${color}"><title>${h.date} ${Math.round(h.pct * 100)}%</title></rect>`;
-    if (i % 5 === 0 || i === data.length - 1) {
+    if (i % every === 0 || i === data.length - 1) {
       const { m, d } = parseKey(h.date);
       svg += `<text x="${(x + bw / 2).toFixed(1)}" y="${H - 6}" text-anchor="middle">${m}/${d}</text>`;
     }
@@ -237,34 +237,28 @@ async function loadDetail() {
     return;
   }
   const units = det.day ? det.day.units : det.impliedUnits;
-  const sub = [det.title, sm.total ? `完成 ${Math.round(sm.pct * 100)}%` : ''].filter(Boolean).join(' · ');
-  let html = `<div class="dh"><h3>${fmtKey(key)}</h3>${pill(sm.status)}</div><div class="dt">${esc(sub || (sm.planDay === 'off' ? '非上班日' : '休息日'))}</div>`;
+  let html = `<div class="dh"><h3>${fmtKey(key)}</h3>${pill(sm.status)}</div>`;
   if (units && units.length) {
     html += '<div class="sec">';
     html += units.map((u) => {
       const ok = u.doneSets >= u.targetSets;
-      const reps = u.type !== 'circuit' && u.reps && u.reps.length ? `${u.reps.join(' · ')} 下` : '';
+      const reps = u.type !== 'circuit' && u.reps && u.reps.length ? `${u.reps.join('、')} 下` : '';
       return `<div class="urow"><span>${esc(u.name)}</span><span class="c ${ok ? 'ok' : 'no'}">${u.doneSets}/${u.targetSets} 組</span>${reps ? `<span class="r">${esc(reps)}</span>` : ''}</div>`;
     }).join('');
     html += '</div>';
   }
-  if (det.day && det.day.slots.length) {
-    html += `<div class="sec"><div class="slot-strip">${det.day.slots.map((s) => `<span class="${s.status}">${s.time} ${SLOT_TXT[s.status] || '未到'}</span>`).join('')}</div></div>`;
+  if (!units || !units.length) {
+    html += `<div class="sec"><div class="empty-state">${ICON(sm.planDay === 'off' ? 'event_busy' : 'self_improvement')}<span>${sm.planDay === 'off' ? '非上班日' : '休息日'}</span></div></div>`;
   }
   if (det.day) {
-    html += `<div class="sec"><textarea id="note" placeholder="筆記">${esc(det.day.note || '')}</textarea><div class="saved" id="noteSaved"></div></div>`;
+    html += `<div class="sec"><textarea id="note" placeholder="筆記">${esc(det.day.note || '')}</textarea></div>`;
   }
   box.innerHTML = html;
   const ta = $('#note');
   if (ta) {
     ta.addEventListener('input', () => {
       clearTimeout(noteTimer);
-      $('#noteSaved').textContent = '';
-      noteTimer = setTimeout(async () => {
-        await window.bf.setNote(key, ta.value);
-        const el = $('#noteSaved');
-        if (el) el.textContent = '已儲存';
-      }, 600);
+      noteTimer = setTimeout(() => window.bf.setNote(key, ta.value), 600);
     });
   }
 }
@@ -387,7 +381,6 @@ function showTab(name) {
 function tick() {
   if (!S) return;
   const now = vnow();
-  $('#clockFoot').innerHTML = `${fmtKey(S.today)}<br>${pad(now.getHours())}:${pad(now.getMinutes())}`;
   const el = $('#nextIn');
   if (el && S.next) {
     const sec = (Date.parse(S.next.at) - now.getTime()) / 1000;
@@ -412,6 +405,11 @@ function shiftMonth(d) {
 }
 
 bindSettings();
+let chartW = 0;
+new ResizeObserver(() => {
+  const w = Math.round($('#chart').clientWidth);
+  if (S && w && w !== chartW) { chartW = w; renderChart(); }
+}).observe($('#chart'));
 window.bf.onState(() => refresh());
 window.bf.onNav((name) => { if (['today', 'history', 'settings'].includes(name)) showTab(name); });
 setInterval(() => {

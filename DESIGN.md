@@ -23,16 +23,19 @@ process mirrors `--bg` / `--stage` in `app.js` `BG` / `STAGE_BG` for the Browser
 
 | Token | Value |
 |---|---|
-| `--font-display` | `"SF Pro Display", "SF Pro Text", -apple-system, "Inter", "PingFang TC", "Microsoft JhengHei UI", …` |
-| `--font` (text) | `"SF Pro Text", "SF Pro Display", -apple-system, "Inter", "PingFang TC", "Microsoft JhengHei UI", …` |
-| features | `font-feature-settings: "ss03"` (Inter's closest match to SF's rounded forms), `tabular-nums` everywhere |
-| weights | `--w-regular` 400 · `--w-semibold` 600 · `--w-bold` 700. **No 500 anywhere** (Inter 500.css is no longer loaded; 400/600/700 are) |
-| tracking | `--tr-display` −0.015em (≥21 px: Apple −0.005em + Inter nudge −0.01em) · `--tr-body` −0.02em (17 px = −0.374 px) · `--tr-caption` −0.016em (14 px = −0.224 px) · 0 at ≤12 px |
-| `--lh-body` | 1.44 (Apple 1.47 − 0.03 for Inter's taller x-height) |
+| `--font-display` / `--font` | `"SF Pro Display"/"SF Pro Text", -apple-system, "Inter", "PingFang TC", "Noto Sans TC Variable", "Noto Sans TC", "Microsoft JhengHei UI", …` |
+| features | `font-feature-settings: "ss03", "tnum"` on `body` (tabular digits live in the feature list because the `font` shorthand resets `font-variant-numeric`) |
+| weights | 400 · 600 · 700 only. No 500 |
+| type tokens | `--t-footnote(-em)` · `--t-subhead(-em)` · `--t-body` · `--t-headline` · `--t-title3` · `--t-title2` · `--t-large` · `--t-display` (full `font` shorthands, §3); overlay `--o-*` rem twins in `overlay.css` |
+| tracking | `--tr-13` 0 · `--tr-15` −0.016em · `--tr-17` −0.02em · `--tr-display` −0.015em (≥ 21 px) |
 
-SF Pro is never embedded (typography.txt: "don't embed system fonts"); it is used when the OS has
-it and Inter (bundled via @fontsource) takes over on Windows. `system-ui` / `BlinkMacSystemFont`
-are deliberately left out: on Windows they resolve to Segoe UI and would beat Inter.
+**Fonts [choice, 2026-09-24].** Latin and digits: SF Pro where the OS has it, otherwise Inter
+(bundled, @fontsource 400/600/700). CJK: PingFang TC on macOS, otherwise **Noto Sans TC**
+(bundled, `@fontsource-variable/noto-sans-tc`, OFL, one variable font split into 105
+unicode-range woff2 chunks, 4.6 MB on disk, only the chunks a page uses are loaded). Microsoft
+JhengHei is last-resort only: it has just Regular/Bold, so 600 rendered as a faux-bold blob
+(the 「第 1 天 · 胸 + 三頭」 title the user rejected). SF Pro is never embedded; `system-ui` /
+`BlinkMacSystemFont` stay out (they resolve to Segoe UI on Windows).
 
 ### 1.2 Shape, size, elevation (same in both themes)
 
@@ -84,28 +87,32 @@ inside components. Overlay rem equivalents 0.25 / 0.5 / 1 / 1.5 / 2 / 3.
 
 ## 3. Type scale
 
-Main window (px / line-height / weight / tracking):
+Every text rule sets ONE whole token (`font: var(--t-…)` = size / line-height / weight together),
+so comparable elements cannot drift. The size-matrix lint (§10 f) rejects any other combination.
+Minimum rendered size 13 px anywhere; secondary (grey) text only where it carries a value, and
+then ≥ 15 px in `--muted` (≥ 4.5:1, §9).
 
-| Style | Spec | Where |
-|---|---|---|
-| fine-print | 12 / 16 px / 400·600 / 0 | pills, calendar day + labels, chart axis, week header, menu-table labels, slot strip |
-| caption | 14 / 20 px / 400·600 / −0.016em | card labels (600), seg, cycle cells, timeline status, library names (600), footer clock |
-| body | 17 / 1.44 / 400·600 / −0.02em | default: nav, labels, inputs, buttons (400), timeline, tips, detail rows |
-| tagline | 21 / 1.19 / 600 / −0.015em | panel titles, detail date, brand |
-| title | 28 / 1.14 / 600 / −0.015em | player title |
-| display-md | 34 / 1.12 / 600 / −0.015em | page h1 |
-| display-lg | 40 / 1.10 / 600 / −0.015em | KPI values (`7 / 25 組`, `14:00`, `63 %`) |
+| Token | px / line-height / weight | Main window | Overlay (rem = px/16) |
+|---|---|---|---|
+| footnote | 13 / 18 / 400·600 | chart axis (400), pass/fail pill (600) | kbd, mode tag (600) |
+| subheadline | 15 / 20 / 400·600 | segments (selected 600), timeline counts + status, `還有 00:30`, reps line, weekday toggles; 600: eyebrow `第 1 天`, table headers `組` `次數`, calendar weekday row + day numbers | — |
+| body | 17 / 24 / 400 | default: nav, row labels, inputs, buttons, timeline names, library names, tips, units after KPI values | slot time, plan rows, tips, `上一組` |
+| headline | 17 / 24 / 600 | card titles (accent colour), active nav, table day header, calendar %, detail counts, next slot time | chips, every button |
+| title3 | 21 / 26 / 600 (400 overlay meta) | panel titles, detail date, brand | meta line (400), unit `下` (400), `13 / 25 組` (600) |
+| title2 | 28 / 34 / 600 | player title | dialog title |
+| largeTitle | 34 / 41 / 600 | page h1 | stopwatch (400), stepper value (600) |
+| display | 40 / 48 / 600 | KPI values | phase title |
+| ring / ring3 / hero | 48/48 · 36/36 · 96/96 / 700 | — | ring number · 3-digit ring number · work target |
 
-Overlay (rem, 1rem = 16 px at 1280×720, 24 px at 1080p; same styles, bigger for distance —
-workouts.txt "use large font sizes, high-contrast colors"):
-14 `mode-tag`, `kbd` · 17 body, chips (600), plan rows, tips, all buttons (600) · 21 meta line,
-unit `下`, `13 / 25 組` · 28 dialog title · 34 stopwatch (400), stepper value (600) · 40 title (600)
-· 48 ring number (700; 36 for 3 digits) · 96 work target (700). Big numerals use `--font-display`.
-
-Button weight **[choice]**: main-window pills use 400 (the doc's `button-primary` = body 17/400);
-overlay pills and chips use 600, because they are read mid-workout from a distance.
+Comparable elements share one token: all row labels = body, all section/panel titles = title3,
+all table headers = subheadline 600, all card titles = headline, all KPI values = display.
+Button weight: main-window pills 400 (body), overlay pills 600 (headline, read from a distance).
 
 ## 4. Break overlay: one fixed stage for every phase
+
+Scale: `html { font-size: max(16px, min(100vh / 45, 100vw / 80)) }`: 16 px at 1024×768, 1280×720
+and 1280×800, 17 px at 1366×768, 19.2 px at 1536×864, 24 px at 1080p, 32 px at 1440p. The 16 px
+floor keeps the smallest token (13 px) legal on 4:3 screens.
 
 ```
 ┌ top bar (4rem): [schedule 16:00][測試] [────── progress ──────]   │        [離開 Esc] ┐
@@ -121,8 +128,11 @@ overlay pills and chips use 600, because they are read mid-workout from a distan
 ```
 
 - Video width `--vw = min(100vw − 30rem, (100vh − 8rem) × 16/9)`, height `--vh = --vw × 9/16`
-  (800×450 at 720p). The panel is exactly `--vh` tall, so its top edge equals the video top and
-  the primary button's bottom edge equals the video bottom. The top bar uses the same two
+  (800×450 at 720p). Stage height `--ph = max(--vh, 28.125rem)`; on 16:9 and 16:10 screens
+  `--ph = --vh`, so the panel's top edge equals the video top and the primary button's bottom edge
+  equals the video bottom. On 4:3 (1024×768) the width-limited video would leave the panel too
+  short for the ring / stepper, so the stage keeps 28.125rem and the 16:9 clip sits vertically
+  centred in its column (never cropped, never letterboxed with bars). The top bar uses the same two
   columns, so the progress bar ends at the video's right edge and 離開 sits on the panel's right edge.
 - The video box never moves, resizes, or becomes a corner thumbnail. No banner and no centred
   single-column screen.
@@ -147,10 +157,10 @@ overlay pills and chips use 600, because they are read mid-workout from a distan
 
 | Phase | Video | A chip | B title | C meta | D body | E | F primary |
 |---|---|---|---|---|---|---|---|
-| intro | first item | `第 1 天` (muted); last slot: `warning 最後一次` (fail) | day focus `胸 + 三頭` | — | plan rows 2.5rem: name ‹history icon if carried› · `4 × 8–15 下` | 跳過這次 | 開始 ‹10› |
-| demo | this move | `示範` | name | `第 3/4 組 · 8–15 下` | up to 2 tips | — | 開始 ‹8› |
+| intro | first item | `第 1 天` (plan `label`); last slot: `warning 最後一次` (fail) | plan `title` `胸・三頭` | — | plan rows 2.5rem: name ‹history icon if carried› · `4 × 8–15 下` | 跳過這次 | 開始 ‹10› |
+| demo | this move | `示範` | name | `第 3/4 組`  `8–15 下` (two spans, 1rem gap) | up to 2 tips | — | 開始 ‹8› |
 | work | same clip (keeps playing) | `換你做` (accent) | name | `第 3/4 組` | `8–15 下` 6rem + stopwatch + `3–5 秒/下` | — | 完成這組 Space |
-| rest / roundRest | next move | `下一組` / `下一個動作` / `下一輪` | next name | next target | ring + `上一組 − 12 +` stepper | +30 秒 | 跳過休息 |
+| rest / roundRest | next move | `下一組` / `下一個動作` / `下一輪` | next name | next target | ring + `上一組 − 12 +` stepper | 延長 30 秒 | 跳過休息 |
 | preview | this move | `下一個` | move | `30 秒` | move dots + up to 2 tips | — | 開始 ‹5› |
 | timed | this move | `換你做` (accent) | move | circuit name | ring + move dots | — | — (reserved) |
 | finish | last clip, dimmed, with the status icon | verdict `今天合格` / `今天不合格` / `完成` | `這次 6 組` | `下次 17:00` | `13 / 25 組` + bar, stepper if the break ended on a rep set | — | 關閉 ‹5› |
@@ -160,43 +170,69 @@ Leave and skip dialogs: title and buttons only. A body line appears only for a c
 
 ## 5. Main window
 
-- **Today:** `.cards` = `360px 1fr 1fr`, `.today-grid` = `360px 1fr`, so the first column edge
-  lines up across rows. Card = label row (fixed 24 px, pills only for pass/fail) + value; no
-  explanatory subtitles. Only live data stays (`還有 00:30`, `已暫停到明天`).
-- **Library:** cards `minmax(176px,1fr)`, clip 16:9 `object-fit: cover`, name only (no muscle line).
-- **Player:** video `1fr` + 320px side column, top-aligned with the video and 關閉 flush with the
-  video bottom. Title 28/600, `30 秒` meta only for circuit moves. Secondary 關閉 is a grey pill.
-- **History:** stat cards `repeat(3,1fr) 320px`, lower grid `1fr 320px`, so the detail panel
-  aligns with the 4th card **[choice: audit 2; a 320px detail panel is readable, ¼ width is not]**.
-  Calendar cells 72 px, radius 11, gap 8; pass/fail cells are tints with no border, rest/off cells
-  `--surface-2`, empty days a `--line-soft` outline. Chart text 12 px. Empty states share one pattern
-  (32 px `--muted` icon + 17 px `--muted` text). Slot strip = pills.
-- **Settings:** two top panels stretch to equal height, each with exactly 5 field rows of 52 px, so
-  row dividers line up across the columns: 時段 = 開始 / 結束 / 間隔(分鐘) / 上班日 / 提醒走動;
-  一般 = 今天是 / 配色 (seg 深色 | 淺色) / 示範 (switch) / 示範秒數 / 開機啟動. With 示範 OFF the
-  示範秒數 row stays in place (keeps the alignment) but is disabled at 40 % opacity. Each field row = `1fr auto`; every control's
-  right edge sits on the panel content edge; time/number inputs are 88×36 `--surface-2` fills (radius 8, no border), centred, `--text`.
-  Switches are iOS-sized (51×31, white knob); weekday toggles are 36 px circles (on = `--accent-fill`);
-  the 示範秒數 slider is a 4 px pill track with `--accent` fill left of a white 22 px knob
-  (`--p` set by `rangeFill()` in main.js); segmented controls are a pill track with a pill `--seg-on` thumb.
-- **Menu table (菜單組數 / 次數):** two columns, `column-gap: 64px` (= 16 gap + 2 × 24 padding),
-  so column 2 starts exactly under the 一般 panel's content. Every row, including the header, uses
-  ONE fixed-track grid:
-  `minmax(0,1fr) 56px 24px 56px 24px 56px 16px 32px` = name | 組 | · | min | – | max | · | reset.
-  Row height 52 with `--line-soft` dividers. The header row carries the day title plus `組` and
-  `次數` labels (12 px muted) centred over their inputs; no per-row units. Inputs 56×36.
-  The reset column is always reserved. A changed row shows a 6 px accent dot after the name.
+**Window.** Content size (`useContentSize`), minimum **800×600** CSS px (the smallest size the
+matrix lint passes at with the sidebar expanded); default `min(1180, workArea − 80) ×
+min(760, workArea − 60)`, i.e. 1180×668 on a 1366×768 screen (work area 1366×728), 1180×760 on
+1080p.
+
+**Breakpoints [choice].** Container queries on `#content` (the area right of the sidebar, so they
+follow Windows display scaling too; 965×940 at 150 % = 643×627 CSS px):
+
+| Width | Change |
+|---|---|
+| window < 720 | sidebar → 64 px icon rail (brand + nav labels hidden, `title` tooltips) |
+| content < 600 | gutter 32 → 24 |
+| content < 480 | 今天 cards stack |
+| content < 720 | 今天 timeline / library stack |
+| content < 700 | calendar gap 6, cell padding 6 |
+| content < 960 | 設定 panels stack; menu table one column |
+| content < 1000 | 記錄 stat cards 2 × 2; calendar → detail → chart in one column (detail not sticky) |
+| window < 720 | player modal padding 16 (side column `clamp(220px, 30%, 320px)` always) |
+
+- **Page head:** sticky frosted bar, `min-height` 88, full-bleed (`.tab > :not(.page-head)` get
+  the gutter instead of negative margins). 今天 = eyebrow `第 1 天` (subheadline 600, muted) above
+  the large title = plan `title` (`胸・三頭`, `背・肩・二頭・臀腿`, `腹肌核心`). Titles never wrap.
+- **今天:** two cards (今天進度, 下次休息) over two panels (時間表, 動作示範庫), same
+  `repeat(2, minmax(0,1fr))` grid so the column edges line up. The 循環 card is gone: the eyebrow
+  already says 第 N 天, and changing the day is a setting (設定 → 今天是). Card = accent headline
+  title + pill (pass/fail only) → display value with a body-size muted unit → optional subheadline
+  line (`還有 00:30`, `已暫停到明天`).
+- **Library:** cards `minmax(176px,1fr)`, clip 16:9, name (body, one line). Header = title3 +
+  segmented filter; the filter drops under the title when the panel is narrow.
+- **Segmented control:** equal-width segments (`inline-grid`, `grid-auto-columns: 1fr`), 2 px track
+  padding, 32 px segments, selected = neutral raised thumb (`--seg-on`: white + `--seg-edge`
+  shadow in light, systemGray2 in dark) with primary text; labels subheadline, never wrap.
+- **Player:** video `1fr` + side column `clamp(220px, 30%, 320px)`, title2 title, 關閉 at the bottom.
+- **History:** stat cards `repeat(3,1fr) 320px`, lower grid `1fr 320px` (detail under the 4th
+  card). Calendar cells 64 px: day number (subheadline 600) + % (headline); no plan-day line.
+  Chart drawn at its real pixel width (ResizeObserver), bars ≤ 16 px, date label every 5th bar
+  (every 10th under 480 px), axis footnote 13 px. Detail = date + pill, then one row per exercise
+  (name, `3/4 組`, reps `12、10、9 下` in subheadline), then the note. No subtitle, no slot strip,
+  no 已儲存 caption.
+- **Settings:** each field = label (one line, never wraps) left + control right; if the control
+  can't fit it drops below, still right-aligned. Rows ≥ 52 px with `--line-soft` dividers; both
+  top panels have 5 rows so dividers line up side by side. Inputs 88×36; switches 51×31; weekday
+  toggles 36 px circles; slider 160×28 hit region with a 4 px track; `間隔（分鐘）` uses
+  full-width parentheses.
+- **Menu table (菜單組數 / 次數):** one fixed-track grid per row, header included:
+  `minmax(max-content,1fr) 56 12 56 20 56 12 32` = name | 組 | · | min | – | max | · | reset.
+  Names never truncate (longest 保加利亞分腿蹲). Two columns ≥ 960 content px with
+  `column-gap: 64px` (= 16 gap + 2 × 24 padding, column 2 starts under the 一般 panel), one below.
+- **Focus ring:** keyboard only. `:focus-visible` plus `theme.js` tracking the last input device
+  on `<html data-input>` (Chromium re-shows the ring on a mouse-clicked nav item after Alt+Tab).
 
 ## 6. Text policy
 
-Delete any text that explains instead of informing: page eyebrows (BreakFit, 每日記錄, date),
-slot preview, 從明天起生效, 照順序練三天休一天, 非上班日不算進循環, 循環休息日…, 不排休息,
-還剩 N 組, `N 次`, 休息日不中斷, `N 合格 · N 不合格`, legend, 完成率, 這天沒有開程式, detail
-section headers, 秒後開始, 秒, 共 N 組, 上次留下 (icon only), muscle line, 下一個 label, 第一個：,
-測試：沒有記錄, the `今天` bar label, the non-warning leave text, the full-width warning banner.
-Keep only data the user acts on: times, statuses, counts, targets, tips (≤ 2), consequences.
+Delete any text that explains instead of informing: page eyebrows other than 第 N 天, slot
+preview, 從明天起生效, 照順序練三天休一天, 非上班日不算進循環, 不排休息, 還剩 N 組, `N 次`,
+`N 合格 · N 不合格`, legend, 完成率, detail section headers, detail subtitle (`第 1 天 · 胸 + 三頭 ·
+完成 0%`), slot strip, 已儲存, calendar plan-day line, sidebar date/clock, 循環 card, 秒後開始,
+共 N 組, 上次留下 (icon only), muscle line, the non-warning leave text, the warning banner.
 
-SPEC.md §5 was updated to match (the work phase no longer shrinks the demo clip).
+**No ASCII `+` or `·` inside CJK text.** Plan titles use `・` (`胸・三頭`); separate facts are
+separate spans with a gap (overlay meta) or separate lines (tray tooltip, tray menu:
+`第 1 天　胸・三頭` / `今天 7/25 組`); lists use `、` (`12、10、9 下`); `+30 秒` became `延長 30 秒`.
+`plan.json` days carry `label` (`第 1 天`) + `title` (`胸・三頭`); ids and structure unchanged.
 
 ## 7. Demo clip assets (`assets/clips/*.mp4`)
 
@@ -328,3 +364,31 @@ Re-verify after any token change: selftest-out/*.png (dark) and selftest-out/lig
 The selftest drives Space/Enter in every phase with a primary (intro, demo, work, rest, round rest,
 finish) and in both confirm dialogs (離開, 跳過), and flips the theme while an overlay and a cover
 window are already open (light-30-cover = live-switched cover; light-31-cover-new = freshly opened).
+
+
+## 10. Size matrix + layout lint
+
+`npm.cmd run selftest -- --matrix` (≈ 4 min; the normal selftest stays ≈ 50 s and keeps the
+matrix folder). Hidden windows, temp profile, both themes:
+
+- Main window 800×600, 900×700, 965×940, 1024×768, 1280×720, 1366×768, 1440×900, 1600×900,
+  1920×1080, plus 965×940 at zoom 125 % and 150 % → 今天 (top + bottom), player, 記錄 (detail +
+  chart, top + bottom), 設定 (top + bottom incl. menu table).
+- Overlay 1024×768, 1280×720, 1280×800, 1366×768, 1440×900, 1536×864, 1920×1080, 2560×1440 →
+  intro, demo, work, rest, finish, leave dialog (第 1 天) and last intro, timed, round rest,
+  finish pass (第 3 天).
+- PNGs: `selftest-out/matrix/<theme>-<screen>-<W>x<H>[@zoom].png`; lint: `selftest-out/matrix/lint.json`
+  (`total`, `bySize`, `byRule`, distinct type combos with counts, every issue with selector +
+  text + size). Lint source: `src/main/layout-lint.js`.
+
+Rules: (a) horizontal overflow (scrollWidth > clientWidth + 1) unless `[data-lint-scroll]`;
+(b) border box outside its card / panel / dialog, or outside the window (overlay: also below);
+(c) ellipsis-truncated or overflow-clipped text (overlay scrollers count as clipped);
+(d) a ≤ 8-char label, button, segment, chip, pill or heading on more than one line;
+(e) list/table column edges differing > 1 px (settings fields, menu rows + header, timeline,
+detail rows, overlay plan rows); (f) font-size / line-height / weight not a §3 token, or < 13 px
+rendered; (g) hit targets: main window ≥ 28×28 (macOS default control size), `.btn` ≥ 44 high;
+overlay ≥ 44×44.
+
+Result 2026-09-24: 6444 issues before (1280×720 alone: 348) → **0** at every size, both themes.
+Intentional exceptions: none.

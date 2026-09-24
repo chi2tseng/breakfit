@@ -137,7 +137,7 @@ const js = (win, code) => win.webContents.executeJavaScript(code);
 
 async function main() {
   if (MATRIX) fs.rmSync(path.join(OUT, 'matrix'), { recursive: true, force: true });
-  else fs.rmSync(OUT, { recursive: true, force: true });
+  else if (fs.existsSync(OUT)) for (const f of fs.readdirSync(OUT)) if (f !== 'matrix') fs.rmSync(path.join(OUT, f), { recursive: true, force: true });
   fs.mkdirSync(OUT, { recursive: true });
 
   const clock = createClock({ base: new Date(2026, 8, 24, 13, 59, 30), rate: 0 });
@@ -158,6 +158,20 @@ async function main() {
   const cornerSupport = await js(mw, "JSON.stringify({ squircle: CSS.supports('corner-shape','squircle'), round: CSS.supports('corner-shape','round'), chrome: navigator.userAgent.match(/Chrome\\/([\\d.]+)/)[1] })");
   console.log(`  corner-shape support: ${cornerSupport}`);
   if (MATRIX) return matrix(ctl, mw);
+  // Focus ring = keyboard only (base.css + theme.js): a real click must not leave it, Tab must show it.
+  mw.webContents.focus();
+  const navXY = JSON.parse(await js(mw, "(() => { const r = document.querySelector('.nav-item[data-tab=\"history\"]').getBoundingClientRect(); return JSON.stringify([Math.round(r.x + r.width / 2), Math.round(r.y + r.height / 2)]); })()"));
+  for (const type of ['mouseDown', 'mouseUp']) mw.webContents.sendInputEvent({ type, x: navXY[0], y: navXY[1], button: 'left', clickCount: 1 });
+  await delay(150);
+  const ring = () => js(mw, "(() => { const a = document.activeElement; return JSON.stringify([a && a.dataset.tab, getComputedStyle(a).outlineStyle, document.documentElement.dataset.input]); })()").then(JSON.parse);
+  const afterClick = await ring();
+  assert(afterClick[0] === 'history' && afterClick[1] === 'none', `mouse click on nav item: focused, no focus ring (${afterClick})`);
+  mw.webContents.sendInputEvent({ type: 'keyDown', keyCode: 'Tab' });
+  mw.webContents.sendInputEvent({ type: 'keyUp', keyCode: 'Tab' });
+  await delay(150);
+  const afterTab = await ring();
+  assert(afterTab[2] === 'keyboard' && afterTab[1] === 'solid', `Tab key: focus ring shown (${afterTab})`);
+  await js(mw, 'document.activeElement.blur(), true');
   await js(mw, "__test.tab('today')");
   await shot(mw, '01-today', '今天：進度、下次休息、時間表、示範庫');
   await js(mw, '__test.scroll(10000)');
@@ -425,6 +439,14 @@ const GROUPS = [
   { scope: '.detail .sec', row: '.urow', cols: [[':scope > :first-child', 'left'], ['.c', 'right']] },
   { scope: '.plan', row: 'li', cols: [['.nm', 'left'], ['.mt', 'right']] },
 ];
+// Rule (h): comparable elements that must render with one token (DESIGN.md §3).
+const ROLES = {
+  'page title': '.page-head h1', eyebrow: '.eyebrow', 'panel title': '.panel-head h2',
+  'card title': '.card .k', 'card value': '.card .v', 'row label': '.field > label',
+  'table header': '.ov-head .lbl', 'table name': '.ov-row .nm', segment: '.seg button:not(.on)',
+  'weekday toggle': '.days button:not(.on)', 'timeline status': '.timeline li:not(.next) .st',
+  'calendar day': '.cell .d', 'overlay meta': '.p-meta',
+};
 const MAIN_SIZES = [[800, 600], [900, 700], [965, 940], [1024, 768], [1280, 720], [1366, 768], [1440, 900], [1600, 900], [1920, 1080]];
 const ZOOMS = [[965, 940, 1.25], [965, 940, 1.5]];
 const OV_SIZES = [[1024, 768], [1280, 720], [1280, 800], [1366, 768], [1440, 900], [1536, 864], [1920, 1080], [2560, 1440]];
@@ -458,7 +480,7 @@ async function matrix(ctl, mw) {
     const img = await win.webContents.capturePage({ x: 0, y: 0, width, height }, { stayHidden: true });
     fs.writeFileSync(path.join(dir, `${name}.png`), img.toPNG());
     if (!lintOpts) return;
-    const res = await js(win, `${lintSource}(${JSON.stringify({ tokens: TOKENS, groups: GROUPS, ...lintOpts })})`);
+    const res = await js(win, `${lintSource}(${JSON.stringify({ tokens: TOKENS, groups: GROUPS, roles: ROLES, ...lintOpts })})`);
     runs.push({ name, viewport: res.viewport, issues: res.issues, combos: res.combos });
   };
 

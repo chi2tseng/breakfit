@@ -37,6 +37,8 @@ function repsText(item) {
 function setText(item, setNo) {
   return `第 ${setNo}/${item.targetSets} 組`;
 }
+// Meta line = separate facts with a gap, never an ASCII '·' between CJK words (DESIGN.md §6).
+const metaHTML = (...parts) => parts.filter(Boolean).map((p) => `<span>${p}</span>`).join('');
 
 // ---------- sound (WebAudio, no files) ----------
 let ac = null;
@@ -194,7 +196,6 @@ function moveDots(it, j) {
 
 // ---------- views ----------
 function renderIntro() {
-  const [head, ...rest] = String(P.dayTitle || '').split(' · ');
   const rows = P.items.map((it) => {
     const meta = it.type === 'reps'
       ? `${it.setsLeft} × ${repsText(it)}`
@@ -204,8 +205,8 @@ function renderIntro() {
   const last = !!P.isLast;
   frame({
     clip: P.items.length ? firstClip(P.items[0]) : null,
-    chip: last ? { tone: 'fail', icon: 'warning', fill: true, text: '最後一次' } : { icon: 'calendar_today', text: head },
-    title: rest.join(' · ') || head,
+    chip: last ? { tone: 'fail', icon: 'warning', fill: true, text: '最後一次' } : { icon: 'calendar_today', text: P.dayLabel || '' },
+    title: P.dayTitle || '',
     body: `<ul class="plan">${rows}</ul>`,
     sec: btn('skipBtn', 'skip_next', '跳過這次'),
     pri: btn('startBtn', 'play_arrow', '開始', { primary: true, fill: true, kbd: 'Space', cd: true }),
@@ -220,7 +221,7 @@ function renderDemo(s) {
     clip: clipOf(it),
     chip: { icon: 'visibility', text: '示範' },
     title: it.name,
-    meta: `${setText(it, s.setNo)} · ${esc(repsText(it))}`,
+    meta: metaHTML(setText(it, s.setNo), esc(repsText(it))),
     body: tipsHTML(it.tips),
     pri: btn('goBtn', 'play_arrow', '開始', { primary: true, fill: true, kbd: 'Space', cd: true }),
   });
@@ -233,7 +234,7 @@ function renderWork(s) {
     clip: clipOf(it),
     chip: { tone: 'accent', icon: 'directions_run', text: '換你做' },
     title: it.name,
-    meta: `${setText(it, s.setNo)}${it.perSide ? ' · 每邊' : ''}`,
+    meta: metaHTML(setText(it, s.setNo), it.perSide ? '每邊' : ''),
     body: `<div class="big">${repRange(it)}<span class="u">下</span></div>
       <div class="sw-row"><span class="stopwatch" id="sw">00:00</span><span class="tempo">${ICON('slow_motion_video')}3–5 秒/下</span></div>`,
     pri: btn('doneBtn', 'check', '完成這組', { primary: true, kbd: 'Space' }),
@@ -271,11 +272,11 @@ function renderRest(s) {
   let clip;
   if (nIt.type === 'reps') {
     chip = nIt === s.item ? '下一組' : '下一個動作';
-    meta = `${setText(nIt, n.setNo)} · ${esc(repsText(nIt))}`;
+    meta = metaHTML(setText(nIt, n.setNo), esc(repsText(nIt)));
     clip = clipOf(nIt);
   } else {
     chip = '下一輪';
-    meta = `${esc(n.move.name)} · ${n.move.sec} 秒`;
+    meta = metaHTML(esc(n.move.name), `${n.move.sec} 秒`);
     clip = clipOf(n.move);
   }
   const adjust = s.kind === 'rest' ? adjustHTML() : '';
@@ -285,7 +286,7 @@ function renderRest(s) {
     title: nIt.name,
     meta,
     body: `<div class="hrow">${ringHTML()}${adjust}</div>`,
-    sec: btn('plus30', 'more_time', '+30 秒'),
+    sec: btn('plus30', 'more_time', '延長 30 秒'),
     pri: btn('skipRest', 'skip_next', '跳過休息', { primary: true, kbd: 'Space' }),
   });
   $('#skipRest').onclick = next;
@@ -318,7 +319,7 @@ function renderFinish() {
   if (!test && P.isLast && P.mode === 'slot') {
     chip = allDone ? { tone: 'accent', icon: 'check_circle', fill: true, text: '今天合格' } : { tone: 'fail', icon: 'cancel', fill: true, text: '今天不合格' };
   } else if (!test && allDone) chip = { tone: 'accent', icon: 'check_circle', fill: true, text: '今天全部完成' };
-  const nextAt = !test && !allDone && P.nextBreak && !P.isLast ? `${ICON('schedule')}下次 ${esc(P.nextBreak)}` : '';
+  const nextAt = !test && !allDone && P.nextBreak && !P.isLast ? metaHTML(`${ICON('schedule')}下次 ${esc(P.nextBreak)}`) : '';
   const adjust = adjustHTML();
   const prog = total > 0 && !test ? `<div class="today ${failed ? 'failed' : ''}">
       <div class="txt">${done}<small>/ ${total} 組</small></div>
