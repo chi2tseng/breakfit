@@ -8,6 +8,7 @@ const DEFAULT_SETTINGS = Object.freeze({
   demoSec: 8,
   showDemo: true, // false: the break skips every demo countdown + circuit preview (video still loops)
   theme: 'dark', // 'dark' (green accent) | 'light' (orange accent)
+  lang: 'zh', // 'zh' (繁中) | 'en' (English)
   notifyEmptySlots: true,
   autoLaunch: true, // SPEC 2026-09-24: default ON (registered only in packaged builds)
   cycleAnchor: null, // { date: 'YYYY-MM-DD', index: 0..3 }
@@ -34,6 +35,7 @@ function normalizeSettings(raw = {}) {
   s.autoLaunch = !!s.autoLaunch;
   s.showDemo = s.showDemo == null ? DEFAULT_SETTINGS.showDemo : !!s.showDemo;
   s.theme = s.theme === 'light' ? 'light' : 'dark';
+  s.lang = s.lang === 'en' ? 'en' : 'zh';
   s.overrides = s.overrides && typeof s.overrides === 'object' ? { ...s.overrides } : {};
   return s;
 }

@@ -135,6 +135,24 @@ async function shot(win, name, desc) {
 
 const js = (win, code) => win.webContents.executeJavaScript(code);
 
+// English UI check: every visible text node + title / aria-label / placeholder, minus user notes and
+// the 繁中 language segment, must be free of CJK. Returns the offending strings.
+const CJK_SCAN = `(() => {
+  const cjk = /[\\u3000-\\u9fff\\uff00-\\uffef]/;
+  const bad = [];
+  const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n = w.nextNode(); n; n = w.nextNode()) {
+    const el = n.parentElement;
+    if (!el || el.closest('textarea, #sLang, [hidden]') || !el.getClientRects().length) continue;
+    if (cjk.test(n.nodeValue)) bad.push(n.nodeValue.trim());
+  }
+  for (const el of document.querySelectorAll('[title], [aria-label], [placeholder]')) {
+    for (const a of ['title', 'aria-label', 'placeholder']) if (cjk.test(el.getAttribute(a) || '')) bad.push(a + ': ' + el.getAttribute(a));
+  }
+  if (cjk.test(document.title)) bad.push('title: ' + document.title);
+  return bad.slice(0, 5);
+})()`;
+
 async function main() {
   if (MATRIX) fs.rmSync(path.join(OUT, 'matrix'), { recursive: true, force: true });
   else if (fs.existsSync(OUT)) for (const f of fs.readdirSync(OUT)) if (f !== 'matrix') fs.rmSync(path.join(OUT, f), { recursive: true, force: true });
@@ -410,6 +428,82 @@ async function main() {
   await shot(coverL, 'light-31-cover-new', '淺色：新開的覆蓋層');
   coverL.destroy();
 
+  // ---------- English (switched live through the real settings IPC, like the theme) ----------
+  console.log('english');
+  await js(mw, "window.bf.saveSettings({ theme: 'dark' }).then(() => true)");
+  const pE = ctl.buildPayload(TODAY, ctl.ensureToday(), 'slot', 6);
+  pE.showDemo = true;
+  ctl.openBreak('test', null, pE);
+  const ow7 = ctl.overlayWins[0];
+  await waitLoad(ow7);
+  await until(ow7, 'window.__test && window.__test.ready()');
+  await js(ow7, "__test.show('rest', { remaining: 42, reps: 12 })");
+  await js(ow7, '__test.leave()');
+  const coverE = ctl.openCoverForTest();
+  await waitLoad(coverE);
+  const chipZh = await js(ow7, "document.querySelector('#pChip .chip').lastChild.textContent");
+  assert(chipZh === '下一個動作', `overlay opened in 繁中 (${chipZh})`);
+  await js(mw, "__test.tab('settings'); document.querySelector('#sLang [data-l=\"en\"]').click(); true");
+  await delay(400);
+  assert(ctl.data.settings.lang === 'en', 'language persisted in settings (clicked English)');
+  assert(await js(mw, "document.querySelector('#sLang .on').dataset.l") === 'en', 'language segment shows English');
+  assert(await js(mw, "document.querySelector('.nav-item[data-tab=\"today\"] .nav-label').textContent") === 'Today', 'main window switched live');
+  assert(await js(ow7, "document.querySelector('#pChip .chip').lastChild.textContent + '|' + document.getElementById('mTitle').textContent") === 'Next Exercise|Leave this break?', 'open overlay + its dialog switched live');
+  assert(await js(ow7, "__test.phase()") === 'rest', 'switching language keeps the break where it was');
+  assert(await js(coverE, "document.querySelector('.c div').textContent") === 'On a Break', 'open cover switched live');
+  await shot(ow7, 'en-15-leave-confirm', 'English: leave dialog');
+  const scanOv = async (name) => {
+    const bad = await js(ow7, CJK_SCAN);
+    assert(!bad.length, `English overlay ${name}: no CJK text ${bad.length ? JSON.stringify(bad) : ''}`);
+  };
+  await scanOv('leave');
+  for (const [name, code] of [['intro', "__test.show('intro', { remaining: 7.3 })"], ['demo', "__test.show('demo', { remaining: 5.2 })"],
+    ['work', "__test.show('work', { elapsed: 23 })"], ['rest', "__test.show('rest', { remaining: 42, reps: 12 })"],
+    ['rest-next-move', "__test.show('rest', { nth: 1, remaining: 51 })"], ['finish', "__test.show('finish', { sets: 6, afterWork: true, reps: 13 })"]]) {
+    await js(ow7, code);
+    await scanOv(name);
+    await shot(ow7, `en-ov-${name}`, `English: ${name}`);
+  }
+  ctl.endBreak('abort');
+  coverE.destroy();
+  ctl.openBreak('test', null, ctl.buildPayload(d3key, d3, 'slot', D.lastSlot(d3)));
+  const ow8 = ctl.overlayWins[0];
+  await waitLoad(ow8);
+  await until(ow8, 'window.__test && window.__test.ready()');
+  for (const [name, code] of [['last-intro', "__test.show('intro', { remaining: 9.1 })"], ['skip-confirm', '__test.skip()'],
+    ['preview', "__test.show('preview', { nth: 2, remaining: 3.4 })"], ['timed', "__test.show('timed', { nth: 2, remaining: 18.2 })"],
+    ['round-rest', "__test.show('roundRest', { remaining: 152 })"], ['finish-pass', "__test.show('finish', { sets: 2 })"]]) {
+    await js(ow8, code);
+    const bad = await js(ow8, CJK_SCAN);
+    assert(!bad.length, `English overlay d3 ${name}: no CJK text ${bad.length ? JSON.stringify(bad) : ''}`);
+    await shot(ow8, `en-ov-d3-${name}`, `English: 第 3 天 ${name}`);
+  }
+  ctl.endBreak('abort');
+  await settle(mw);
+  for (const [name, code] of [['today', "__test.tab('today'); __test.scroll(0)"], ['library-d3', "__test.filter('d3')"], ['player', "__test.open('pushup')"],
+    ['history', `__test.close(); __test.tab('history'); __test.select('${failDay}').then(() => true)`], ['history-prev-month', `__test.select('${passDay}').then(() => true)`],
+    ['settings', "__test.tab('settings'); __test.scroll(0)"]]) {
+    await js(mw, code);
+    await delay(150);
+    const bad = await js(mw, CJK_SCAN);
+    assert(!bad.length, `English main ${name}: no CJK text ${bad.length ? JSON.stringify(bad) : ''}`);
+    await shot(mw, `en-${name}`, `English: ${name}`);
+  }
+  const cjk = /[\u3000-\u9fff\uff00-\uffef]/;
+  const labels = [];
+  const walkMenu = (items) => items.forEach((i) => { if (i.label) labels.push(i.label); if (i.submenu) walkMenu(i.submenu); });
+  const tm = ctl.trayModel();
+  walkMenu(tm.template);
+  const badTray = [tm.tip, ...labels].filter((l) => cjk.test(l));
+  assert(labels.length >= 12 && !badTray.length, `English tray tooltip + menu + submenu (${labels.length} labels) ${JSON.stringify(badTray)}`);
+  const coverE2 = ctl.openCoverForTest();
+  await waitLoad(coverE2);
+  assert(await js(coverE2, "document.querySelector('.c div').textContent + '|' + document.title") === 'On a Break|On a Break', 'new cover opens in English');
+  coverE2.destroy();
+  await js(mw, "document.querySelector('#sLang [data-l=\"zh\"]').click(); true");
+  await delay(300);
+  assert(ctl.data.settings.lang === 'zh' && await js(mw, "document.querySelector('.nav-item[data-tab=\"today\"] .nav-label').textContent") === '今天', 'switches back to 繁中 live');
+
   fs.writeFileSync(path.join(OUT, 'results.json'), JSON.stringify({ results, failures }, null, 2));
   console.log(`\n${results.length} screenshots → ${OUT}`);
   console.log(failures.length ? `SELFTEST FAIL (${failures.length})` : 'SELFTEST PASS');
@@ -449,6 +543,8 @@ const ROLES = {
 };
 const MAIN_SIZES = [[800, 600], [900, 700], [965, 940], [1024, 768], [1280, 720], [1366, 768], [1440, 900], [1600, 900], [1920, 1080]];
 const ZOOMS = [[965, 940, 1.25], [965, 940, 1.5]];
+const EN_MAIN_SIZES = [[800, 600], [965, 940], [1366, 768], [1920, 1080]];
+const EN_OV_SIZES = [[1024, 768], [1366, 768], [1920, 1080]];
 const OV_SIZES = [[1024, 768], [1280, 720], [1280, 800], [1366, 768], [1440, 900], [1536, 864], [1920, 1080], [2560, 1440]];
 
 async function settleLayout(win) {
@@ -505,17 +601,21 @@ async function matrix(ctl, mw) {
       ['round-rest', "__test.show('roundRest', { remaining: 152 })"], ['finish-pass', "__test.show('finish', { sets: 2 })"]]],
   ];
 
-  for (const theme of ['dark', 'light']) {
-    console.log(`matrix ${theme}`);
-    await js(mw, `window.bf.saveSettings({ theme: '${theme}' }).then(() => true)`);
+  // 繁中 in both themes at every size; English (longer words) in dark at the sizes that bound the layouts.
+  const ALL_PASSES = [['dark', 'zh', ''], ['light', 'zh', ''], ['dark', 'en', 'en-']];
+  // `-- --matrix --en`: the English pass only (quick iteration on text length)
+  const PASSES = process.argv.includes('--en') ? ALL_PASSES.filter((p) => p[1] === 'en') : ALL_PASSES;
+  for (const [theme, lang, pre] of PASSES) {
+    console.log(`matrix ${pre}${theme}`);
+    await js(mw, `window.bf.saveSettings({ theme: '${theme}', lang: '${lang}' }).then(() => true)`);
     await delay(300);
-    const sizes = [...MAIN_SIZES.map(([w, h]) => [w, h, 1]), ...ZOOMS];
+    const sizes = lang === 'en' ? EN_MAIN_SIZES.map(([w, h]) => [w, h, 1]) : [...MAIN_SIZES.map(([w, h]) => [w, h, 1]), ...ZOOMS];
     for (const [w, h, z] of sizes) {
       const inner = await resize(mw, w, h, z);
       const tag = `${w}x${h}${z === 1 ? '' : `@${Math.round(z * 100)}`}`;
       for (const [screen, code, doLint] of MAIN_STATES) {
         await js(mw, code);
-        await snap(mw, `${theme}-${screen}-${tag}`, doLint ? { kind: 'main', root: screen === 'player' ? '#player' : 'body' } : null);
+        await snap(mw, `${pre}${theme}-${screen}-${tag}`, doLint ? { kind: 'main', root: screen === 'player' ? '#player' : 'body' } : null);
       }
       console.log(`  main ${tag} (css ${inner.join('x')})`);
     }
@@ -530,11 +630,11 @@ async function matrix(ctl, mw) {
       const ow = ctl.overlayWins[0];
       await waitLoad(ow);
       await until(ow, 'window.__test && window.__test.ready()');
-      for (const [w, h] of OV_SIZES) {
+      for (const [w, h] of lang === 'en' ? EN_OV_SIZES : OV_SIZES) {
         await resize(ow, w, h, 1);
         for (const [screen, code] of states) {
           await js(ow, code);
-          await snap(ow, `${theme}-ov-${screen}-${w}x${h}`, { kind: 'overlay' });
+          await snap(ow, `${pre}${theme}-ov-${screen}-${w}x${h}`, { kind: 'overlay' });
         }
         console.log(`  overlay ${pd} ${w}x${h}`);
       }
@@ -549,7 +649,7 @@ async function matrix(ctl, mw) {
   const combos = {};
   for (const r of runs) {
     const m = /-(\d+x\d+(?:@\d+)?)$/.exec(r.name);
-    const key = `${r.name.includes('-ov-') ? 'overlay' : 'main'} ${m ? m[1] : '?'}`;
+    const key = `${r.name.startsWith('en-') ? 'en ' : ''}${r.name.includes('-ov-') ? 'overlay' : 'main'} ${m ? m[1] : '?'}`;
     bySize[key] = (bySize[key] || 0) + r.issues.length;
     for (const i of r.issues) byRule[i.rule] = (byRule[i.rule] || 0) + 1;
     for (const [k, v] of Object.entries(r.combos)) {

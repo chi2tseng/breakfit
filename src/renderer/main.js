@@ -1,5 +1,5 @@
 'use strict';
-/* Main window: 今天 / 記錄 / 設定 */
+/* Main window: Today / History / Settings */
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -8,10 +8,12 @@ const ICON = (name, cls = '') => `<span class="ms ${cls}">${name}</span>`;
 // Slider fill (accent left of the thumb) is drawn in CSS from --p.
 const rangeFill = (el) => el.style.setProperty('--p', `${((el.value - el.min) / (el.max - el.min)) * 100}%`);
 
-const WD = ['日', '一', '二', '三', '四', '五', '六'];
-const CYCLE_LABEL = { d1: '第 1 天', d2: '第 2 天', d3: '第 3 天', rest: '休息' };
-const SLOT_TXT = { pending: '', done: '完成', partial: '部分完成', skipped: '跳過', missed: '錯過', empty: '—', notified: '已提醒' };
-const DAY_TXT = { pass: '合格', fail: '不合格', rest: '休息', off: '非上班日', pending: '進行中' };
+// Text: every string comes from src/i18n.js in the current language (window.LANG, set by theme.js).
+const t = (key, vars) => I18N.t(window.LANG, key, vars);
+const WD = () => I18N.weekdays(window.LANG);
+const CYCLE_KEY = { d1: 'd1', d2: 'd2', d3: 'd3', rest: 'rest' };
+const SLOT_TXT = (st) => (st === 'pending' ? '' : st === 'empty' ? '—' : t(`slot_${st}`));
+const DAY_TXT = (st) => t(`day_${st}`);
 
 let S = null;
 let receivedAt = 0;
@@ -27,10 +29,7 @@ function parseKey(key) {
   const [y, m, d] = key.split('-').map(Number);
   return { y, m, d, wd: new Date(y, m - 1, d).getDay() };
 }
-function fmtKey(key) {
-  const { m, d, wd } = parseKey(key);
-  return `${m}月${d}日 週${WD[wd]}`;
-}
+const fmtKey = (key) => I18N.dayLabel(window.LANG, key);
 function vnow() {
   return new Date(Date.parse(S.now) + (Date.now() - receivedAt) * S.rate);
 }
@@ -42,13 +41,14 @@ function dur(sec) {
   return h ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
 }
 function pill(status) {
-  return status === 'pass' || status === 'fail' ? `<span class="pill ${status}">${DAY_TXT[status]}</span>` : '';
+  return status === 'pass' || status === 'fail' ? `<span class="pill ${status}">${DAY_TXT(status)}</span>` : '';
 }
 
 // ---------- data ----------
 async function refresh() {
   S = await window.bf.getState();
   receivedAt = Date.now();
+  if (S.settings.lang !== window.LANG) { window.LANG = S.settings.lang; I18N.apply(document, window.LANG); }
   if (!viewMonth) viewMonth = S.today.slice(0, 7);
   if (!selDate) selDate = S.today;
   renderToday();
@@ -63,20 +63,20 @@ function renderToday() {
   const training = !!S.dayTitle;
   $('#todayLabel').textContent = training ? S.dayLabel : '';
   $('#todayLabel').hidden = !training;
-  $('#todayTitle').textContent = training ? S.dayTitle : d.planDay === 'rest' ? '休息日' : '今天不用練';
+  $('#todayTitle').textContent = training ? S.dayTitle : d.planDay === 'rest' ? t('restDay') : t('noTraining');
   $('#breakNowBtn').disabled = !S.canBreakNow;
 
   const pct = S.total ? S.done / S.total : 0;
   let status = d.status;
   if (d.paused) status = 'fail';
   const progCard = training
-    ? `<div class="card"><div class="k"><span>今天進度</span>${pill(status)}</div>
-        <div class="v">${S.done}<small>/ ${S.total} 組</small></div>
+    ? `<div class="card"><div class="k"><span>${t('todayProgress')}</span>${pill(status)}</div>
+        <div class="v">${S.done}<small>/ ${S.total} ${t('setsUnit')}</small></div>
         <div class="bar ${status === 'fail' ? 'fail' : ''}"><div style="width:${pct * 100}%"></div></div>
-        ${d.paused ? '<div class="s">已暫停到明天</div>' : ''}</div>`
-    : `<div class="card"><div class="k"><span>今天進度</span></div>
-        <div class="v">${d.planDay === 'rest' ? '休息日' : '非上班日'}</div></div>`;
-  const nextCard = `<div class="card"><div class="k"><span>下次休息</span>${S.next && S.next.isLast ? '<span class="pill fail">最後一次</span>' : ''}</div>
+        ${d.paused ? `<div class="s">${t('pausedTillTomorrow')}</div>` : ''}</div>`
+    : `<div class="card"><div class="k"><span>${t('todayProgress')}</span></div>
+        <div class="v">${d.planDay === 'rest' ? t('restDay') : t('dayOff')}</div></div>`;
+  const nextCard = `<div class="card"><div class="k"><span>${t('nextBreak')}</span>${S.next && S.next.isLast ? `<span class="pill fail">${t('lastBreak')}</span>` : ''}</div>
       <div class="v" id="nextTime">${S.next ? S.next.time : '—'}</div>
       <div class="s" id="nextIn"></div></div>`;
   $('#todayCards').innerHTML = progCard + nextCard;
@@ -84,14 +84,14 @@ function renderToday() {
   // timeline
   const nextIdx = S.next ? S.next.index : -1;
   if (!S.slotsView.length) {
-    $('#timeline').innerHTML = `<li class="empty-state">${ICON('event_available')}<span>今天沒有排休息</span></li>`;
+    $('#timeline').innerHTML = `<li class="empty-state">${ICON('event_available')}<span>${t('noBreaksToday')}</span></li>`;
   } else {
     $('#timeline').innerHTML = S.slotsView.map((s, k) => {
       const units = s.units.length
         ? s.units.map((u) => `<span class="u ${u.done >= u.target ? 'full' : ''}">${esc(u.name)}<small>${u.done}/${u.target}</small></span>`).join('')
-        : `<span class="none">${s.isLast ? '補做' : '—'}</span>`;
+        : `<span class="none">${s.isLast ? t('catchUp') : '—'}</span>`;
       const isNext = k === nextIdx;
-      const stTxt = isNext ? '下一次' : SLOT_TXT[s.status];
+      const stTxt = isNext ? t('nextSlot') : SLOT_TXT(s.status);
       return `<li class="${s.status} ${isNext ? 'next' : ''}"><span class="t">${s.time}</span><span class="dot"></span>
         <div class="units">${units}</div><span class="st">${stTxt}</span></li>`;
     }).join('');
@@ -103,7 +103,7 @@ function renderLibrary() {
   $$('#libFilter button').forEach((b) => b.classList.toggle('on', b.dataset.f === libFilter));
   const list = S.library.filter((m) => m.day === libFilter);
   const grid = $('#library');
-  const sig = list.map((m) => `${m.id}:${m.clipUrl || ''}`).join('|');
+  const sig = window.LANG + list.map((m) => `${m.id}:${m.name}:${m.clipUrl || ''}`).join('|');
   if (grid.dataset.sig === sig) return;
   grid.dataset.sig = sig;
   grid.innerHTML = list.map((m) => `<div class="lib-card" data-id="${m.id}" tabindex="0" role="button">
@@ -124,7 +124,7 @@ function openPlayer(id) {
   const m = S.library.find((x) => x.id === id);
   if (!m) return;
   $('#playerName').textContent = m.name;
-  $('#playerMeta').textContent = m.sec ? `${m.sec} 秒` : '';
+  $('#playerMeta').textContent = m.sec ? t('secs', { n: m.sec }) : '';
   $('#playerTips').innerHTML = (m.tips || []).map((t) => `<li>${ICON('check')}<span>${esc(t)}</span></li>`).join('');
   const clip = $('#playerClip');
   clip.dataset.src = '-';
@@ -145,10 +145,10 @@ function renderHistory() {
   const mSets = S.monthSets[viewMonth] || 0;
   const card = (k, v) => `<div class="card"><div class="k"><span>${k}</span></div><div class="v">${v}</div></div>`;
   $('#statCards').innerHTML = [
-    card('合格率', st.passRate == null ? '—' : `${Math.round(st.passRate * 100)}<small>%</small>`),
-    card('目前連續合格', `${st.currentStreak}<small>天</small>`),
-    card('最長連續合格', `${st.longestStreak}<small>天</small>`),
-    card(`${mNum} 月完成組數`, `${mSets}<small>組</small>`),
+    card(t('passRate'), st.passRate == null ? '—' : `${Math.round(st.passRate * 100)}<small>%</small>`),
+    card(t('streak'), `${st.currentStreak}<small>${t('daysUnit')}</small>`),
+    card(t('longest'), `${st.longestStreak}<small>${t('daysUnit')}</small>`),
+    card(t('monthSets', { m: mNum, month: I18N.monthName(window.LANG, viewMonth) }), `${mSets}<small>${t('setsUnit')}</small>`),
   ].join('');
   renderCalendar();
   renderChart();
@@ -157,7 +157,8 @@ function renderHistory() {
 
 function renderCalendar() {
   const [y, m] = viewMonth.split('-').map(Number);
-  $('#monthLabel').textContent = `${y} 年 ${m} 月`;
+  $('#monthLabel').textContent = I18N.monthLabel(window.LANG, viewMonth);
+  $('#calWeek').innerHTML = WD().map((w) => `<span>${w}</span>`).join('');
   const first = new Date(y, m - 1, 1).getDay();
   const days = new Date(y, m, 0).getDate();
   const cells = [];
@@ -191,7 +192,7 @@ function renderCalendar() {
 function renderChart() {
   const data = S.recent;
   if (!data.length) {
-    $('#chart').innerHTML = `<div class="empty-state">${ICON('bar_chart')}<span>還沒有訓練日</span></div>`;
+    $('#chart').innerHTML = `<div class="empty-state">${ICON('bar_chart')}<span>${t('noTrainingDays')}</span></div>`;
     return;
   }
   const W = Math.max(280, Math.round($('#chart').clientWidth || 660));
@@ -233,7 +234,7 @@ async function loadDetail() {
   const box = $('#detail');
   const sm = det.summary;
   if (!sm) {
-    box.innerHTML = `<div class="dh"><h3>${fmtKey(key)}</h3></div><div class="empty-state">${ICON('event_busy')}<span>沒有記錄</span></div>`;
+    box.innerHTML = `<div class="dh"><h3>${fmtKey(key)}</h3></div><div class="empty-state">${ICON('event_busy')}<span>${t('noRecord')}</span></div>`;
     return;
   }
   const units = det.day ? det.day.units : det.impliedUnits;
@@ -242,16 +243,16 @@ async function loadDetail() {
     html += '<div class="sec">';
     html += units.map((u) => {
       const ok = u.doneSets >= u.targetSets;
-      const reps = u.type !== 'circuit' && u.reps && u.reps.length ? `${u.reps.join('、')} 下` : '';
-      return `<div class="urow"><span>${esc(u.name)}</span><span class="c ${ok ? 'ok' : 'no'}">${u.doneSets}/${u.targetSets} 組</span>${reps ? `<span class="r">${esc(reps)}</span>` : ''}</div>`;
+      const reps = u.type !== 'circuit' && u.reps && u.reps.length ? t('repsList', { r: u.reps.join(window.LANG === 'en' ? ', ' : '、') }) : '';
+      return `<div class="urow"><span>${esc(u.name)}</span><span class="c ${ok ? 'ok' : 'no'}">${t('setsOf', { a: u.doneSets, b: u.targetSets })}</span>${reps ? `<span class="r">${esc(reps)}</span>` : ''}</div>`;
     }).join('');
     html += '</div>';
   }
   if (!units || !units.length) {
-    html += `<div class="sec"><div class="empty-state">${ICON(sm.planDay === 'off' ? 'event_busy' : 'self_improvement')}<span>${sm.planDay === 'off' ? '非上班日' : '休息日'}</span></div></div>`;
+    html += `<div class="sec"><div class="empty-state">${ICON(sm.planDay === 'off' ? 'event_busy' : 'self_improvement')}<span>${sm.planDay === 'off' ? t('dayOff') : t('restDay')}</span></div></div>`;
   }
   if (det.day) {
-    html += `<div class="sec"><textarea id="note" placeholder="筆記">${esc(det.day.note || '')}</textarea></div>`;
+    html += `<div class="sec"><textarea id="note" placeholder="${t('note')}">${esc(det.day.note || '')}</textarea></div>`;
   }
   box.innerHTML = html;
   const ta = $('#note');
@@ -273,7 +274,7 @@ function renderSettings() {
   setVal($('#sStart'), s.start);
   setVal($('#sEnd'), s.end);
   setVal($('#sInterval'), s.interval);
-  $('#sDays').innerHTML = [1, 2, 3, 4, 5, 6, 0].map((d) => `<button data-d="${d}" class="${s.activeWeekdays.includes(d) ? 'on' : ''}">${WD[d]}</button>`).join('');
+  $('#sDays').innerHTML = [1, 2, 3, 4, 5, 6, 0].map((d) => `<button data-d="${d}" class="${s.activeWeekdays.includes(d) ? 'on' : ''}">${WD()[d]}</button>`).join('');
   $$('#sDays button').forEach((b) => b.addEventListener('click', () => {
     const d = Number(b.dataset.d);
     const set = new Set(S.settings.activeWeekdays);
@@ -282,19 +283,20 @@ function renderSettings() {
   }));
 
   const idx = ['d1', 'd2', 'd3', 'rest'].indexOf(S.day.planDay);
-  $('#sCycle').innerHTML = ['d1', 'd2', 'd3', 'rest'].map((k, i) => `<button data-i="${i}" class="${i === idx ? 'on' : ''}">${CYCLE_LABEL[k]}</button>`).join('');
+  $('#sCycle').innerHTML = ['d1', 'd2', 'd3', 'rest'].map((k, i) => `<button data-i="${i}" class="${i === idx ? 'on' : ''}">${t(CYCLE_KEY[k])}</button>`).join('');
   $$('#sCycle button').forEach((b) => b.addEventListener('click', async () => {
     await window.bf.setCycleToday(Number(b.dataset.i));
   }));
 
   document.documentElement.dataset.theme = s.theme;
   $$('#sTheme button').forEach((b) => b.classList.toggle('on', b.dataset.t === s.theme));
+  $$('#sLang button').forEach((b) => b.classList.toggle('on', b.dataset.l === s.lang));
   $('#sShowDemo').classList.toggle('on', s.showDemo);
   $('#sDemoRow').classList.toggle('off', !s.showDemo);
   $('#sDemo').disabled = !s.showDemo;
   setVal($('#sDemo'), s.demoSec);
   rangeFill($('#sDemo'));
-  $('#sDemoVal').textContent = `${s.demoSec} 秒`;
+  $('#sDemoVal').textContent = t('secs', { n: s.demoSec });
   $('#sNotify').classList.toggle('on', s.notifyEmptySlots);
   $('#sLaunch').classList.toggle('on', s.autoLaunch);
 
@@ -303,7 +305,8 @@ function renderSettings() {
 
 function renderOverrides() {
   const box = $('#overrides');
-  if (box.contains(document.activeElement)) return;
+  if (box.contains(document.activeElement) && box.dataset.lang === window.LANG) return;
+  box.dataset.lang = window.LANG;
   const ov = S.settings.overrides || {};
   box.innerHTML = ['d1', 'd2'].map((pd) => {
     const rows = S.plan.days[pd].units.map((u) => {
@@ -313,13 +316,13 @@ function renderOverrides() {
       const changed = !!ov[u.id];
       return `<div class="ov-row" data-id="${u.id}">
         <span class="nm ${changed ? 'changed' : ''}">${esc(u.name)}</span>
-        <input type="number" min="1" max="10" value="${sets}" data-k="sets" aria-label="組數">
-        <input type="number" min="1" max="100" value="${reps[0]}" data-k="a" aria-label="最少次數">
+        <input type="number" min="1" max="10" value="${sets}" data-k="sets" aria-label="${t('sets')}">
+        <input type="number" min="1" max="100" value="${reps[0]}" data-k="a" aria-label="${t('minReps')}">
         <span class="dash">–</span>
-        <input type="number" min="1" max="100" value="${reps[1]}" data-k="b" aria-label="最多次數">
-        <button class="reset" title="還原" ${changed ? '' : 'disabled'}>${ICON('undo')}</button></div>`;
+        <input type="number" min="1" max="100" value="${reps[1]}" data-k="b" aria-label="${t('maxReps')}">
+        <button class="reset" title="${t('reset')}" ${changed ? '' : 'disabled'}>${ICON('undo')}</button></div>`;
     }).join('');
-    return `<div class="ov-col"><div class="ov-head"><h4>${esc(CYCLE_LABEL[pd])}</h4><span class="lbl l-sets">組</span><span class="lbl l-reps">次數</span></div>${rows}</div>`;
+    return `<div class="ov-col"><div class="ov-head"><h4>${esc(t(pd))}</h4><span class="lbl l-sets">${t('colSets')}</span><span class="lbl l-reps">${t('colReps')}</span></div>${rows}</div>`;
   }).join('');
   $$('.ov-row', box).forEach((row) => {
     const id = row.dataset.id;
@@ -361,9 +364,10 @@ function bindSettings() {
   timeField('#sStart', 'start');
   timeField('#sEnd', 'end');
   $('#sInterval').addEventListener('change', (e) => save({ interval: Number(e.target.value) }));
-  $('#sDemo').addEventListener('input', (e) => { $('#sDemoVal').textContent = `${e.target.value} 秒`; rangeFill(e.target); });
+  $('#sDemo').addEventListener('input', (e) => { $('#sDemoVal').textContent = t('secs', { n: e.target.value }); rangeFill(e.target); });
   $('#sDemo').addEventListener('change', (e) => save({ demoSec: Number(e.target.value) }));
   $$('#sTheme button').forEach((b) => b.addEventListener('click', () => save({ theme: b.dataset.t }).then(renderSettings)));
+  $$('#sLang button').forEach((b) => b.addEventListener('click', () => save({ lang: b.dataset.l })));
   $('#sShowDemo').addEventListener('click', () => save({ showDemo: !S.settings.showDemo }).then(renderSettings));
   $('#sNotify').addEventListener('click', () => save({ notifyEmptySlots: !S.settings.notifyEmptySlots }));
   $('#sLaunch').addEventListener('click', () => save({ autoLaunch: !S.settings.autoLaunch }));
@@ -384,7 +388,7 @@ function tick() {
   const el = $('#nextIn');
   if (el && S.next) {
     const sec = (Date.parse(S.next.at) - now.getTime()) / 1000;
-    el.textContent = sec > 0 ? `還有 ${dur(sec)}` : '即將開始';
+    el.textContent = sec > 0 ? t('inTime', { t: dur(sec) }) : t('startingSoon');
   }
 }
 
@@ -411,6 +415,7 @@ new ResizeObserver(() => {
   if (S && w && w !== chartW) { chartW = w; renderChart(); }
 }).observe($('#chart'));
 window.bf.onState(() => refresh());
+addEventListener('bf:lang', () => { if (S) refresh(); });
 window.bf.onNav((name) => { if (['today', 'history', 'settings'].includes(name)) showTab(name); });
 setInterval(() => {
   tick();

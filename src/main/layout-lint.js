@@ -129,7 +129,9 @@ function lint(opts) {
       const mid = rc.top + rc.height / 2;
       if (!tops.some((m) => Math.abs(m - mid) < rc.height / 2)) tops.push(mid);
     }
-    const labelish = p.closest('button, .btn, .seg, .chip, .pill, label, h1, h2, h3, h4, .lbl, .k, .mode-tag, .nm, .eyebrow, [role="button"]');
+    let labelish = p.closest('button, .btn, .seg, .chip, .pill, label, h1, h2, h3, h4, .lbl, .k, .mode-tag, .nm, .eyebrow, [role="button"]');
+    // a library card is a role=button tile: its caption is a name that may wrap (long English names), not a button label
+    if (labelish && labelish.classList.contains('lib-card') && p.closest('.lib-card .n')) labelish = null;
     if (tops.length > 1 && ([...t].length <= 8 || labelish)) {
       add('d-wrap', p, `"${t.slice(0, 20)}" on ${tops.length} lines`);
     }

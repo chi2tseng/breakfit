@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('bf', {
   getState: () => ipcRenderer.invoke('state:get'),
   onState: (cb) => ipcRenderer.on('state:changed', () => cb()),
   onTheme: (cb) => ipcRenderer.on('theme', (_e, theme) => cb(theme)),
+  onLang: (cb) => ipcRenderer.on('lang', (_e, lang) => cb(lang)),
   onNav: (cb) => ipcRenderer.on('nav:tab', (_e, tab) => cb(tab)),
   getDay: (date) => ipcRenderer.invoke('day:get', date),
   setNote: (date, note) => ipcRenderer.invoke('day:note', { date, note }),

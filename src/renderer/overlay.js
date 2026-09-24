@@ -26,16 +26,17 @@ const st = {
   shownAt: 0, // performance.now() when the current phase was rendered
 };
 
-// ---------- text helpers ----------
+// ---------- text helpers (src/i18n.js, language = window.LANG from theme.js / the payload) ----------
+const t = (key, vars) => I18N.t(window.LANG, key, vars);
 function repRange(item) {
   const [a, b] = item.target;
   return a === b ? `${a}` : `${a}–${b}`;
 }
 function repsText(item) {
-  return `${item.perSide ? '每邊 ' : ''}${repRange(item)} 下`;
+  return t(item.perSide ? 'perSideReps' : 'repsN', { r: repRange(item) });
 }
 function setText(item, setNo) {
-  return `第 ${setNo}/${item.targetSets} 組`;
+  return t('setNo', { n: setNo, t: item.targetSets });
 }
 // Meta line = separate facts with a gap, never an ASCII '·' between CJK words (DESIGN.md §6).
 const metaHTML = (...parts) => parts.filter(Boolean).map((p) => `<span>${p}</span>`).join('');
@@ -145,7 +146,7 @@ const mmss = (sec) => {
 function renderTop() {
   $('#slotText').textContent = P.slotTime;
   const tag = $('#modeTag');
-  const modeLabel = P.mode === 'manual' ? '提前休息' : P.mode === 'test' ? '測試' : '';
+  const modeLabel = P.mode === 'manual' ? t('earlyBreak') : P.mode === 'test' ? t('test') : '';
   tag.hidden = !modeLabel;
   tag.textContent = modeLabel;
   const total = steps.length || 1;
@@ -199,17 +200,17 @@ function renderIntro() {
   const rows = P.items.map((it) => {
     const meta = it.type === 'reps'
       ? `${it.setsLeft} × ${repsText(it)}`
-      : `${it.moves.length} × ${it.moves[0].sec} 秒`;
+      : t('timedMeta', { n: it.moves.length, s: it.moves[0].sec });
     return `<li><span class="nm">${esc(it.name)}${it.carried ? ICON('history') : ''}</span><span class="mt">${esc(meta)}</span></li>`;
   }).join('');
   const last = !!P.isLast;
   frame({
     clip: P.items.length ? firstClip(P.items[0]) : null,
-    chip: last ? { tone: 'fail', icon: 'warning', fill: true, text: '最後一次' } : { icon: 'calendar_today', text: P.dayLabel || '' },
+    chip: last ? { tone: 'fail', icon: 'warning', fill: true, text: t('lastBreak') } : { icon: 'calendar_today', text: P.dayLabel || '' },
     title: P.dayTitle || '',
     body: `<ul class="plan">${rows}</ul>`,
-    sec: btn('skipBtn', 'skip_next', '跳過這次'),
-    pri: btn('startBtn', 'play_arrow', '開始', { primary: true, fill: true, kbd: 'Space', cd: true }),
+    sec: btn('skipBtn', 'skip_next', t('skipThis')),
+    pri: btn('startBtn', 'play_arrow', t('start'), { primary: true, fill: true, kbd: 'Space', cd: true }),
   });
   $('#startBtn').onclick = startSteps;
   $('#skipBtn').onclick = askSkip;
@@ -219,11 +220,11 @@ function renderDemo(s) {
   const it = s.item;
   frame({
     clip: clipOf(it),
-    chip: { icon: 'visibility', text: '示範' },
+    chip: { icon: 'visibility', text: t('demo') },
     title: it.name,
     meta: metaHTML(setText(it, s.setNo), esc(repsText(it))),
     body: tipsHTML(it.tips),
-    pri: btn('goBtn', 'play_arrow', '開始', { primary: true, fill: true, kbd: 'Space', cd: true }),
+    pri: btn('goBtn', 'play_arrow', t('start'), { primary: true, fill: true, kbd: 'Space', cd: true }),
   });
   $('#goBtn').onclick = next;
 }
@@ -232,12 +233,12 @@ function renderWork(s) {
   const it = s.item;
   frame({
     clip: clipOf(it),
-    chip: { tone: 'accent', icon: 'directions_run', text: '換你做' },
+    chip: { tone: 'accent', icon: 'directions_run', text: t('yourTurn') },
     title: it.name,
-    meta: metaHTML(setText(it, s.setNo), it.perSide ? '每邊' : ''),
-    body: `<div class="big">${repRange(it)}<span class="u">下</span></div>
-      <div class="sw-row"><span class="stopwatch" id="sw">00:00</span><span class="tempo">${ICON('slow_motion_video')}3–5 秒/下</span></div>`,
-    pri: btn('doneBtn', 'check', '完成這組', { primary: true, kbd: 'Space' }),
+    meta: metaHTML(setText(it, s.setNo), it.perSide ? t('perSide') : ''),
+    body: `<div class="big">${repRange(it)}<span class="u">${t('repUnit')}</span></div>
+      <div class="sw-row"><span class="stopwatch" id="sw">00:00</span><span class="tempo">${ICON('slow_motion_video')}${t('tempo')}</span></div>`,
+    pri: btn('doneBtn', 'check', t('doneSet'), { primary: true, kbd: 'Space' }),
   });
   $('#doneBtn').onclick = completeSet;
 }
@@ -245,11 +246,11 @@ function renderWork(s) {
 function renderPreview(s) {
   frame({
     clip: clipOf(s.move),
-    chip: { icon: 'arrow_forward', text: '下一個' },
+    chip: { icon: 'arrow_forward', text: t('upNext') },
     title: s.move.name,
-    meta: `${s.move.sec} 秒`,
+    meta: t('secs', { n: s.move.sec }),
     body: moveDots(s.item, s.j) + tipsHTML(s.move.tips),
-    pri: btn('goBtn', 'play_arrow', '開始', { primary: true, fill: true, kbd: 'Space', cd: true }),
+    pri: btn('goBtn', 'play_arrow', t('start'), { primary: true, fill: true, kbd: 'Space', cd: true }),
   });
   $('#goBtn').onclick = next;
 }
@@ -257,7 +258,7 @@ function renderPreview(s) {
 function renderTimed(s) {
   frame({
     clip: clipOf(s.move),
-    chip: { tone: 'accent', icon: 'timer', text: '換你做' },
+    chip: { tone: 'accent', icon: 'timer', text: t('yourTurn') },
     title: s.move.name,
     meta: esc(s.item.name),
     body: `<div class="hrow">${ringHTML()}${moveDots(s.item, s.j)}</div>`,
@@ -271,12 +272,12 @@ function renderRest(s) {
   let meta;
   let clip;
   if (nIt.type === 'reps') {
-    chip = nIt === s.item ? '下一組' : '下一個動作';
+    chip = nIt === s.item ? t('nextSet') : t('nextMove');
     meta = metaHTML(setText(nIt, n.setNo), esc(repsText(nIt)));
     clip = clipOf(nIt);
   } else {
-    chip = '下一輪';
-    meta = metaHTML(esc(n.move.name), `${n.move.sec} 秒`);
+    chip = t('nextRound');
+    meta = metaHTML(esc(n.move.name), t('secs', { n: n.move.sec }));
     clip = clipOf(n.move);
   }
   const adjust = s.kind === 'rest' ? adjustHTML() : '';
@@ -286,8 +287,8 @@ function renderRest(s) {
     title: nIt.name,
     meta,
     body: `<div class="hrow">${ringHTML()}${adjust}</div>`,
-    sec: btn('plus30', 'more_time', '延長 30 秒'),
-    pri: btn('skipRest', 'skip_next', '跳過休息', { primary: true, kbd: 'Space' }),
+    sec: btn('plus30', 'more_time', t('plus30')),
+    pri: btn('skipRest', 'skip_next', t('skipRest'), { primary: true, kbd: 'Space' }),
   });
   $('#skipRest').onclick = next;
   $('#plus30').onclick = () => { st.remaining += 30; st.duration = Math.max(st.duration, st.remaining); updateTick(); };
@@ -299,7 +300,7 @@ function renderRest(s) {
 function adjustHTML() {
   const prev = steps[st.i - 1];
   return prev && prev.kind === 'work' && st.lastRec
-    ? `<div class="adjust"><span class="lbl">上一組</span><div class="stepper">
+    ? `<div class="adjust"><span class="lbl">${t('prevSet')}</span><div class="stepper">
         <button class="btn" id="repMinus">${ICON('remove')}</button><span class="val" id="repVal">${st.lastRec.reps}</span><button class="btn" id="repPlus">${ICON('add')}</button></div></div>`
     : '';
 }
@@ -315,21 +316,21 @@ function renderFinish() {
   const total = P.todayTotal;
   const allDone = total > 0 && done >= total;
   const failed = P.isLast && !allDone && P.mode === 'slot';
-  let chip = { icon: 'check_circle', text: '完成' };
+  let chip = { icon: 'check_circle', text: t('done') };
   if (!test && P.isLast && P.mode === 'slot') {
-    chip = allDone ? { tone: 'accent', icon: 'check_circle', fill: true, text: '今天合格' } : { tone: 'fail', icon: 'cancel', fill: true, text: '今天不合格' };
-  } else if (!test && allDone) chip = { tone: 'accent', icon: 'check_circle', fill: true, text: '今天全部完成' };
-  const nextAt = !test && !allDone && P.nextBreak && !P.isLast ? metaHTML(`${ICON('schedule')}下次 ${esc(P.nextBreak)}`) : '';
+    chip = allDone ? { tone: 'accent', icon: 'check_circle', fill: true, text: t('passedToday') } : { tone: 'fail', icon: 'cancel', fill: true, text: t('failedToday') };
+  } else if (!test && allDone) chip = { tone: 'accent', icon: 'check_circle', fill: true, text: t('allDoneToday') };
+  const nextAt = !test && !allDone && P.nextBreak && !P.isLast ? metaHTML(`${ICON('schedule')}${esc(t('nextAt', { t: P.nextBreak }))}`) : '';
   const adjust = adjustHTML();
   const prog = total > 0 && !test ? `<div class="today ${failed ? 'failed' : ''}">
-      <div class="txt">${done}<small>/ ${total} 組</small></div>
+      <div class="txt">${done}<small>/ ${total} ${t('setsUnit')}</small></div>
       <div class="bar"><div style="width:${Math.min(100, (done / total) * 100)}%"></div></div></div>` : '';
   frame({
     chip,
-    title: `這次 ${st.sessionSets} 組`,
+    title: t('thisBreak', { n: st.sessionSets }),
     meta: nextAt,
     body: prog + adjust,
-    pri: btn('closeBtn', 'close', '關閉', { primary: true, kbd: 'Space', cd: true }),
+    pri: btn('closeBtn', 'close', t('close'), { primary: true, kbd: 'Space', cd: true }),
     cover: { icon: failed ? 'cancel' : 'check_circle', failed },
   });
   $('#closeBtn').onclick = () => end('done');
@@ -439,8 +440,8 @@ function onTimeout() {
 }
 
 // ---------- modal ----------
-function openModal({ title, body, ok, cancel = '繼續', warn = false, onOk }) {
-  st.modal = { onOk };
+function openModal({ kind, title, body, ok, cancel = t('continue'), warn = false, onOk }) {
+  st.modal = { onOk, kind };
   $('#mTitle').textContent = title;
   $('#mBody').textContent = body;
   $('#mBody').className = warn ? 'warn' : '';
@@ -459,9 +460,10 @@ function askLeave() {
   if (st.phase === 'finish') { end('done'); return; }
   const lastWarn = P.isLast && P.mode === 'slot';
   openModal({
-    title: '離開休息？',
-    body: lastWarn ? '離開 = 今天不合格' : '',
-    ok: '離開',
+    kind: 'leave',
+    title: t('leaveQ'),
+    body: lastWarn ? t('leaveFails') : '',
+    ok: t('leave'),
     warn: lastWarn,
     onOk: () => end('abort'),
   });
@@ -469,7 +471,7 @@ function askLeave() {
 
 function askSkip() {
   if (P.isLast && P.mode === 'slot') {
-    openModal({ title: '跳過最後一次休息？', body: '跳過 = 今天不合格', ok: '跳過', warn: true, onOk: () => end('skip') });
+    openModal({ kind: 'skip', title: t('skipLastQ'), body: t('skipFails'), ok: t('skip'), warn: true, onOk: () => end('skip') });
   } else {
     end('skip');
   }
@@ -531,10 +533,29 @@ $('#leaveBtn').onclick = (e) => { e.currentTarget.blur(); askLeave(); };
 $('#mCancel').onclick = closeModal;
 $('#mOk').onclick = () => { const f = st.modal && st.modal.onOk; closeModal(); if (f) f(); };
 
+// ---------- language switched live: same progress, new text (main re-texts the payload) ----------
+addEventListener('bf:lang', async () => {
+  if (!P || st.ended) return;
+  const np = await window.bf.payload();
+  if (!np) return;
+  Object.assign(P, { lang: np.lang, dayLabel: np.dayLabel, dayTitle: np.dayTitle });
+  P.items.forEach((it, i) => {
+    const n = np.items[i];
+    if (!n) return;
+    Object.assign(it, { name: n.name, tips: n.tips });
+    if (it.moves) it.moves.forEach((m, j) => Object.assign(m, { name: n.moves[j].name, tips: n.moves[j].tips }));
+  });
+  const modal = st.modal && st.modal.kind;
+  render();
+  if (modal === 'leave') askLeave();
+  else if (modal === 'skip') askSkip();
+});
+
 // ---------- boot ----------
 (async function boot() {
   P = await window.bf.payload();
   if (!P) return;
+  window.LANG = I18N.norm(P.lang);
   steps = buildSteps(P.items);
   setPhase('intro', INTRO_SEC);
   st.frozen = !!P.selftest;

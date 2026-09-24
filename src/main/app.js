@@ -13,6 +13,7 @@ const D = require('../core/day');
 const C = require('../core/cycle');
 const S = require('../core/stats');
 const { normalizeSettings } = require('../core/settings');
+const I18N = require('../i18n');
 const store = require('./store');
 const { trayIcon, trayPausedIcon, windowIcon, notifyIcon } = require('./icon');
 
@@ -34,8 +35,22 @@ function createClock({ base = null, rate = 1 } = {}) {
   };
 }
 
-function planUnit(id) {
-  for (const d of Object.values(plan.days)) {
+// Plan text in one language (plan.json *_en fields), cached per language.
+const planCache = {};
+const planIn = (lang) => planCache[I18N.norm(lang)] || (planCache[I18N.norm(lang)] = I18N.localizePlan(plan, lang));
+// Display name for a unit / circuit move id (day records store the 繁中 name at creation time).
+function nameIn(lang, id, fallback) {
+  const lp = planIn(lang);
+  for (const d of Object.values(lp.days)) {
+    const u = d.units.find((x) => x.id === id);
+    if (u) return u.name;
+  }
+  const m = Object.values(lp.circuits).flat().find((x) => x.id === id);
+  return m ? m.name : fallback;
+}
+
+function planUnit(id, lang) {
+  for (const d of Object.values(planIn(lang).days)) {
     const u = d.units.find((x) => x.id === id);
     if (u) return u;
   }
@@ -50,35 +65,51 @@ function clipFile(clip, ext) {
 const clipUrl = (clip) => clipFile(clip, 'mp4');
 const posterUrl = (clip) => clipFile(clip, 'jpg');
 
-function toItem(u, carried) {
+function toItem(u, carried, lang) {
   if (u.type === 'circuit') {
     return {
-      type: 'circuit', unitId: u.id, name: u.name, carried,
-      moves: plan.circuits[u.moves].map((m) => ({
+      type: 'circuit', unitId: u.id, name: nameIn(lang, u.id, u.name), carried, circuit: u.moves,
+      moves: planIn(lang).circuits[u.moves].map((m) => ({
         id: m.id, name: m.name, sec: m.sec, clipUrl: clipUrl(m.clip), posterUrl: posterUrl(m.clip), tips: (m.tips || []).slice(0, 3),
       })),
     };
   }
-  const src = planUnit(u.id);
+  const src = planUnit(u.id, lang);
   return {
-    type: 'reps', unitId: u.id, name: u.name, muscle: src.muscle || '', carried,
+    type: 'reps', unitId: u.id, name: src.name || u.name, muscle: src.muscle || '', carried,
     setNo: u.doneSets + 1, setsLeft: u.targetSets - u.doneSets, targetSets: u.targetSets,
     target: u.target, perSide: !!src.perSide, clipUrl: clipUrl(src.clip), posterUrl: posterUrl(src.clip), tips: (src.tips || []).slice(0, 3),
   };
 }
 
-function library() {
+// Re-texts an already built payload in another language (switching language mid-break).
+function localizeItems(items, lang) {
+  for (const it of items) {
+    if (it.type === 'circuit') {
+      it.name = nameIn(lang, it.unitId, it.name);
+      const src = planIn(lang).circuits[it.circuit] || [];
+      it.moves.forEach((m, j) => { if (src[j]) { m.name = src[j].name; m.tips = (src[j].tips || []).slice(0, 3); } });
+    } else {
+      const src = planUnit(it.unitId, lang);
+      if (src.name) { it.name = src.name; it.muscle = src.muscle || ''; it.tips = (src.tips || []).slice(0, 3); }
+    }
+  }
+  return items;
+}
+
+function library(lang) {
+  const lp = planIn(lang);
   const out = [];
   for (const pd of ['d1', 'd2']) {
-    for (const u of plan.days[pd].units) {
+    for (const u of lp.days[pd].units) {
       out.push({ id: u.id, name: u.name, muscle: u.muscle, day: pd, tips: u.tips, perSide: !!u.perSide, clipUrl: clipUrl(u.clip), posterUrl: posterUrl(u.clip) });
     }
   }
   const seen = new Set();
-  for (const m of plan.circuits.core) {
+  for (const m of lp.circuits.core) {
     if (seen.has(m.id)) continue;
     seen.add(m.id);
-    out.push({ id: m.id, name: m.name, muscle: '腹肌核心', day: 'd3', tips: m.tips, sec: m.sec, clipUrl: clipUrl(m.clip), posterUrl: posterUrl(m.clip) });
+    out.push({ id: m.id, name: m.name, muscle: lp.days.d3.title, day: 'd3', tips: m.tips, sec: m.sec, clipUrl: clipUrl(m.clip), posterUrl: posterUrl(m.clip) });
   }
   return out;
 }
@@ -114,6 +145,8 @@ function createController({ clock, selftest = false, fast = false }) {
     const d = clock.now();
     return { d, key: T.dateKey(d), min: T.minutesOf(d) };
   };
+  const lang = () => data.settings.lang;
+  const tr = (key, vars) => I18N.t(lang(), key, vars);
   const log = (day, type, detail) => day.events.push({ t: clock.now().toISOString(), type, detail });
   const regrade = (key) => {
     const day = data.days[key];
@@ -163,7 +196,7 @@ function createController({ clock, selftest = false, fast = false }) {
   }
 
   function buildPayload(key, day, mode, slot = null) {
-    const pd = plan.days[day.planDay];
+    const pd = planIn(lang()).days[day.planDay];
     let k = slot;
     if (mode !== 'slot') {
       const n = D.nextSlotIndex(day);
@@ -173,14 +206,16 @@ function createController({ clock, selftest = false, fast = false }) {
     if (mode === 'test' && !pend.length) {
       pend = [{ unit: D.buildUnits(plan, 'd1', data.settings.overrides)[0], carried: false }];
     }
-    const items = pend.map((p) => toItem(p.unit, p.carried));
+    const items = pend.map((p) => toItem(p.unit, p.carried, lang()));
     const nextIdx = day.slots.findIndex((s, j) => s.status === 'pending' && (mode !== 'slot' || j > slot));
     return {
       mode,
+      lang: lang(),
+      planDay: pd ? day.planDay : 'd1',
       isLast: mode === 'slot' && slot === D.lastSlot(day),
       slotTime: mode === 'slot' && day.slots[slot] ? day.slots[slot].time : T.fmtHM(Math.floor(T.minutesOf(clock.now()))),
-      dayLabel: (pd || plan.days.d1).label,
-      dayTitle: (pd || plan.days.d1).title,
+      dayLabel: (pd || planIn(lang()).days.d1).label,
+      dayTitle: (pd || planIn(lang()).days.d1).title,
       items,
       demoSec: data.settings.demoSec,
       showDemo: data.settings.showDemo,
@@ -206,7 +241,7 @@ function createController({ clock, selftest = false, fast = false }) {
       save();
     }
     if (r.notify && !selftest && Notification.isSupported()) {
-      new Notification({ title: '休息一下，起來走走', body: '', icon: toastIcon }).show();
+      new Notification({ title: tr('walkNotify'), body: '', icon: toastIcon }).show();
     }
     if (r.open !== null) openBreak('slot', r.open);
     else if (marked) changed();
@@ -279,7 +314,7 @@ function createController({ clock, selftest = false, fast = false }) {
   // ---------- windows ----------
   // Theme: windows load with ?theme= (theme.js applies it before first paint); a change is pushed
   // live to every open window (main, overlay, covers).
-  const themeQuery = () => ({ query: { theme: data.settings.theme } });
+  const themeQuery = () => ({ query: { theme: data.settings.theme, lang: lang() } });
   function applyTheme() {
     const t = data.settings.theme;
     for (const w of BrowserWindow.getAllWindows()) {
@@ -287,6 +322,16 @@ function createController({ clock, selftest = false, fast = false }) {
       w.setBackgroundColor((w === mainWin ? BG : STAGE_BG)[t]);
       w.webContents.send('theme', t);
     }
+  }
+  // Language: same path as the theme. An open break keeps its progress; only its text changes.
+  function applyLang() {
+    if (currentBreak) {
+      const p = currentBreak.payload;
+      const pd = planIn(lang()).days[p.planDay] || planIn(lang()).days.d1;
+      Object.assign(p, { lang: lang(), dayLabel: pd.label, dayTitle: pd.title });
+      localizeItems(p.items, lang());
+    }
+    for (const w of BrowserWindow.getAllWindows()) if (!w.isDestroyed()) w.webContents.send('lang', lang());
   }
 
   function overlayOptions(display, isMain) {
@@ -397,7 +442,8 @@ function createController({ clock, selftest = false, fast = false }) {
       const m = h.date.slice(0, 7);
       monthSets[m] = (monthSets[m] || 0) + h.done;
     }
-    const pd = plan.days[day.planDay];
+    const lp = planIn(lang());
+    const pd = lp.days[day.planDay];
     return {
       now: d.toISOString(),
       rate: clock.rate(),
@@ -410,7 +456,7 @@ function createController({ clock, selftest = false, fast = false }) {
         time: s.time,
         status: s.status,
         isLast: k === D.lastSlot(day),
-        units: day.units.filter((u) => u.slot === k).map((u) => ({ name: u.name, done: u.doneSets, target: u.targetSets })),
+        units: day.units.filter((u) => u.slot === k).map((u) => ({ name: nameIn(lang(), u.id, u.name), done: u.doneSets, target: u.targetSets })),
       })),
       next: nextBreak(day, key),
       done: D.doneSets(day),
@@ -422,8 +468,8 @@ function createController({ clock, selftest = false, fast = false }) {
       monthSets,
       recent: S.recentTraining(history, 30),
       settings: data.settings,
-      plan,
-      library: library(),
+      plan: lp,
+      library: library(lang()),
       loginItem: selftest ? false : app.getLoginItemSettings().openAtLogin,
       selftest,
       fast,
@@ -436,76 +482,86 @@ function createController({ clock, selftest = false, fast = false }) {
     const history = S.buildHistory(data.days, data.settings, plan, today);
     const summary = day ? S.summarizeDay(key, day, today) : history[key] || null;
     const pdKey = day ? day.planDay : summary ? summary.planDay : null;
+    const lp = planIn(lang());
     return {
       date: key,
       summary,
-      day: day || null,
-      title: pdKey && plan.days[pdKey] ? plan.days[pdKey].title : null,
+      day: day ? { ...day, units: day.units.map((u) => ({ ...u, name: nameIn(lang(), u.id, u.name) })) } : null,
+      title: pdKey && lp.days[pdKey] ? lp.days[pdKey].title : null,
       implied: !day || !!day.implied,
-      impliedUnits: !day && pdKey && plan.days[pdKey] ? D.buildUnits(plan, pdKey, data.settings.overrides) : [],
+      impliedUnits: !day && pdKey && lp.days[pdKey] ? D.buildUnits(lp, pdKey, data.settings.overrides) : [],
     };
   }
 
   // Tray tooltip: one fact per line (no ASCII '·' / '+' in CJK text, DESIGN.md §6).
   function trayText(st) {
     const lines = (...l) => ['BreakFit', ...l.filter(Boolean)].join('\n');
-    const sets = `今天 ${st.done}/${st.total} 組`;
-    if (st.day.planDay === 'off') return lines('今天不用練');
-    if (st.day.planDay === 'rest') return lines('今天休息');
-    if (st.day.paused) return lines(sets, '今天已暫停');
-    if (st.day.status === 'pass') return lines(sets, '已完成');
-    if (st.day.status === 'fail') return lines(sets, '不合格');
-    if (st.paused) return lines(`暫停到 ${T.fmtHM(st.day.pausedUntil)}`);
-    return lines(sets, st.next ? `下次 ${st.next.time}` : '');
+    const sets = tr('traySets', { a: st.done, b: st.total });
+    if (st.day.planDay === 'off') return lines(tr('noTraining'));
+    if (st.day.planDay === 'rest') return lines(tr('restToday'));
+    if (st.day.paused) return lines(sets, tr('pausedToday'));
+    if (st.day.status === 'pass') return lines(sets, tr('completed'));
+    if (st.day.status === 'fail') return lines(sets, tr('failed'));
+    if (st.paused) return lines(tr('pausedUntil', { t: T.fmtHM(st.day.pausedUntil) }));
+    return lines(sets, st.next ? tr('trayNext', { t: st.next.time }) : '');
   }
 
-  const DAY_LABEL = { d1: '第 1 天', d2: '第 2 天', d3: '第 3 天', rest: '休息日', off: '今天不用練' };
+  const DAY_LABEL = { rest: 'restDay', off: 'noTraining' };
 
   function updateTray() {
     if (!tray) return;
+    const { tip, paused, template } = trayModel();
+    tray.setToolTip(tip);
+    tray.setImage(paused ? iconPaused : icon);
+    tray.setContextMenu(Menu.buildFromTemplate(template));
+  }
+
+  // Tray tooltip + menu template (plain data, so the selftest can read every label).
+  function trayModel() {
     const day = ensureToday();
-    const training = !!plan.days[day.planDay];
+    const lp = planIn(lang());
+    const training = !!lp.days[day.planDay];
     const done = D.doneSets(day);
     const total = D.totalSets(day);
     const paused = pausedNow(day);
     const st = { day, done, total, paused, next: nextBreak(day, nowInfo().key) };
-    tray.setToolTip(trayText(st));
-    tray.setImage(paused || day.paused ? iconPaused : icon);
     const pending = training && day.status === 'pending' && !currentBreak;
     const pauseItems = [
-      { label: '30 分鐘', enabled: pending, click: () => pauseFor(30) },
-      { label: '1 小時', enabled: pending, click: () => pauseFor(60) },
-      { label: '2 小時', enabled: pending, click: () => pauseFor(120) },
-      { label: '到明天', enabled: pending, click: confirmPause },
+      { label: tr('m30'), enabled: pending, click: () => pauseFor(30) },
+      { label: tr('h1'), enabled: pending, click: () => pauseFor(60) },
+      { label: tr('h2'), enabled: pending, click: () => pauseFor(120) },
+      { label: tr('tillTomorrow'), enabled: pending, click: confirmPause },
     ];
-    if (paused) pauseItems.push({ type: 'separator' }, { label: '取消暫停', click: () => pauseFor(null) });
-    tray.setContextMenu(Menu.buildFromTemplate([
-      { label: training ? `${plan.days[day.planDay].label}　${plan.days[day.planDay].title}` : DAY_LABEL[day.planDay] || 'BreakFit', enabled: false },
-      ...(training ? [{ label: `今天 ${done}/${total} 組`, enabled: false }] : []),
-      { label: st.next ? `下次休息 ${st.next.time}` : '今天沒有下一次休息', enabled: false },
+    if (paused) pauseItems.push({ type: 'separator' }, { label: tr('cancelPause'), click: () => pauseFor(null) });
+    const sep = lang() === 'en' ? ' · ' : '　';
+    const template = [
+      { label: training ? `${lp.days[day.planDay].label}${sep}${lp.days[day.planDay].title}` : DAY_LABEL[day.planDay] ? tr(DAY_LABEL[day.planDay]) : 'BreakFit', enabled: false },
+      ...(training ? [{ label: tr('traySets', { a: done, b: total }), enabled: false }] : []),
+      { label: st.next ? tr('trayNextBreak', { t: st.next.time }) : tr('noMoreBreaks'), enabled: false },
       { type: 'separator' },
-      { label: '現在就休息', enabled: !currentBreak && day.status === 'pending' && D.remainingSets(day) > 0, click: () => openBreak('manual') },
-      { label: paused ? `暫停提醒（到 ${T.fmtHM(day.pausedUntil)}）` : '暫停提醒', submenu: pauseItems },
+      { label: tr('breakNow'), enabled: !currentBreak && day.status === 'pending' && D.remainingSets(day) > 0, click: () => openBreak('manual') },
+      { label: paused ? tr('pauseRemindersUntil', { t: T.fmtHM(day.pausedUntil) }) : tr('pauseReminders'), submenu: pauseItems },
       { type: 'separator' },
-      { label: '打開主視窗', click: () => openMain('today') },
-      { label: '記錄', click: () => openMain('history') },
-      { label: '設定', click: () => openMain('settings') },
+      { label: tr('openMain'), click: () => openMain('today') },
+      { label: tr('navHistory'), click: () => openMain('history') },
+      { label: tr('navSettings'), click: () => openMain('settings') },
       {
-        label: '開機自動啟動', type: 'checkbox', checked: !!data.settings.autoLaunch,
+        label: tr('launchAtLoginMenu'), type: 'checkbox', checked: !!data.settings.autoLaunch,
         click: (item) => { data.settings.autoLaunch = item.checked; applyLoginItem(item.checked); save(); changed(); },
       },
       { type: 'separator' },
-      { label: '結束', click: () => { quitting = true; app.quit(); } },
-    ]));
+      { label: tr('quit'), click: () => { quitting = true; app.quit(); } },
+    ];
+    return { tip: trayText(st), paused: paused || day.paused, template };
   }
 
   async function confirmPause() {
     const { response } = await dialog.showMessageBox({
       type: 'warning',
       title: 'BreakFit',
-      message: '暫停到明天？',
-      detail: '今天會記為不合格。',
-      buttons: ['暫停到明天', '取消'],
+      message: tr('pauseQ'),
+      detail: tr('pauseDetail'),
+      buttons: [tr('pauseOk'), tr('cancel')],
       defaultId: 1,
       cancelId: 1,
       noLink: true,
@@ -546,6 +602,7 @@ function createController({ clock, selftest = false, fast = false }) {
       }
       if ('autoLaunch' in patch) applyLoginItem(data.settings.autoLaunch);
       if ('theme' in patch && data.settings.theme !== prev.theme) applyTheme();
+      if ('lang' in patch && data.settings.lang !== prev.lang) applyLang();
       const sched = ['start', 'end', 'interval'];
       if (sched.some((k) => k in patch) && !currentBreak) {
         D.rebuildDay(ensureToday(), key, data.settings, plan, min);
@@ -605,7 +662,7 @@ function createController({ clock, selftest = false, fast = false }) {
 
   return {
     data, file, clock, plan,
-    initSettings, ensureToday, applyTheme, check, openBreak, endBreak, buildPayload, pauseToday, pauseFor, applyLoginItem,
+    initSettings, ensureToday, applyTheme, applyLang, trayModel, check, openBreak, endBreak, buildPayload, pauseToday, pauseFor, applyLoginItem,
     openMain, openCoverForTest, createTray, registerIpc, startLoop, getState, dayDetail, setQuitting,
     get currentBreak() { return currentBreak; },
     get overlayWins() { return overlayWins; },
@@ -632,7 +689,9 @@ function start({ fast = false, hidden = false } = {}) {
       ctl = createController({ clock, fast });
     } catch (e) {
       // data.json unreadable (locked / unmovable): never start on empty data, never overwrite it
-      dialog.showErrorBox('BreakFit', `讀不到記錄檔，程式先不啟動以免覆蓋資料。\n${e && e.message}`);
+      // settings are unreadable too: pick the language from the OS
+      const osLang = /^zh/i.test((app.getPreferredSystemLanguages() || [])[0] || '') ? 'zh' : 'en';
+      dialog.showErrorBox('BreakFit', `${I18N.t(osLang, 'dataError')}\n${e && e.message}`);
       app.exit(1);
       return;
     }
@@ -646,7 +705,8 @@ function start({ fast = false, hidden = false } = {}) {
     ctl.registerIpc();
     ctl.createTray();
     if (firstRun && Notification.isSupported()) {
-      new Notification({ title: 'BreakFit 在右下角執行中', body: '圖示可能收在 ^ 裡', icon: notifyIcon() }).show();
+      const l = ctl.data.settings.lang;
+      new Notification({ title: I18N.t(l, 'runningTitle'), body: I18N.t(l, 'runningBody'), icon: notifyIcon() }).show();
     }
     app.on('second-instance', () => ctl.openMain());
     app.on('before-quit', () => ctl.setQuitting());

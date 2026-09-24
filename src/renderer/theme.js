@@ -4,6 +4,13 @@
   const set = (t) => { document.documentElement.dataset.theme = t === 'light' ? 'light' : 'dark'; };
   set(new URLSearchParams(location.search).get('theme'));
   if (window.bf && window.bf.onTheme) window.bf.onTheme(set);
+  // Language: static [data-i18n] markup once the DOM is parsed (before first paint), then live.
+  // Pages with dynamic text re-render themselves on bf:lang.
+  const lang = (l) => { window.LANG = I18N.norm(l); if (document.body) I18N.apply(document, window.LANG); dispatchEvent(new CustomEvent('bf:lang')); };
+  window.LANG = I18N.norm(new URLSearchParams(location.search).get('lang'));
+  document.documentElement.lang = I18N.htmlLang(window.LANG);
+  addEventListener('DOMContentLoaded', () => I18N.apply(document, window.LANG));
+  if (window.bf && window.bf.onLang) window.bf.onLang(lang);
   // Last input device, for the keyboard-only focus ring (base.css). Tab / arrows show it again.
   const root = document.documentElement;
   root.dataset.input = 'pointer';
