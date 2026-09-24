@@ -210,7 +210,7 @@ async function main() {
   mw.webContents.sendInputEvent({ type: 'mouseMove', x: stopXY[0], y: stopXY[1] });
   await delay(150);
   const tip = await js(mw, "(() => { const t = document.querySelector('#timeline .stop.next .tip'); return getComputedStyle(t).display + '|' + t.textContent; })()");
-  assert(tip.startsWith('flex|負重伏地挺身'), `day line: hover on the next stop shows what it owes (${tip})`);
+  assert(tip.startsWith('flex|下一次負重伏地挺身'), `day line: hover on the next stop shows what it owes (${tip})`);
   await shot(mw, '01-today-stop-hover', '今天：滑到下一站，顯示該做的動作');
   mw.webContents.sendInputEvent({ type: 'mouseMove', x: 5, y: 5 });
   assert(await js(mw, "!!document.querySelector('#heroText .hero-time')"), '今天 hero back to the next stop');
