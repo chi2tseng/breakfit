@@ -5,3 +5,4 @@ selftest-out/
 _*.cjs
 # Apple HIG source text is Apple's copyrighted documentation — kept locally only
 docs/hig/*.txt
+web-dist/
