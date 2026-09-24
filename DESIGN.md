@@ -81,8 +81,14 @@ backdrop blur (the sticky page head, the one floating bar). The only `box-shadow
 Apple scale: 4 · 8 · 12 · 17 · 24 · 32 · 48 px (base 8). Structural gaps 16/24/32; 4 and 12
 inside components. Overlay rem equivalents 0.25 / 0.5 / 1 / 1.5 / 2 / 3.
 
-- Content padding 0 32 32; page head (sticky, frosted) 88 high, full-bleed, h1 left + action right.
-- Grid gap 16. Card/panel padding 24 (Apple utility card). Panel head 36 + 12 below.
+- Tokens: `--gap` 12 (between cards / panels), `--pad` 16 (card / panel padding), `--content-max`
+  1200 (main-window content column). Denser than Apple's 24 utility card on purpose (user: blocks
+  too far apart); everything stays on the 4/8 grid.
+- Content column: gutter `max(32px, (100% − 1200px) / 2)` (24 under 600), so wide windows
+  (1600, 1920, 2560) centre a 1200 px column and the margins absorb the rest (Apple content lock,
+  getdesign-apple §Grid: 980–1440). Page head (sticky, frosted) 88 high, background full-bleed,
+  h1 + action aligned to the same column. Content padding bottom 32.
+- Grid gap `--gap`. Card/panel padding `--pad`. Timeline rows 40 (8 + 24 + 8). Panel head 36 + 12 below.
 - Sidebar 200 wide, padding 24 12, brand 44 high, nav items 40 high, gap 4.
 
 ## 3. Type scale
@@ -183,7 +189,7 @@ follow Windows display scaling too; 965×940 at 150 % = 643×627 CSS px):
 | window < 720 | sidebar → 64 px icon rail (brand + nav labels hidden, `title` tooltips) |
 | content < 600 | gutter 32 → 24 |
 | content < 480 | 今天 cards stack |
-| content < 720 | 今天 timeline / library stack |
+| content < 960 | 今天 timeline / library stack; ≥ 960 cards + panels use `3fr 5fr` (library 3 columns from 1366) |
 | content < 700 | calendar gap 6, cell padding 6 |
 | content < 960 | 設定 panels stack; menu table one column |
 | content < 1000 | 記錄 stat cards 2 × 2; calendar → detail → chart in one column (detail not sticky) |
@@ -193,11 +199,11 @@ follow Windows display scaling too; 965×940 at 150 % = 643×627 CSS px):
   the gutter instead of negative margins). 今天 = eyebrow `第 1 天` (subheadline 600, muted) above
   the large title = plan `title` (`胸・三頭`, `背・肩・二頭・臀腿`, `腹肌核心`). Titles never wrap.
 - **今天:** two cards (今天進度, 下次休息) over two panels (時間表, 動作示範庫), same
-  `repeat(2, minmax(0,1fr))` grid so the column edges line up. The 循環 card is gone: the eyebrow
+  grid so the column edges line up: `repeat(2, 1fr)` below 960 content px, `3fr 5fr` from 960. The 循環 card is gone: the eyebrow
   already says 第 N 天, and changing the day is a setting (設定 → 今天是). Card = accent headline
   title + pill (pass/fail only) → display value with a body-size muted unit → optional subheadline
   line (`還有 00:30`, `已暫停到明天`).
-- **Library:** cards `minmax(176px,1fr)`, clip 16:9, name (body, one line). Header = title3 +
+- **Library:** cards `auto-fill minmax(200px,1fr)` gap `--gap` (never a strip of tiny tiles: 2 columns at 800/1280, 3 at 965/1366/1920/2560), clip 16:9, name (body, one line). Header = title3 +
   segmented filter; the filter drops under the title when the panel is narrow.
 - **Segmented control:** equal-width segments (`inline-grid`, `grid-auto-columns: 1fr`), 2 px track
   padding, 32 px segments, selected = neutral raised thumb (`--seg-on`: white + `--seg-edge`
@@ -217,7 +223,7 @@ follow Windows display scaling too; 965×940 at 150 % = 643×627 CSS px):
 - **Menu table (菜單組數 / 次數):** one fixed-track grid per row, header included:
   `minmax(max-content,1fr) 56 12 56 20 56 12 32` = name | 組 | · | min | – | max | · | reset.
   Names never truncate (longest 保加利亞分腿蹲). Two columns ≥ 960 content px with
-  `column-gap: 64px` (= 16 gap + 2 × 24 padding, column 2 starts under the 一般 panel), one below.
+  `column-gap: calc(var(--gap) + 2 × var(--pad))` (column 2 starts under the 一般 panel), one below.
 - **Focus ring:** keyboard only. `:focus-visible` plus `theme.js` tracking the last input device
   on `<html data-input>` (Chromium re-shows the ring on a mouse-clicked nav item after Alt+Tab).
 
@@ -369,10 +375,11 @@ window are already open (light-30-cover = live-switched cover; light-31-cover-ne
 ## 10. Size matrix + layout lint
 
 `npm.cmd run selftest -- --matrix` (≈ 4 min; the normal selftest stays ≈ 50 s and keeps the
-matrix folder). Hidden windows, temp profile, both themes:
+matrix folder; add `--quick` for main window 965/1366/1920/2560 only, ≈ 25 s, while iterating).
+Hidden windows, temp profile, both themes:
 
 - Main window 800×600, 900×700, 965×940, 1024×768, 1280×720, 1366×768, 1440×900, 1600×900,
-  1920×1080, plus 965×940 at zoom 125 % and 150 % → 今天 (top + bottom), player, 記錄 (detail +
+  1920×1080, 2560×1440, plus 965×940 at zoom 125 % and 150 % → 今天 (top + bottom), player, 記錄 (detail +
   chart, top + bottom), 設定 (top + bottom incl. menu table).
 - Overlay 1024×768, 1280×720, 1280×800, 1366×768, 1440×900, 1536×864, 1920×1080, 2560×1440 →
   intro, demo, work, rest, finish, leave dialog (第 1 天) and last intro, timed, round rest,
@@ -390,5 +397,5 @@ detail rows, overlay plan rows); (f) font-size / line-height / weight not a §3 
 rendered; (g) hit targets: main window ≥ 28×28 (macOS default control size), `.btn` ≥ 44 high;
 overlay ≥ 44×44.
 
-Result 2026-09-24: 6444 issues before (1280×720 alone: 348) → **0** at every size, both themes.
+Result 2026-09-24: 6444 issues before (1280×720 alone: 348) → **0** at every size, both themes (256 screens incl. main 2560×1440).
 Intentional exceptions: none.

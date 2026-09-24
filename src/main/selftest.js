@@ -16,6 +16,7 @@ const plan = require('../../plan.json');
 const { lintSource } = require('./layout-lint');
 
 const MATRIX = process.argv.includes('--matrix'); // `npm.cmd run selftest -- --matrix`: size matrix + layout lint only
+const QUICK = process.argv.includes('--quick'); // with --matrix: main window at 965/1366/1920/2560 only, no zoom, no overlay
 
 // Packaged builds run from inside the read-only app.asar; __dirname there resolves to a path
 // under app.asar, and writing there throws ENOTDIR. Write next to the exe instead when packaged.
@@ -447,7 +448,7 @@ const ROLES = {
   'weekday toggle': '.days button:not(.on)', 'timeline status': '.timeline li:not(.next) .st',
   'calendar day': '.cell .d', 'overlay meta': '.p-meta',
 };
-const MAIN_SIZES = [[800, 600], [900, 700], [965, 940], [1024, 768], [1280, 720], [1366, 768], [1440, 900], [1600, 900], [1920, 1080]];
+const MAIN_SIZES = [[800, 600], [900, 700], [965, 940], [1024, 768], [1280, 720], [1366, 768], [1440, 900], [1600, 900], [1920, 1080], [2560, 1440]];
 const ZOOMS = [[965, 940, 1.25], [965, 940, 1.5]];
 const OV_SIZES = [[1024, 768], [1280, 720], [1280, 800], [1366, 768], [1440, 900], [1536, 864], [1920, 1080], [2560, 1440]];
 
@@ -509,7 +510,9 @@ async function matrix(ctl, mw) {
     console.log(`matrix ${theme}`);
     await js(mw, `window.bf.saveSettings({ theme: '${theme}' }).then(() => true)`);
     await delay(300);
-    const sizes = [...MAIN_SIZES.map(([w, h]) => [w, h, 1]), ...ZOOMS];
+    const sizes = QUICK
+      ? MAIN_SIZES.filter(([w]) => [965, 1366, 1920, 2560].includes(w)).map(([w, h]) => [w, h, 1])
+      : [...MAIN_SIZES.map(([w, h]) => [w, h, 1]), ...ZOOMS];
     for (const [w, h, z] of sizes) {
       const inner = await resize(mw, w, h, z);
       const tag = `${w}x${h}${z === 1 ? '' : `@${Math.round(z * 100)}`}`;
@@ -521,7 +524,7 @@ async function matrix(ctl, mw) {
     }
     await js(mw, '__test.close()');
     await resize(mw, 1280, 800, 1);
-    for (const [pd, states] of OV) {
+    for (const [pd, states] of QUICK ? [] : OV) {
       const payload = pd === 'd1'
         ? ctl.buildPayload(TODAY, ctl.ensureToday(), 'slot', 6)
         : ctl.buildPayload(d3key, d3, 'slot', D.lastSlot(d3));

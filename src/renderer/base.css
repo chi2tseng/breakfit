@@ -37,6 +37,10 @@
   --ctl: 36px;          /* form controls (mouse, macOS level) */
   --blur: saturate(180%) blur(20px);
   --press: scale(0.95);
+  /* layout rhythm (DESIGN.md §2): 8-pt grid, 4-pt steps inside components */
+  --gap: 12px;          /* between cards / panels (main window) */
+  --pad: 16px;          /* card / panel padding */
+  --content-max: 1200px; /* main-window content column; wider windows get centred margins */
 
   /* ---- colour: DARK (Apple Fitness) ---- */
   --bg: #000000;
