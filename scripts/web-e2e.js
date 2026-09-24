@@ -88,6 +88,15 @@ async function main() {
   check('reload: note kept', (await js(`bf.getDay('${key}').then((d) => d.day && d.day.note)`)) === 'web-e2e note');
   await shot('desktop-today-light');
 
+  // language: English applies live and survives reload, then back to 繁中 for the rest
+  await js("__test.tab('settings'); document.querySelector('#sLang [data-l=en]').click()");
+  check('lang: English live', await until("document.documentElement.lang === 'en' && document.querySelector('[data-tab=today] .nav-label').textContent === 'Today'"));
+  await shot('desktop-settings-en');
+  win.webContents.reload();
+  check('lang: kept after reload', await until("window.__test && window.__test.ready() && document.documentElement.lang === 'en'"));
+  await js("document.querySelector('#sLang [data-l=zh]').click(); __test.tab('today')");
+  check('lang: back to 繁中', await until("/^zh/.test(document.documentElement.lang)"));
+
   // test break: demo → work → rest, then leave
   await js("document.querySelector('#testBreakBtn').click()");
   check('overlay frame opens', await until(frame('w.__test && w.__test.ready()')));

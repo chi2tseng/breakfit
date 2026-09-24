@@ -97,6 +97,7 @@ function webPage(html, { name, fromRoot, scriptDir }) {
   if (scriptDir) {
     out = out
       .replace(/(<script src=")(?!https?:|\.\.?\/)([^"]+\.js")/g, `$1${scriptDir}$2`)
+      .replace(/(<script src=")(\.\.\/[^"]+\.js")/g, `$1${scriptDir}$2`) // ../i18n.js → src/renderer/../i18n.js
       .replace(/(<link rel="stylesheet" href=")(?!https?:|\.\.?\/|lib\/)([^"]+\.css")/g, `$1${scriptDir}$2`);
   }
   const inject = `<script src="${fromRoot}web.js"></script>\n`;
@@ -134,6 +135,8 @@ function build() {
       fs.writeFileSync(dst, webPage(fs.readFileSync(src, 'utf8'), { name: f.replace(/\.html$/, ''), fromRoot: '../../' }));
     } else copy(src, dst);
   }
+  // shared strings (renderer pages load ../i18n.js; the bundle has its own copy via require)
+  copy(path.join(ROOT, 'src/i18n.js'), path.join(OUT, 'src/i18n.js'));
   // index.html = the main window, served from the site root
   const main = fs.readFileSync(path.join(R, 'main.html'), 'utf8');
   let index = webPage(main, { name: 'main', fromRoot: '', scriptDir: 'src/renderer/' });

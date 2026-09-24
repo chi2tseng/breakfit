@@ -4,15 +4,11 @@
 // src/web/, and gives the page the unchanged preload API (src/main/preload.js).
 // Break overlay: a full-viewport iframe of overlay.html; its first click / key goes fullscreen.
 // Web-only UI is built from the controller's own tray menu, so it carries no strings of its own
-// except WEB_STR below (move into the i18n module once it lands).
+// except the ones below, which live in src/i18n.js with the rest.
 const E = require('./electron-main');
 const W = E.__web;
-
-const WEB_STR = {
-  zh: { notify: '開啟通知' },
-  en: { notify: 'Enable notifications' },
-};
-const str = (k) => (WEB_STR[/^zh/i.test(document.documentElement.lang) ? 'zh' : 'en'] || WEB_STR.en)[k];
+const I18N = require('../i18n');
+const str = (k) => I18N.t(/^zh/i.test(document.documentElement.lang) ? 'zh' : 'en', k);
 
 document.documentElement.dataset.host = 'web';
 
@@ -135,7 +131,7 @@ function initUi() {
       dock.appendChild(b);
     }
     if ('Notification' in window && Notification.permission === 'default') {
-      dock.appendChild(navBtn('notifications', str('notify'), () => Notification.requestPermission().then(render, render)));
+      dock.appendChild(navBtn('notifications', str('enableNotify'), () => Notification.requestPermission().then(render, render)));
     }
   }
   W.listen((w) => {

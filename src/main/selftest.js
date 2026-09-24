@@ -4,6 +4,8 @@
 const { app } = require('electron');
 // If the runner that spawned us goes away, console.log hits a closed pipe (EPIPE): stay silent, don't pop a dialog.
 for (const s of [process.stdout, process.stderr]) s.on('error', () => {});
+// Never pop Electron's "A JavaScript error occurred" dialog during tests (user may be trading): log and exit.
+process.on('uncaughtException', (e) => { try { console.error('selftest crashed:', e); } catch (_) { /* closed pipe */ } app.exit(1); });
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
