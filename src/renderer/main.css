@@ -395,6 +395,8 @@ input[type="range"]::-webkit-slider-thumb {
   .hero { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .hero-text { padding-right: 0; }
   .streak-row { margin-bottom: 16px; }
+  .streak { white-space: normal; } /* English streak sentence is wider than a phone */
+  .streak b { font: var(--t-ring); } /* 96 px hero numeral overflows a 390 px phone; same narrow token as .hero-time */
   .cal-week, .cal { gap: 4px; }
   .cell { height: 44px; padding: 0; align-items: center; justify-content: center; }
   .cell .p { display: none; }
