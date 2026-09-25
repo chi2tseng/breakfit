@@ -190,7 +190,7 @@ floor keeps the smallest token (13 px) legal on 4:3 screens.
 | hold | same clip | `self_improvement 拉伸` (accent) | stretch name | `右側`  `第 1/3 個` | ring + up to 2 tips beside it (the body is too short to stack them) | — | 下一個 Space |
 | finish | last clip, dimmed, with the status icon | verdict `今天合格` / `今天不合格` / `完成` | `這次 6 組` | `下次 17:00`; `最後一次休息拉伸` when every set is done but the stretch waits; `拉伸沒做完` when the last break fails on the stretch | `13 / 25 組` + bar, stepper if the break ended on a rep set | — | 關閉 ‹5› |
 
-The intro lists the stretch as its own row, last: `拉伸`  `6 × 30 秒` (holds × seconds; a sided
+The intro lists the stretch as its own row, last: `拉伸`  `5 × 30 秒` (holds × seconds; a sided
 stretch counts two holds). The stretch is not a set: `N / 25 組` never includes it.
 
 Leave and skip dialogs: title and buttons only. A body line appears only for a consequence, in red
@@ -251,7 +251,7 @@ follow Windows display scaling too; 965×940 at 150 % = 643×627 CSS px):
   `補做` (last stop) or `走動` (walk reminder only), never `—`. The last stop of a training day
   holds `拉伸` (no count; `full` once done), after `補做` when earlier sets are carried to it, and
   its `aria-label` says `拉伸` too. When every set is done but the stretch is owed, the hero is
-  that last stop: `拉伸`  `6 × 30 秒`, the first stretch's clip looping. The progress figure `7 / 25 組` (done
+  that last stop: `拉伸`  `5 × 30 秒`, the first stretch's clip looping. The progress figure `7 / 25 組` (done
   count headline ink, rest body muted) ends the line; in vertical mode it sits above the rows. Narrow
   (< 46 px per stop): the same stops as the vertical rows (time · dot · moves with counts · status),
   same dot shapes at 8 px, no surface.
