@@ -1,5 +1,5 @@
 'use strict';
-/* Break overlay: intro → [demo → work → rest]… / circuit [preview → timed]… → finish. */
+/* Break overlay: intro → [demo → work → rest]… / circuit [preview → timed]… → stretch [preview → hold]… → finish. */
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -38,6 +38,15 @@ function repsText(item) {
 function setText(item, setNo) {
   return t('setNo', { n: setNo, t: item.targetSets });
 }
+// End-of-day stretch: one timed hold per stretch, two (right, then left) when it has sides.
+const holdsOf = (it) => it.moves.reduce((a, m) => a + (m.sides ? 2 : 1), 0);
+const sideText = (side) => (side ? t(side === 'right' ? 'sideRight' : 'sideLeft') : '');
+function itemMeta(it) {
+  if (it.type === 'reps') return `${it.setsLeft} × ${repsText(it)}`;
+  if (it.type === 'stretch') return t('timedMeta', { n: holdsOf(it), s: it.holdSec });
+  return t('timedMeta', { n: it.moves.length, s: it.moves[0].sec });
+}
+
 // Meta line = separate facts with a gap, never an ASCII '·' between CJK words (DESIGN.md §6).
 const metaHTML = (...parts) => parts.filter(Boolean).map((p) => `<span>${p}</span>`).join('');
 
@@ -62,14 +71,19 @@ function tone(freq, dur, when = 0, vol = 0.18) {
 }
 const beep = () => tone(880, 0.12);
 const chime = () => { tone(660, 0.14); tone(990, 0.22, 0.13); };
+// Stretching is calm: a soft low note per step, a gentle two-note cue when it is time to switch sides.
+const softCue = () => tone(523, 0.35, 0, 0.08);
+const sideCue = () => { tone(440, 0.3, 0, 0.08); tone(587, 0.4, 0.2, 0.08); };
 
 // ---------- step plan ----------
 function nextRef(it) {
   return it.type === 'reps' ? { item: it, setNo: it.setNo } : { item: it, move: it.moves[0] };
 }
 
-function buildSteps(items) {
+function buildSteps(all) {
   const out = [];
+  // Training first; the stretch (only ever in the last break) comes after it, with no rest before it.
+  const items = all.filter((it) => it.type !== 'stretch');
   items.forEach((it, i) => {
     const lastItem = i === items.length - 1;
     const nextItem = items[i + 1];
@@ -101,13 +115,26 @@ function buildSteps(items) {
       }
     }
   });
+  for (const it of all.filter((x) => x.type === 'stretch')) {
+    it.moves.forEach((m, j) => {
+      for (const side of m.sides ? ['right', 'left'] : [null]) {
+        if (P.showDemo !== false) out.push({ kind: 'stretchPreview', item: it, move: m, j, side });
+        out.push({ kind: 'hold', item: it, move: m, j, side, dur: it.holdSec });
+      }
+    });
+    out.push({ kind: 'stretchDone', item: it });
+  }
   return out;
 }
+const STRETCH_KINDS = new Set(['stretchPreview', 'hold']);
+const RECORD_KINDS = new Set(['round', 'stretchDone']); // bookkeeping steps: recorded, never shown
 
 function durFor(s) {
   switch (s.kind) {
     case 'demo': return P.demoSec;
-    case 'preview': return PREVIEW_SEC;
+    case 'preview':
+    case 'stretchPreview': return PREVIEW_SEC;
+    case 'hold': return s.dur;
     case 'timed': return s.move.sec;
     case 'rest':
     case 'roundRest': return s.dur;
@@ -198,9 +225,7 @@ function moveDots(it, j) {
 // ---------- views ----------
 function renderIntro() {
   const rows = P.items.map((it) => {
-    const meta = it.type === 'reps'
-      ? `${it.setsLeft} × ${repsText(it)}`
-      : t('timedMeta', { n: it.moves.length, s: it.moves[0].sec });
+    const meta = itemMeta(it);
     return `<li><span class="nm">${esc(it.name)}${it.carried ? ICON('history') : ''}</span><span class="mt">${esc(meta)}</span></li>`;
   }).join('');
   const last = !!P.isLast;
@@ -265,6 +290,31 @@ function renderTimed(s) {
   });
 }
 
+// Stretch: a short look at the next stretch/side, then the timed hold. Same frame as the circuit.
+function renderStretchPreview(s) {
+  frame({
+    clip: clipOf(s.move),
+    chip: { icon: 'arrow_forward', text: t('upNext') },
+    title: s.move.name,
+    meta: metaHTML(sideText(s.side), t('secs', { n: s.item.holdSec })),
+    body: moveDots(s.item, s.j) + tipsHTML(s.move.tips),
+    pri: btn('goBtn', 'play_arrow', t('start'), { primary: true, fill: true, kbd: 'Space', cd: true }),
+  });
+  $('#goBtn').onclick = next;
+}
+
+function renderHold(s) {
+  frame({
+    clip: clipOf(s.move),
+    chip: { tone: 'accent', icon: 'self_improvement', text: t('stretch') },
+    title: s.move.name,
+    meta: metaHTML(sideText(s.side), t('stretchNo', { n: s.j + 1, t: s.item.moves.length })),
+    body: `<div class="hrow hold-row">${ringHTML()}${tipsHTML(s.move.tips)}</div>`, // n/t is in the meta line
+    pri: btn('holdNext', 'skip_next', t('nextHold'), { primary: true, kbd: 'Space' }),
+  });
+  $('#holdNext').onclick = next;
+}
+
 function renderRest(s) {
   const n = s.next;
   const nIt = n.item;
@@ -314,13 +364,17 @@ function renderFinish() {
   const test = P.mode === 'test'; // test runs record nothing: never show them as today's progress
   const done = P.todayDone + (test ? 0 : st.sessionSets);
   const total = P.todayTotal;
-  const allDone = total > 0 && done >= total;
+  const stretchOwed = !!P.stretchOwed && !st.stretchDone;
+  const allDone = total > 0 && done >= total && !stretchOwed;
   const failed = P.isLast && !allDone && P.mode === 'slot';
   let chip = { icon: 'check_circle', text: t('done') };
   if (!test && P.isLast && P.mode === 'slot') {
     chip = allDone ? { tone: 'accent', icon: 'check_circle', fill: true, text: t('passedToday') } : { tone: 'fail', icon: 'cancel', fill: true, text: t('failedToday') };
   } else if (!test && allDone) chip = { tone: 'accent', icon: 'check_circle', fill: true, text: t('allDoneToday') };
-  const nextAt = !test && !allDone && P.nextBreak && !P.isLast ? metaHTML(`${ICON('schedule')}${esc(t('nextAt', { t: P.nextBreak }))}`) : '';
+  // training cleared before the last break: say the stretch still waits there
+  const later = !test && total > 0 && done >= total && stretchOwed && !P.isLast;
+  const nextAt = !test && !allDone && P.nextBreak && !P.isLast
+    ? metaHTML(`${ICON(later ? 'self_improvement' : 'schedule')}${esc(later ? t('stretchLater') : t('nextAt', { t: P.nextBreak }))}`) : '';
   const adjust = adjustHTML();
   const prog = total > 0 && !test ? `<div class="today ${failed ? 'failed' : ''}">
       <div class="txt">${done}<small>/ ${total} ${t('setsUnit')}</small></div>
@@ -328,7 +382,8 @@ function renderFinish() {
   frame({
     chip,
     title: t('thisBreak', { n: st.sessionSets }),
-    meta: nextAt,
+    // every set can be done and the day still fail: say it was the stretch
+    meta: failed && stretchOwed ? metaHTML(`${ICON('self_improvement')}${esc(t('stretchNotDone'))}`) : nextAt,
     body: prog + adjust,
     pri: btn('closeBtn', 'close', t('close'), { primary: true, kbd: 'Space', cd: true }),
     cover: { icon: failed ? 'cancel' : 'check_circle', failed },
@@ -339,7 +394,10 @@ function renderFinish() {
 
 function renderStep() {
   const s = cur();
-  ({ demo: renderDemo, work: renderWork, preview: renderPreview, timed: renderTimed, rest: renderRest, roundRest: renderRest })[s.kind](s);
+  ({
+    demo: renderDemo, work: renderWork, preview: renderPreview, timed: renderTimed, rest: renderRest, roundRest: renderRest,
+    stretchPreview: renderStretchPreview, hold: renderHold,
+  })[s.kind](s);
 }
 
 function render() {
@@ -379,11 +437,13 @@ function startSteps() {
 
 function next() {
   if (st.ended) return;
+  const prev = steps[st.i];
   st.i += 1;
-  while (st.i < steps.length && steps[st.i].kind === 'round') {
-    // a full circuit round just finished: record it
+  while (st.i < steps.length && RECORD_KINDS.has(steps[st.i].kind)) {
+    // a full circuit round / every stretch hold just finished: record it (the stretch is not a set)
     const s = steps[st.i];
-    st.sessionSets += 1;
+    if (s.kind === 'round') st.sessionSets += 1;
+    else st.stretchDone = true;
     window.bf.setDone(s.item.unitId, 0);
     st.i += 1;
   }
@@ -396,7 +456,9 @@ function next() {
   st.duration = durFor(s);
   st.remaining = st.duration;
   st.elapsed = 0;
-  chime();
+  if (!STRETCH_KINDS.has(s.kind)) chime();
+  else if (s.side === 'left' && prev && prev.move === s.move && prev.side === 'right') sideCue(); // first step of the left side
+  else softCue();
   render();
 }
 
@@ -569,6 +631,7 @@ window.__test = {
   show(kind, opts = {}) {
     closeModal();
     st.frozen = true;
+    st.stretchDone = !!opts.stretchDone; // finish screen of a last break whose stretch was (not) done
     if (kind === 'intro') {
       setPhase('intro', INTRO_SEC);
     } else if (kind === 'finish') {

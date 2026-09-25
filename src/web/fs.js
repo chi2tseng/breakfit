@@ -1,6 +1,6 @@
 'use strict';
 // `fs` for the web bundle: files under the userData dir live in localStorage (so src/main/store.js
-// runs unchanged); site files (clips, icons) are assumed present — build-web.js copies them all.
+// runs unchanged); site files (clips, icons) exist when build-web.js copied them (__bfSiteFiles).
 const KEY = 'breakfit:';
 const DATA = '/userData';
 
@@ -16,7 +16,8 @@ const set = (p, v) => { mem.set(p, v); const s = ls(); try { if (s) s.setItem(KE
 const del = (p) => { mem.delete(p); const s = ls(); try { if (s) s.removeItem(KEY + p); } catch (_) { /* ignore */ } };
 
 module.exports = {
-  existsSync: (p) => (isData(p) ? get(p) !== null : true),
+  // site files: the list build-web.js baked into the bundle (every copied clip / icon)
+  existsSync: (p) => (isData(p) ? get(p) !== null : typeof __bfSiteFiles === 'undefined' || __bfSiteFiles.has(p)),
   readFileSync(p) {
     const v = isData(p) ? get(p) : null;
     if (v === null) throw enoent(p);

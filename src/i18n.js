@@ -31,6 +31,8 @@
       yourTurn: '換你做', repUnit: '下', tempo: '3–5 秒/下', doneSet: '完成這組', upNext: '下一個', nextSet: '下一組',
       nextMove: '下一個動作', nextRound: '下一輪', plus30: '延長 30 秒', skipRest: '跳過休息', prevSet: '上一組',
       done: '完成', passedToday: '今天合格', failedToday: '今天不合格', allDoneToday: '今天全部完成', nextAt: '下次 {t}',
+      stretch: '拉伸', sideRight: '右側', sideLeft: '左側', nextHold: '下一個', stretchNo: '第 {n}/{t} 個', perSideSecs: '每邊 {n} 秒',
+      stretchLater: '最後一次休息拉伸', notDone: '未完成', stretchNotDone: '拉伸沒做完',
       thisBreak: '這次 {n} 組', continue: '繼續', leaveQ: '離開休息？', leaveFails: '離開 = 今天不合格',
       skipLastQ: '跳過最後一次休息？', skipFails: '跳過 = 今天不合格', skip: '跳過',
       // cover
@@ -66,6 +68,8 @@
       yourTurn: 'Your Turn', repUnit: 'reps', tempo: '3–5 s per rep', doneSet: 'Set Done', upNext: 'Up Next', nextSet: 'Next Set',
       nextMove: 'Next Exercise', nextRound: 'Next Round', plus30: '+30 s', skipRest: 'Skip Rest', prevSet: 'Last Set',
       done: 'Done', passedToday: 'Passed Today', failedToday: 'Failed Today', allDoneToday: 'All Done Today', nextAt: 'Next {t}',
+      stretch: 'Stretch', sideRight: 'Right', sideLeft: 'Left', nextHold: 'Next', stretchNo: 'Stretch {n}/{t}', perSideSecs: '{n} s each side',
+      stretchLater: 'Stretch at the last break', notDone: 'Not done', stretchNotDone: 'Stretch not done',
       thisBreak: '{n} Sets This Break', continue: 'Continue', leaveQ: 'Leave this break?', leaveFails: 'Leaving means today fails',
       skipLastQ: 'Skip the last break?', skipFails: 'Skipping means today fails', skip: 'Skip',
       onBreak: 'On a Break',

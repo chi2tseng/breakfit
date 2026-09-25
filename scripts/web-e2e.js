@@ -182,6 +182,33 @@ async function main() {
   await js("document.querySelector('.bf-menu .bf-mi').click()"); // first item = shortest pause
   check('pause applied', await until("bf.getState().then((s) => s.day.pausedUntil != null)", 3000));
 
+  // last break of the ?fast day: move the schedule so the only slot is 2 virtual minutes ahead (= the
+  // last break); it owes all of 第 1 天 + the end-of-day stretch. Walk the stretch with Space.
+  const nowMin = await js('bf.getState().then((s) => { const d = new Date(s.now); return d.getHours() * 60 + d.getMinutes(); })');
+  const hm = (m) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+  await js(`bf.saveSettings({ start: '${hm(nowMin + 2)}', end: '${hm(nowMin + 2)}' }).then(() => true)`);
+  check('last break opens by itself (?fast)', await until(frame('w.__test && w.__test.ready()'), 15000));
+  const lp = await js(frame('w.bf.payload().then((p) => ({ isLast: p.isLast, mode: p.mode, items: p.items.map((i) => i.unitId) }))'));
+  check('last break: slot, isLast, stretch after the training', lp && lp.isLast && lp.mode === 'slot' && lp.items[lp.items.length - 1] === 'stretch', lp);
+  check('stretch preview reachable', await js(frame("w.__test.show('stretchPreview')")));
+  await shot('desktop-last-stretch-preview');
+  const walked = [];
+  for (let i = 0; i < 20; i++) {
+    await sleep(450);
+    const ph = await js(frame("w.__test.key(' ')"));
+    walked.push(ph);
+    if (ph === 'hold' && walked.filter((x) => x === 'hold').length === 1) {
+      check('hold: side + clip (or placeholder) + primary 下一個', await js(frame("w.document.getElementById('pMeta').textContent.startsWith('右側') && !!w.document.querySelector('#clipMain video[src*=\"stretch_\"], #clipMain .ph') && w.document.querySelector('#pPri .btn').id === 'holdNext'")));
+      await shot('desktop-last-stretch-hold');
+    }
+    if (ph === 'finish') break;
+  }
+  check('Space walks preview → hold per side to finish', walked[walked.length - 1] === 'finish' && walked.filter((x) => x === 'hold').length === 6, walked.join(','));
+  check('stretch recorded', await until("bf.getState().then((s) => s.day.units.find((u) => u.id === 'stretch').doneSets === 1)", 3000));
+  await shot('desktop-last-stretch-finish');
+  await js(frame("w.bf.end('done')"));
+  check('last break closes; sets left → today fails', await until("!document.querySelector('.bf-window') && bf.getState().then((s) => s.day.status === 'fail')", 4000));
+
   check('no 404s', bad.length === 0, bad.slice(0, 10));
   check('no console errors', errors.length === 0, errors.slice(0, 10));
   srv.close();

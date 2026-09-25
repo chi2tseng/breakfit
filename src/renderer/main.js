@@ -21,7 +21,7 @@ const Q0 = new URLSearchParams(location.search);
 let S = null;
 let receivedAt = 0;
 let tab = 'today';
-let libFilter = ['d1', 'd2', 'd3'].includes(Q0.get('f')) ? Q0.get('f') : 'd1';
+let libFilter = ['d1', 'd2', 'd3', 'stretch'].includes(Q0.get('f')) ? Q0.get('f') : 'd1';
 let selDate = /^\d{4}-\d{2}-\d{2}$/.test(Q0.get('date') || '') ? Q0.get('date') : null;
 let viewMonth = selDate ? selDate.slice(0, 7) : null; // 'YYYY-MM'
 let noteTimer = null;
@@ -72,11 +72,11 @@ function repRange(it) {
   const [a, b] = it.target;
   return a === b ? `${a}` : `${a}–${b}`;
 }
-// Same meta as the break overlay's intro rows: `4 × 8–15 下` / `8 × 30 秒`.
+// Same meta as the break overlay's intro rows: `4 × 8–15 下` / `8 × 30 秒` / stretch holds `6 × 30 秒`.
 function itemMeta(it) {
-  return it.type === 'reps'
-    ? `${it.setsLeft} × ${t(it.perSide ? 'perSideReps' : 'repsN', { r: repRange(it) })}`
-    : t('timedMeta', { n: it.moves.length, s: it.moves[0].sec });
+  if (it.type === 'reps') return `${it.setsLeft} × ${t(it.perSide ? 'perSideReps' : 'repsN', { r: repRange(it) })}`;
+  if (it.type === 'stretch') return t('timedMeta', { n: it.moves.reduce((a, m) => a + (m.sides ? 2 : 1), 0), s: it.holdSec });
+  return t('timedMeta', { n: it.moves.length, s: it.moves[0].sec });
 }
 const firstMove = (it) => (it.type === 'reps' ? it : it.moves[0]);
 
@@ -154,9 +154,16 @@ function renderLine() {
   const flat = lineW - 120 >= stops.length * 46;
   $('#dayLine').classList.toggle('flat', flat);
   // What a stop holds: its own moves with counts; else the sets done in its break (carried from an
-  // earlier stop), 補做 on the last stop, 走動 on a stop that only sends the walk reminder.
+  // earlier stop), 補做 on the last stop, 走動 on a stop that only sends the walk reminder. The last
+  // stop of a training day also holds 拉伸 (no count: it is done or not), after any 補做.
+  const unitHTML = (u) => (u.stretch
+    ? `<span class="u ${u.done >= u.target ? 'full' : ''}">${esc(u.name)}</span>`
+    : `<span class="u ${u.done >= u.target ? 'full' : ''}">${esc(u.name)}<small>${u.done}/${u.target}</small></span>`);
   const units = (s, st) => {
-    if (s.units.length) return s.units.map((u) => `<span class="u ${u.done >= u.target ? 'full' : ''}">${esc(u.name)}<small>${u.done}/${u.target}</small></span>`).join('');
+    if (s.units.length) {
+      const catchUp = s.catchUp && (st === 'next' || st === 'later') ? `<span class="none">${esc(t('catchUp'))}</span>` : '';
+      return catchUp + s.units.map(unitHTML).join('');
+    }
     const txt = (st === 'done' || st === 'partial') && s.sets ? t('setsN', { n: s.sets })
       : s.isLast && (st === 'next' || st === 'later') ? t('catchUp')
         : st === 'passed' || st === 'free' || st === 'covered' ? t('walk') : '';
@@ -171,7 +178,7 @@ function renderLine() {
         <div class="units">${units(s, st)}</div><span class="st">${stTxt}</span></li>`;
     }
     const edge = k < 2 ? 'start' : k > stops.length - 3 ? 'end' : '';
-    const label = [s.time, stTxt, ...s.units.map((u) => `${u.name} ${u.done}/${u.target}`)].filter(Boolean).join(', ');
+    const label = [s.time, stTxt, ...s.units.map((u) => (u.stretch ? u.name : `${u.name} ${u.done}/${u.target}`))].filter(Boolean).join(', ');
     // the tooltip carries the status word too, so the line never relies on dot colour alone
     const tip = (stTxt ? `<span class="tip-st">${esc(stTxt)}</span>` : '') + units(s, st);
     return `<li class="stop ${st} ${edge}" tabindex="0" aria-label="${esc(label)}"><span class="dot"></span><span class="t">${s.time}</span>${tip ? `<span class="tip" role="tooltip">${tip}</span>` : ''}</li>`;
@@ -215,7 +222,7 @@ function openPlayer(id) {
   const m = S.library.find((x) => x.id === id);
   if (!m) return;
   $('#playerName').textContent = m.name;
-  $('#playerMeta').textContent = m.sec ? t('secs', { n: m.sec }) : '';
+  $('#playerMeta').textContent = m.sec ? t(m.sides ? 'perSideSecs' : 'secs', { n: m.sec }) : '';
   $('#playerTips').innerHTML = (m.tips || []).map((t) => `<li>${ICON('check')}<span>${esc(t)}</span></li>`).join('');
   const clip = $('#playerClip');
   clip.dataset.src = '-';
@@ -346,6 +353,7 @@ async function loadDetail() {
     html += '<div class="sec">';
     html += units.map((u) => {
       const ok = u.doneSets >= u.targetSets;
+      if (u.type === 'stretch') return `<div class="urow"><span>${esc(u.name)}</span><span class="c ${ok ? 'ok' : 'no'}">${t(ok ? 'slot_done' : 'notDone')}</span></div>`;
       const reps = u.type !== 'circuit' && u.reps && u.reps.length ? t('repsList', { r: u.reps.join(window.LANG === 'en' ? ', ' : '、') }) : '';
       return `<div class="urow"><span>${esc(u.name)}</span><span class="c ${ok ? 'ok' : 'no'}">${t('setsOf', { a: u.doneSets, b: u.targetSets })}</span>${reps ? `<span class="r">${esc(reps)}</span>` : ''}</div>`;
     }).join('');

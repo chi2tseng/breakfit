@@ -159,6 +159,11 @@
             "The slower the better; if it’s too easy, rest a weight on your lap"
           ]
         }
+      ],
+      "stretch": [
+        "chest",
+        "front_delt",
+        "triceps"
       ]
     },
     "d2": {
@@ -357,6 +362,14 @@
             "Knees in line with toes; go slow"
           ]
         }
+      ],
+      "stretch": [
+        "lat",
+        "rear_delt",
+        "side_delt",
+        "biceps",
+        "glute",
+        "quad"
       ]
     },
     "d3": {
@@ -385,7 +398,11 @@
           "moves": "core"
         }
       ],
-      "roundRestSec": 180
+      "roundRestSec": 180,
+      "stretch": [
+        "side_body",
+        "hip_flexor"
+      ]
     }
   },
   "circuits": {
@@ -501,5 +518,226 @@
         ]
       }
     ]
+  },
+  "stretchSource": "Bilibili BV1yz411q7XE：FitMen六六「22個拉伸動作詳細講解」(14:47)",
+  "stretchHoldSec": 30,
+  "stretchGeneral": [
+    "靜態拉伸，輕輕拉到有感覺就好，不用太大力",
+    "每邊維持 30 秒"
+  ],
+  "stretchGeneral_en": [
+    "Static stretch — ease in until you feel it, no forcing",
+    "Hold 30 seconds each side"
+  ],
+  "stretches": {
+    "chest": {
+      "id": "chest",
+      "name": "胸肌拉伸",
+      "name_en": "Chest stretch",
+      "sides": true,
+      "clip": "stretch_chest",
+      "window": [
+        "03:19",
+        "03:54"
+      ],
+      "tips": [
+        "手搭在柱子或門框上，做弓步",
+        "身體向前壓，感覺胸肌被拉開"
+      ],
+      "tips_en": [
+        "Hand on a post or door frame, step into a lunge",
+        "Lean forward until you feel it across the chest"
+      ]
+    },
+    "lat": {
+      "id": "lat",
+      "name": "背闊肌拉伸",
+      "name_en": "Lat stretch",
+      "sides": false,
+      "clip": "stretch_lat",
+      "window": [
+        "03:54",
+        "04:32"
+      ],
+      "tips": [
+        "雙手抓住柱子，屈髖、屁股往後坐",
+        "感覺不明顯就一次拉一邊"
+      ],
+      "tips_en": [
+        "Hold a post with both hands, hinge and sit your hips back",
+        "Not feeling it? Do one side at a time"
+      ]
+    },
+    "side_body": {
+      "id": "side_body",
+      "name": "側面拉伸",
+      "name_en": "Side-body stretch",
+      "sides": true,
+      "clip": "stretch_side_body",
+      "window": [
+        "04:32",
+        "05:18"
+      ],
+      "tips": [
+        "做箭步，身體向側面倒並撐住",
+        "拉到整個側面，包括腹斜肌"
+      ],
+      "tips_en": [
+        "Split stance, lean sideways and brace",
+        "Stretches the whole side, obliques included"
+      ]
+    },
+    "rear_delt": {
+      "id": "rear_delt",
+      "name": "三角肌後束拉伸",
+      "name_en": "Rear delt stretch",
+      "sides": true,
+      "clip": "stretch_rear_delt",
+      "window": [
+        "05:18",
+        "05:48"
+      ],
+      "tips": [
+        "手臂橫過胸前，大拇指朝身體後方",
+        "另一手把手臂往身上拉"
+      ],
+      "tips_en": [
+        "Arm across the chest, thumb pointing back",
+        "Pull it in with the other hand"
+      ]
+    },
+    "side_delt": {
+      "id": "side_delt",
+      "name": "三角肌中束拉伸",
+      "name_en": "Side delt stretch",
+      "sides": true,
+      "clip": "stretch_side_delt",
+      "window": [
+        "05:48",
+        "06:26"
+      ],
+      "tips": [
+        "同後束，但大拇指朝外",
+        "或手放身後，另一手往旁邊拉"
+      ],
+      "tips_en": [
+        "Like the rear delt stretch, thumb pointing out",
+        "Or hand behind your back, pulled sideways"
+      ]
+    },
+    "front_delt": {
+      "id": "front_delt",
+      "name": "三角肌前束拉伸",
+      "name_en": "Front delt stretch",
+      "sides": true,
+      "clip": "stretch_front_delt",
+      "window": [
+        "06:26",
+        "07:06"
+      ],
+      "tips": [
+        "手放身後扶住柱子",
+        "身體慢慢往前走，也會拉到胸"
+      ],
+      "tips_en": [
+        "Hand behind you on a post",
+        "Walk your body forward — it also reaches the chest"
+      ]
+    },
+    "biceps": {
+      "id": "biceps",
+      "name": "肱二頭肌拉伸",
+      "name_en": "Biceps stretch",
+      "sides": true,
+      "clip": "stretch_biceps",
+      "window": [
+        "07:06",
+        "07:46"
+      ],
+      "tips": [
+        "手靠在支撐物上",
+        "身體往反方向轉"
+      ],
+      "tips_en": [
+        "Hand against a support",
+        "Turn your body away from it"
+      ]
+    },
+    "triceps": {
+      "id": "triceps",
+      "name": "肱三頭肌拉伸",
+      "name_en": "Triceps stretch",
+      "sides": true,
+      "clip": "stretch_triceps",
+      "window": [
+        "07:46",
+        "08:26"
+      ],
+      "tips": [
+        "舉手、彎肘",
+        "另一手輕輕往反方向扳"
+      ],
+      "tips_en": [
+        "Raise the arm and bend the elbow",
+        "Gently press it back with the other hand"
+      ]
+    },
+    "glute": {
+      "id": "glute",
+      "name": "臀部拉伸",
+      "name_en": "Glute stretch",
+      "sides": true,
+      "clip": "stretch_glute",
+      "window": [
+        "09:15",
+        "10:20"
+      ],
+      "tips": [
+        "一腳搭在另一腳上",
+        "身體往後倒，感覺臀部被拉開"
+      ],
+      "tips_en": [
+        "Cross one ankle over the other knee",
+        "Lean back until you feel it in the glute"
+      ]
+    },
+    "quad": {
+      "id": "quad",
+      "name": "股四頭肌拉伸",
+      "name_en": "Quad stretch",
+      "sides": true,
+      "clip": "stretch_quad",
+      "window": [
+        "11:05",
+        "11:36"
+      ],
+      "tips": [
+        "抓住腳背往後拉",
+        "膝蓋朝下，身體站直"
+      ],
+      "tips_en": [
+        "Grab your foot and pull it back",
+        "Knee pointing down, stand tall"
+      ]
+    },
+    "hip_flexor": {
+      "id": "hip_flexor",
+      "name": "髂腰肌拉伸",
+      "name_en": "Hip flexor stretch",
+      "sides": true,
+      "clip": "stretch_hip_flexor",
+      "window": [
+        "12:57",
+        "13:46"
+      ],
+      "tips": [
+        "弓步，髖部往前推",
+        "骨盆不要前傾，上身和地面垂直"
+      ],
+      "tips_en": [
+        "Lunge and push the hips forward",
+        "Keep the pelvis neutral, torso upright"
+      ]
+    }
   }
 }

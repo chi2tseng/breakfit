@@ -30,7 +30,9 @@ function resolve(from, spec) {
   throw new Error(`${from}: cannot resolve '${spec}'`);
 }
 
-function bundle() {
+// siteFiles: every file copied under assets/ ('/assets/clips/x.mp4'), so the fs shim can answer
+// existsSync for clips honestly (a clip still being cut shows the placeholder instead of a 404).
+function bundle(siteFiles = []) {
   const mods = {};
   const todo = [...ENTRIES];
   while (todo.length) {
@@ -50,6 +52,7 @@ function bundle() {
 (function () {
 'use strict';
 var process = { platform: 'web', argv: [], env: {}, versions: {} };
+var __bfSiteFiles = new Set(${JSON.stringify(siteFiles)});
 var MODS = {
 ${body.join(',\n')}
 };
@@ -115,7 +118,11 @@ function webPage(html, { name, fromRoot, scriptDir }) {
 function build() {
   fs.rmSync(OUT, { recursive: true, force: true });
   fs.mkdirSync(OUT, { recursive: true });
-  fs.writeFileSync(path.join(OUT, 'web.js'), bundle());
+  const ASSET_DIRS = ['assets/clips', 'assets/icon'];
+  const assetFiles = ASSET_DIRS.flatMap((dir) => fs.readdirSync(path.join(ROOT, dir))
+    .filter((f) => fs.statSync(path.join(ROOT, dir, f)).isFile() && /\.(mp4|jpg|png|svg|ico)$/.test(f) && !/^concepts/.test(f))
+    .map((f) => `${dir}/${f}`));
+  fs.writeFileSync(path.join(OUT, 'web.js'), bundle(assetFiles.map((f) => `/${f}`)));
 
   // fonts: every node_modules stylesheet a renderer page links
   const R = path.join(ROOT, 'src/renderer');
@@ -144,12 +151,7 @@ function build() {
     .replace('</head>', '<link rel="icon" href="assets/icon/icon-256.png">\n</head>');
   fs.writeFileSync(path.join(OUT, 'index.html'), index);
 
-  for (const dir of ['assets/clips', 'assets/icon']) {
-    for (const f of fs.readdirSync(path.join(ROOT, dir))) {
-      const s = path.join(ROOT, dir, f);
-      if (fs.statSync(s).isFile() && /\.(mp4|jpg|png|svg|ico)$/.test(f) && !/^concepts/.test(f)) copy(s, path.join(OUT, dir, f));
-    }
-  }
+  for (const f of assetFiles) copy(path.join(ROOT, f), path.join(OUT, f));
   fs.writeFileSync(path.join(OUT, '.nojekyll'), '');
   let n = 0;
   let bytes = 0;

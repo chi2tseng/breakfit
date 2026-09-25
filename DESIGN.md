@@ -159,17 +159,24 @@ floor keeps the smallest token (13 px) legal on 4:3 screens.
 - Timers have two roles only **[choice: merges both audits]**:
   - The auto-advance countdown (intro 10 s, demo, preview 5 s, finish 5 s) is the trailing number
     inside the primary button.
-  - The main timer (rest, round rest, timed move) is one ring, 8rem, at the left of body D, with
-    the number only (no 秒 / 秒後開始).
+  - The main timer (rest, round rest, timed move, stretch hold) is one ring, 8rem, at the left of
+    body D, with the number only (no 秒 / 秒後開始).
 - **Space / Enter = the primary button (F) in every phase** that has one: intro 開始, demo 開始,
-  work 完成這組, rest / round rest 跳過休息, preview 開始, finish 關閉 (timed has no primary; the
+  work 完成這組, rest / round rest 跳過休息, preview / stretch preview 開始, hold 下一個, finish 關閉 (timed has no primary; the
   key does nothing). Every primary carries the same `Space` kbd after its label; the auto-advance
   countdown stays the trailing number. Auto-repeat is ignored and the key is dead for 400 ms after
   each phase change, so holding Space advances exactly one phase. In a confirm dialog the key only
   activates the focused button and focus opens on the safe 繼續, so Space/Enter never confirm
   離開 / 跳過.
-- **示範 OFF** (設定): no demo steps and no 5 s previews; intro goes straight to work / timed.
-  The video box is unchanged and keeps looping the current move.
+- **示範 OFF** (設定): no demo steps and no 5 s previews (circuit and stretch); intro goes straight
+  to work / timed, and one stretch hold follows the other. The video box is unchanged and keeps
+  looping the current move.
+- **End-of-day stretch (last break only, after the training items, no rest before it):** per
+  stretch and side (sided stretches: 右側 then 左側) a 5 s preview, then a `holdSec` (30 s) hold.
+  Same frame as the circuit: the stretch clip loops in the video box, the side is the first span of
+  the meta line. Sound is softer than the training chime (one low note per step, a two-note cue on
+  the first step of the left side). The stretch is recorded only when its last hold ends; 離開 during
+  it leaves it undone, and the day fails like unfinished sets.
 
 | Phase | Video | A chip | B title | C meta | D body | E | F primary |
 |---|---|---|---|---|---|---|---|
@@ -179,7 +186,12 @@ floor keeps the smallest token (13 px) legal on 4:3 screens.
 | rest / roundRest | next move | `下一組` / `下一個動作` / `下一輪` | next name | next target | ring + `上一組 − 12 +` stepper | 延長 30 秒 | 跳過休息 |
 | preview | this move | `下一個` | move | `30 秒` | move dots + up to 2 tips | — | 開始 ‹5› |
 | timed | this move | `換你做` (accent) | move | circuit name | ring + move dots | — | — (reserved) |
-| finish | last clip, dimmed, with the status icon | verdict `今天合格` / `今天不合格` / `完成` | `這次 6 組` | `下次 17:00` | `13 / 25 組` + bar, stepper if the break ended on a rep set | — | 關閉 ‹5› |
+| stretch preview | this stretch | `下一個` | stretch name | `右側`  `30 秒` (side only if sided) | stretch dots + up to 2 tips | — | 開始 ‹5› |
+| hold | same clip | `self_improvement 拉伸` (accent) | stretch name | `右側`  `第 1/3 個` | ring + up to 2 tips beside it (the body is too short to stack them) | — | 下一個 Space |
+| finish | last clip, dimmed, with the status icon | verdict `今天合格` / `今天不合格` / `完成` | `這次 6 組` | `下次 17:00`; `最後一次休息拉伸` when every set is done but the stretch waits; `拉伸沒做完` when the last break fails on the stretch | `13 / 25 組` + bar, stepper if the break ended on a rep set | — | 關閉 ‹5› |
+
+The intro lists the stretch as its own row, last: `拉伸`  `6 × 30 秒` (holds × seconds; a sided
+stretch counts two holds). The stretch is not a set: `N / 25 組` never includes it.
 
 Leave and skip dialogs: title and buttons only. A body line appears only for a consequence, in red
 (`離開 = 今天不合格`, `跳過 = 今天不合格`).
@@ -236,14 +248,18 @@ follow Windows display scaling too; 965×940 at 150 % = 643×627 CSS px):
   on a stop (`tabindex=0`, `aria-label` = time, status, moves) opens a tooltip below it (`--surface`,
   hairline, `--r-md`): the status word (`完成` / `部分完成` / `跳過`, subheadline 600 muted), then
   `伏地挺身 5/5` per move; a stop with no moves of its own shows the sets done in its break (`3 組`),
-  `補做` (last stop) or `走動` (walk reminder only), never `—`. The progress figure `7 / 25 組` (done
+  `補做` (last stop) or `走動` (walk reminder only), never `—`. The last stop of a training day
+  holds `拉伸` (no count; `full` once done), after `補做` when earlier sets are carried to it, and
+  its `aria-label` says `拉伸` too. When every set is done but the stretch is owed, the hero is
+  that last stop: `拉伸`  `6 × 30 秒`, the first stretch's clip looping. The progress figure `7 / 25 組` (done
   count headline ink, rest body muted) ends the line; in vertical mode it sits above the rows. Narrow
   (< 46 px per stop): the same stops as the vertical rows (time · dot · moves with counts · status),
   same dot shapes at 8 px, no surface.
 - **Library (on the ground):** `repeat(var(--cols), 1fr)`, gap 24 × 16. `main.js libCols()` picks
   the column count that divides the day's move count, tiles ≥ 180 px, so no tile is left alone on a
   last row: 第 1 天 (6) = 2 at 800, 3 at 965–1366, 6 at 1920+; 第 2 天 (8) = 2 / 4; 第 3 天 (2) = one
-  row in up to 3 columns; phone 1. Each tile is a `<button>`: clip 16:9 `--r-md` + name under it
+  row in up to 3 columns; 拉伸 = today's stretches (every stretch on a rest / off day; 第 1 天 3,
+  第 2 天 6, 第 3 天 2), player meta `每邊 30 秒` for a sided stretch; phone 1. Each tile is a `<button>`: clip 16:9 `--r-md` + name under it
   (body, one line with an ellipsis; English may wrap), no tile background; hover plays the clip,
   `:active` press. Header = title3 + segmented filter. No moves for a filter: an empty state.
 - **Segmented control:** equal-width segments (`inline-grid`, `grid-auto-columns: 1fr`), 2 px track
@@ -291,7 +307,7 @@ follow Windows display scaling too; 965×940 at 150 % = 643×627 CSS px):
 - **Navigation hover:** a 50 % `--side-on` step, lighter than the selected tab, so only one item
   ever reads as selected.
 - **URL:** tab, picked day and library filter are in the query string (`?tab=history&date=…&f=d2`,
-  `history.replaceState`), so a reload or bookmark of the web build returns to the same view.
+  `history.replaceState`; `f` = d1 / d2 / d3 / stretch), so a reload or bookmark of the web build returns to the same view.
 
 ## 6. Text policy
 
@@ -332,6 +348,10 @@ The video box is always visible, so the footage itself must be clean. Every clip
   the last frame flows into the first (loop seam ≤ the clip's largest normal frame step); where
   poses cannot match, the last 8 frames cross-fade into the frames just before the in-point.
 - Rebuild script and in/out log: session scratchpad `recrop/build.py`, `recrop/build_log_all.json`.
+- Stretch clips `stretch_<id>.mp4` / `.jpg` come from a second video (Bilibili BV1yz411q7XE, plan
+  `stretchSource`); `plan.stretches[id].window` is the source time range. Same spec. Until a file
+  exists the box shows the placeholder (desktop: `fs.existsSync`; web: the file list build-web.js
+  bakes into the bundle, so a missing clip is never requested).
 
 ## 8. HIG pass (`docs/hig/*.txt`)
 

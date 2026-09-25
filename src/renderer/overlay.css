@@ -144,6 +144,9 @@ kbd { font: var(--o-footnote-em); letter-spacing: var(--tr-13); padding: 0.125re
 .tips li { display: flex; gap: 0.5rem; color: var(--text); }
 .tips .ms { color: var(--accent-text); font-size: 1.25rem; margin-top: 0.125rem; }
 
+/* stretch hold: the countdown ring with the stretch's 1–2 tips beside it (the body is too short to stack them) */
+.hold-row .tips { flex: 1; min-width: 0; }
+.hold-row .tips li > span { text-wrap: pretty; } /* no one-character last line (弓 / 步) in the narrow column */
 .move-dots { display: flex; gap: 0.5rem; min-width: 0; }
 .hrow .move-dots { flex: 1; }
 .move-dots i { flex: 1; max-width: 1.5rem; height: 0.25rem; border-radius: var(--r-pill); background: var(--track); }

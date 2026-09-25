@@ -5,11 +5,15 @@ const { computeSlots } = require('./slots');
 const { planDayFor } = require('./cycle');
 
 const TRAINING = (plan, planDay) => !!(plan.days && plan.days[planDay]);
+// End-of-day stretch: one unit per training day (targetSets 1), pinned to the last slot, never part
+// of the floor(i*M/N) spread. Records made before it existed simply have no such unit.
+const STRETCH_ID = 'stretch';
+const isStretch = (u) => u.type === 'stretch';
 
 function buildUnits(plan, planDay, overrides = {}) {
   const d = plan.days[planDay];
   if (!d) return [];
-  return d.units.map((u) => {
+  const units = d.units.map((u) => {
     if (u.type === 'circuit') {
       return { id: u.id, name: u.name, type: 'circuit', moves: u.moves, targetSets: u.sets, doneSets: 0, reps: [], slot: 0 };
     }
@@ -18,6 +22,10 @@ function buildUnits(plan, planDay, overrides = {}) {
     const target = Array.isArray(ov.reps) && ov.reps.length === 2 ? [...ov.reps] : [...u.reps];
     return { id: u.id, name: u.name, type: 'reps', targetSets: sets, target, doneSets: 0, reps: [], slot: 0 };
   });
+  if (Array.isArray(d.stretch) && d.stretch.length) {
+    units.push({ id: STRETCH_ID, name: '拉伸', type: 'stretch', stretches: [...d.stretch], targetSets: 1, doneSets: 0, reps: [], slot: 0 });
+  }
+  return units;
 }
 
 // Unit i of N goes to slot floor(i*M/N).
@@ -26,10 +34,12 @@ function slotForUnit(i, n, m) {
 }
 
 // Spread over slots [first, m): a day first seen mid-day (late boot / install) shouldn't dump
-// the already-passed slots' share onto the next break.
+// the already-passed slots' share onto the next break. The stretch unit always sits on the last slot.
 function distribute(units, m, first = 0) {
   const f = Math.max(0, Math.min(first, m - 1));
-  units.forEach((u, i) => { u.slot = f + slotForUnit(i, units.length, m - f); });
+  const train = units.filter((u) => !isStretch(u));
+  train.forEach((u, i) => { u.slot = f + slotForUnit(i, train.length, m - f); });
+  units.forEach((u) => { if (isStretch(u)) u.slot = Math.max(0, m - 1); });
   return units;
 }
 
@@ -39,14 +49,21 @@ function firstOpenSlot(times, nowMin, graceMin = 5) {
   return i === -1 ? Math.max(0, times.length - 1) : i;
 }
 
+// Everything still owed today, the stretch included (grading, "is the day finished").
 function remainingSets(day) {
   return day.units.reduce((a, u) => a + Math.max(0, u.targetSets - u.doneSets), 0);
 }
+// Set counts shown to the user ("17 / 25 組") are training sets only: the stretch is not a set.
 function totalSets(day) {
-  return day.units.reduce((a, u) => a + u.targetSets, 0);
+  return day.units.reduce((a, u) => a + (isStretch(u) ? 0 : u.targetSets), 0);
 }
 function doneSets(day) {
-  return day.units.reduce((a, u) => a + Math.min(u.doneSets, u.targetSets), 0);
+  return day.units.reduce((a, u) => a + (isStretch(u) ? 0 : Math.min(u.doneSets, u.targetSets)), 0);
+}
+// true / false for a day that has a stretch unit, null for one that has none (rest/off, old records).
+function stretchDone(day) {
+  const u = day.units.find(isStretch);
+  return u ? u.doneSets >= u.targetSets : null;
 }
 
 function lastSlot(day) {
@@ -54,6 +71,8 @@ function lastSlot(day) {
 }
 
 // Units still owing sets that are due at slot k (the last slot / k >= last owes everything).
+// The stretch is pinned to the last slot, so it is only ever pending there (or for a manual break
+// whose next slot is the last one), after the training units.
 function pendingUnits(day, k) {
   const last = lastSlot(day);
   const kk = Math.min(k, last);
@@ -159,7 +178,7 @@ function recordSet(day, unitId, reps) {
   const u = day.units.find((x) => x.id === unitId);
   if (!u || u.doneSets >= u.targetSets) return -1;
   u.doneSets += 1;
-  if (u.type !== 'circuit') u.reps.push(Math.max(0, Math.round(reps || 0)));
+  if (u.type === 'reps' || !u.type) u.reps.push(Math.max(0, Math.round(reps || 0)));
   return u.reps.length - 1;
 }
 
@@ -272,6 +291,7 @@ function fillMissedDays(days, settings, plan, todayKey) {
 }
 
 module.exports = {
+  STRETCH_ID, isStretch, stretchDone,
   buildUnits, slotForUnit, distribute, firstOpenSlot, remainingSets, totalSets, doneSets, lastSlot,
   pendingUnits, nextSlotIndex, gradeDay, createDay, planCheck, applyMarks, recordSet, setReps,
   endBreak, pauseDay, pauseUntil, rebuildDay, closeRemainingIfDone, isDecided,

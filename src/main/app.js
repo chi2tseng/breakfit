@@ -41,6 +41,7 @@ const planCache = {};
 const planIn = (lang) => planCache[I18N.norm(lang)] || (planCache[I18N.norm(lang)] = I18N.localizePlan(plan, lang));
 // Display name for a unit / circuit move id (day records store the 繁中 name at creation time).
 function nameIn(lang, id, fallback) {
+  if (id === D.STRETCH_ID) return I18N.t(lang, 'stretch');
   const lp = planIn(lang);
   for (const d of Object.values(lp.days)) {
     const u = d.units.find((x) => x.id === id);
@@ -66,7 +67,22 @@ function clipFile(clip, ext) {
 const clipUrl = (clip) => clipFile(clip, 'mp4');
 const posterUrl = (clip) => clipFile(clip, 'jpg');
 
+// End-of-day stretch list (plan.stretches ids) → moves with text in `lang` and their clips.
+function stretchMoves(ids, lang) {
+  const cat = planIn(lang).stretches || {};
+  return (ids || []).filter((id) => cat[id]).map((id) => {
+    const m = cat[id];
+    return { id, name: m.name, sides: !!m.sides, clipUrl: clipUrl(m.clip), posterUrl: posterUrl(m.clip), tips: (m.tips || []).slice(0, 2) };
+  });
+}
+
 function toItem(u, carried, lang) {
+  if (u.type === 'stretch') {
+    return {
+      type: 'stretch', unitId: u.id, name: nameIn(lang, u.id, u.name), carried: false, stretches: u.stretches,
+      holdSec: plan.stretchHoldSec || 30, moves: stretchMoves(u.stretches, lang),
+    };
+  }
   if (u.type === 'circuit') {
     return {
       type: 'circuit', unitId: u.id, name: nameIn(lang, u.id, u.name), carried, circuit: u.moves,
@@ -86,7 +102,11 @@ function toItem(u, carried, lang) {
 // Re-texts an already built payload in another language (switching language mid-break).
 function localizeItems(items, lang) {
   for (const it of items) {
-    if (it.type === 'circuit') {
+    if (it.type === 'stretch') {
+      it.name = nameIn(lang, it.unitId, it.name);
+      const src = stretchMoves(it.stretches, lang);
+      it.moves.forEach((m, j) => { if (src[j]) { m.name = src[j].name; m.tips = src[j].tips; } });
+    } else if (it.type === 'circuit') {
       it.name = nameIn(lang, it.unitId, it.name);
       const src = planIn(lang).circuits[it.circuit] || [];
       it.moves.forEach((m, j) => { if (src[j]) { m.name = src[j].name; m.tips = (src[j].tips || []).slice(0, 3); } });
@@ -98,7 +118,8 @@ function localizeItems(items, lang) {
   return items;
 }
 
-function library(lang) {
+// planDay: today's plan day — the 拉伸 filter shows its stretches (every stretch on a rest/off day).
+function library(lang, planDay) {
   const lp = planIn(lang);
   const out = [];
   for (const pd of ['d1', 'd2']) {
@@ -111,6 +132,12 @@ function library(lang) {
     if (seen.has(m.id)) continue;
     seen.add(m.id);
     out.push({ id: m.id, name: m.name, muscle: lp.days.d3.title, day: 'd3', tips: m.tips, sec: m.sec, clipUrl: clipUrl(m.clip), posterUrl: posterUrl(m.clip) });
+  }
+  const ids = lp.days[planDay] && lp.days[planDay].stretch
+    ? lp.days[planDay].stretch
+    : [...new Set(['d1', 'd2', 'd3'].flatMap((pd) => lp.days[pd].stretch || []))];
+  for (const m of stretchMoves(ids, lang)) {
+    out.push({ id: `stretch_${m.id}`, name: m.name, day: 'stretch', tips: m.tips, sec: plan.stretchHoldSec || 30, sides: m.sides, clipUrl: m.clipUrl, posterUrl: m.posterUrl });
   }
   return out;
 }
@@ -257,9 +284,17 @@ function createController({ clock, selftest = false, fast = false }) {
       roundRestSec: plan.days.d3.roundRestSec || 180,
       todayDone: D.doneSets(day),
       todayTotal: D.totalSets(day),
+      stretchOwed: D.stretchDone(day) === false, // the day still owes its stretch (this break or a later one)
       nextBreak: nextIdx >= 0 ? day.slots[nextIdx].time : null,
       selftest,
     };
+  }
+
+  // "現在就休息" has something to do: pending(next slot) — the stretch only when that is the last slot.
+  function canBreakNow(day) {
+    if (currentBreak || day.status !== 'pending') return false;
+    const n = D.nextSlotIndex(day);
+    return D.pendingUnits(day, n < 0 ? Infinity : n).length > 0;
   }
 
   // ---------- scheduler ----------
@@ -490,7 +525,9 @@ function createController({ clock, selftest = false, fast = false }) {
         time: s.time,
         status: s.status,
         isLast: k === D.lastSlot(day),
-        units: day.units.filter((u) => u.slot === k).map((u) => ({ name: nameIn(lang(), u.id, u.name), done: u.doneSets, target: u.targetSets })),
+        units: day.units.filter((u) => u.slot === k).map((u) => ({ name: nameIn(lang(), u.id, u.name), done: u.doneSets, target: u.targetSets, stretch: D.isStretch(u) })),
+        // the last stop also owes sets carried from earlier stops (shown as 補做 next to 拉伸)
+        catchUp: k === D.lastSlot(day) && day.units.some((u) => !D.isStretch(u) && u.slot < k && u.doneSets < u.targetSets),
         // sets actually done in this stop's break (it may have done sets carried from earlier stops)
         sets: (day.events || []).filter((e) => (e.type === 'break_end' || e.type === 'abort') && e.detail && e.detail.mode === 'slot' && e.detail.slot === k)
           .reduce((n, e) => n + (e.detail.sets || 0), 0),
@@ -500,7 +537,7 @@ function createController({ clock, selftest = false, fast = false }) {
       nextTraining: nextTraining(key),
       done: D.doneSets(day),
       total: D.totalSets(day),
-      canBreakNow: !currentBreak && day.status === 'pending' && D.remainingSets(day) > 0,
+      canBreakNow: canBreakNow(day),
       breakActive: !!currentBreak,
       history,
       stats: S.computeStats(history, key.slice(0, 7)),
@@ -508,7 +545,7 @@ function createController({ clock, selftest = false, fast = false }) {
       recent: S.recentTraining(history, 30),
       settings: data.settings,
       plan: lp,
-      library: library(lang()),
+      library: library(lang(), day.planDay),
       loginItem: selftest ? false : app.getLoginItemSettings().openAtLogin,
       selftest,
       fast,
@@ -528,7 +565,7 @@ function createController({ clock, selftest = false, fast = false }) {
       day: day ? { ...day, units: day.units.map((u) => ({ ...u, name: nameIn(lang(), u.id, u.name) })) } : null,
       title: pdKey && lp.days[pdKey] ? lp.days[pdKey].title : null,
       implied: !day || !!day.implied,
-      impliedUnits: !day && pdKey && lp.days[pdKey] ? D.buildUnits(lp, pdKey, data.settings.overrides) : [],
+      impliedUnits: !day && pdKey && lp.days[pdKey] ? D.buildUnits(lp, pdKey, data.settings.overrides).map((u) => ({ ...u, name: nameIn(lang(), u.id, u.name) })) : [],
     };
   }
 
@@ -578,7 +615,7 @@ function createController({ clock, selftest = false, fast = false }) {
       ...(training ? [{ label: tr('traySets', { a: done, b: total }), enabled: false }] : []),
       { label: st.next ? tr('trayNextBreak', { t: st.next.time }) : tr('noMoreBreaks'), enabled: false },
       { type: 'separator' },
-      { label: tr('breakNow'), enabled: !currentBreak && day.status === 'pending' && D.remainingSets(day) > 0, click: () => openBreak('manual') },
+      { label: tr('breakNow'), enabled: canBreakNow(day), click: () => openBreak('manual') },
       { label: paused ? tr('pauseRemindersUntil', { t: T.fmtHM(day.pausedUntil) }) : tr('pauseReminders'), submenu: pauseItems },
       { type: 'separator' },
       { label: tr('openMain'), click: () => openMain('today') },

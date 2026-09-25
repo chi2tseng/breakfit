@@ -58,6 +58,7 @@ function seedHistory(ctl) {
       const total = D.totalSets(day);
       let budget = pass ? total : Math.floor(total * (0.3 + r() * 0.55));
       for (const u of day.units) {
+        if (D.isStretch(u)) { if (pass) D.recordSet(day, u.id, 0); continue; } // stretch: done on pass days
         while (u.doneSets < u.targetSets && budget > 0) {
           const [a, b] = u.target || [0, 0];
           D.recordSet(day, u.id, a + Math.floor(r() * (b - a + 1)));
@@ -90,6 +91,32 @@ function seedToday(ctl) {
   day.note = '';
   return day;
 }
+
+// A 第 1 天 last break that still owes one move (bench dip 1/4, carried) + the end-of-day stretch.
+function stretchDay(ctl) {
+  const day = D.createDay(TODAY, ctl.data.settings, plan);
+  for (const u of day.units) {
+    if (D.isStretch(u)) continue;
+    const n = u.id === 'bench_dip' ? 1 : u.targetSets;
+    while (u.doneSets < n) D.recordSet(day, u.id, 10);
+  }
+  return day;
+}
+function stretchPayload(ctl) {
+  const day = stretchDay(ctl);
+  const p = ctl.buildPayload(TODAY, day, 'slot', D.lastSlot(day));
+  p.showDemo = true;
+  return p;
+}
+const STRETCH_SCREENS = [
+  ['stretch-intro', "__test.show('intro', { remaining: 8.4 })", '最後一次(第 1 天)：補做 + 拉伸'],
+  ['stretch-preview', "__test.show('stretchPreview', { remaining: 3.6 })", '拉伸：5 秒預覽(右側)'],
+  ['stretch-hold-right', "__test.show('hold', { remaining: 21.4 })", '拉伸：右側 30 秒'],
+  ['stretch-hold-left', "__test.show('hold', { nth: 1, remaining: 12.2 })", '拉伸：換左側'],
+  ['stretch-hold-single', "__test.show('hold', { nth: 5, remaining: 27 })", '拉伸：最後一個'],
+  ['stretch-finish-pass', "__test.show('finish', { sets: 3, stretchDone: true })", '拉伸做完：今天合格'],
+  ['stretch-finish-fail', "__test.show('finish', { sets: 3 })", '拉伸沒做完：今天不合格'],
+];
 
 function waitLoad(win) {
   return new Promise((res) => {
@@ -286,7 +313,7 @@ async function main() {
   while (C.planDayFor(d3key, ctl.data.settings, plan.cycle) !== 'd3') d3key = T.addDays(d3key, 1);
   const d3 = D.createDay(d3key, ctl.data.settings, plan);
   const payload = ctl.buildPayload(d3key, d3, 'slot', D.lastSlot(d3));
-  assert(payload.isLast && payload.items.length === 2, 'last-break payload has both circuit rounds');
+  assert(payload.isLast && payload.items.map((i) => i.type).join(',') === 'circuit,circuit,stretch', 'last-break payload has both circuit rounds, then the stretch');
   ctl.openBreak('test', null, payload);
   const ow2 = ctl.overlayWins[0];
   await waitLoad(ow2);
@@ -320,6 +347,38 @@ async function main() {
   await press(ow2, ' ');
   await delay(300);
   assert(!ctl.currentBreak && ow2.isDestroyed(), 'Space on finish → 關閉 → overlay closed');
+  ctl.endBreak('abort');
+
+  // ---------- end-of-day stretch (last break, after the training) ----------
+  console.log('overlay (d1, last break + stretch)');
+  const pS = stretchPayload(ctl);
+  assert(pS.isLast && pS.stretchOwed && pS.items.map((i) => `${i.unitId}${i.carried ? '*' : ''}`).join(',') === 'bench_dip*,stretch', `last break = carried bench dip, then the stretch (${pS.items.map((i) => i.unitId)})`);
+  const stIt = pS.items[1];
+  assert(stIt.moves.map((m) => `${m.id}${m.sides ? '2' : ''}`).join(',') === 'chest2,front_delt2,triceps2' && stIt.holdSec === 30, `第 1 天 stretches: chest, front delt, triceps, both sides, 30 s (${stIt.moves.map((m) => m.id)})`);
+  ctl.openBreak('test', null, pS);
+  const owS = ctl.overlayWins[0];
+  await waitLoad(owS);
+  await until(owS, 'window.__test && window.__test.ready()');
+  const kindsS = (await js(owS, "__test.steps().join(',')")).split(',');
+  const firstS = kindsS.indexOf('stretchPreview');
+  assert(firstS > 0 && kindsS[firstS - 1] === 'work' && kindsS.slice(firstS).join(',') === `${'stretchPreview,hold,'.repeat(6)}stretchDone`,
+    `steps: training, then (preview, hold) × 6 sides, no rest before the stretch (${kindsS.slice(firstS - 1).join(',')})`);
+  for (const [name, code, desc] of STRETCH_SCREENS) {
+    await js(owS, code);
+    await shot(owS, `26-${name}`, desc);
+  }
+  await js(owS, "__test.show('hold', { remaining: 21.4 })");
+  const holdTxt = await js(owS, "document.getElementById('pTitle').textContent + '|' + document.getElementById('pMeta').textContent + '|' + document.querySelectorAll('#pBody .tips li').length + '|' + !!document.querySelector('#pBody .ring') + '|' + document.querySelector('#pPri .btn').id");
+  assert(holdTxt === '胸肌拉伸|右側第 1/3 個|2|true|holdNext', `hold: name, side, 2 tips, ring, primary = 下一個 (${holdTxt})`);
+  assert(await js(owS, "!!document.querySelector('#clipMain .ph, #clipMain video')"), 'hold: clip box (clip or placeholder) on the left');
+  await delay(450);
+  assert(await press(owS, ' ') === 'stretchPreview' && await js(owS, "document.getElementById('pMeta').textContent.startsWith('左側')"), 'Space on a hold → next: preview of the left side');
+  await delay(450);
+  assert(await press(owS, ' ') === 'hold', 'Space on the stretch preview → hold');
+  await js(owS, "__test.show('hold', { nth: 5, remaining: 3 })");
+  await delay(450);
+  assert(await press(owS, ' ') === 'finish', 'Space on the last hold → finish (stretch recorded)');
+  assert(ctl.currentBreak && ctl.currentBreak.sets === 1, 'the stretch was recorded through IPC when its last hold ended');
   ctl.endBreak('abort');
 
   const cover = ctl.openCoverForTest();
@@ -366,10 +425,27 @@ async function main() {
   await waitLoad(ow4);
   await until(ow4, 'window.__test && window.__test.ready()');
   assert(!/preview/.test(await js(ow4, "__test.steps().join(',')")), 'demo OFF: circuit has no 5 s previews');
+  ctl.endBreak('abort');
+  const pOffS = stretchPayload(ctl);
+  pOffS.showDemo = false;
+  ctl.openBreak('test', null, pOffS);
+  const owS2 = ctl.overlayWins[0];
+  await waitLoad(owS2);
+  await until(owS2, 'window.__test && window.__test.ready()');
+  const kOffS = await js(owS2, "__test.steps().join(',')");
+  assert(!/stretchPreview/.test(kOffS) && (kOffS.match(/hold/g) || []).length === 6, `demo OFF: stretch goes hold → hold, no previews (${kOffS})`);
+  await js(owS2, "__test.show('hold', { remaining: 2 })");
   await delay(450);
-  assert(await press(ow4, ' ') === 'timed', 'demo OFF: circuit intro → straight to the timed move');
-  await js(ow4, "__test.show('timed', { remaining: 27 })");
-  await shot(ow4, '42-demo-off-circuit', '示範關閉：腹肌循環直接開始 30 秒');
+  assert(await press(owS2, ' ') === 'hold' && await js(owS2, "document.getElementById('pMeta').textContent.startsWith('左側')"), 'demo OFF: Space on the right-side hold → left-side hold');
+  ctl.endBreak('abort');
+  ctl.openBreak('test', null, pOffD3);
+  const ow4b = ctl.overlayWins[0];
+  await waitLoad(ow4b);
+  await until(ow4b, 'window.__test && window.__test.ready()');
+  await delay(450);
+  assert(await press(ow4b, ' ') === 'timed', 'demo OFF: circuit intro → straight to the timed move');
+  await js(ow4b, "__test.show('timed', { remaining: 27 })");
+  await shot(ow4b, '42-demo-off-circuit', '示範關閉：腹肌循環直接開始 30 秒');
   ctl.endBreak('abort');
 
   // ---------- light theme (switched live through the real settings IPC) ----------
@@ -423,10 +499,26 @@ async function main() {
   await shot(ow6, 'light-24-round-rest', '淺色：輪間休息');
   await js(ow6, "__test.show('finish', { sets: 2 })");
   await shot(ow6, 'light-25-finish-pass', '淺色：今天合格');
+  ctl.endBreak('abort');
+  ctl.openBreak('test', null, stretchPayload(ctl));
+  const owSL = ctl.overlayWins[0];
+  await waitLoad(owSL);
+  await until(owSL, 'window.__test && window.__test.ready()');
+  assert(await js(owSL, '__test.theme()') === 'light', 'stretch overlay opens light');
+  for (const [name, code, desc] of STRETCH_SCREENS) {
+    await js(owSL, code);
+    await shot(owSL, `light-26-${name}`, `淺色：${desc}`);
+  }
+  ctl.endBreak('abort');
+  ctl.openBreak('test', null, ctl.buildPayload(d3key, d3, 'slot', D.lastSlot(d3)));
+  const ow6b = ctl.overlayWins[0];
+  await waitLoad(ow6b);
+  await until(ow6b, 'window.__test && window.__test.ready()');
+  await js(ow6b, "__test.show('finish', { sets: 2 })");
   await delay(450);
-  await press(ow6, 'Enter');
+  await press(ow6b, 'Enter');
   await delay(300);
-  assert(!ctl.currentBreak && ow6.isDestroyed(), 'Enter on finish → 關閉 → overlay closed');
+  assert(!ctl.currentBreak && ow6b.isDestroyed(), 'Enter on finish → 關閉 → overlay closed');
   ctl.endBreak('abort');
   await settle(mw);
   await js(mw, "__test.tab('today'); __test.scroll(0)");
@@ -499,8 +591,22 @@ async function main() {
     await shot(ow8, `en-ov-d3-${name}`, `English: 第 3 天 ${name}`);
   }
   ctl.endBreak('abort');
+  ctl.openBreak('test', null, stretchPayload(ctl));
+  const owSE = ctl.overlayWins[0];
+  await waitLoad(owSE);
+  await until(owSE, 'window.__test && window.__test.ready()');
+  for (const [name, code] of STRETCH_SCREENS) {
+    await js(owSE, code);
+    const bad = await js(owSE, CJK_SCAN);
+    assert(!bad.length, `English overlay ${name}: no CJK text ${bad.length ? JSON.stringify(bad) : ''}`);
+    await shot(owSE, `en-ov-${name}`, `English: ${name}`);
+  }
+  await js(owSE, "__test.show('hold', { nth: 1, remaining: 12.2 })");
+  const holdEn = await js(owSE, "document.getElementById('pTitle').textContent + '|' + [...document.querySelectorAll('#pMeta > span')].map((x) => x.textContent).join('/') + '|' + [...document.querySelector('#pPri .btn').childNodes].filter((x) => x.nodeType === 3).map((x) => x.textContent).join('')");
+  assert(holdEn === 'Chest stretch|Left/Stretch 1/3|Next', `English hold: name, side, button (${holdEn})`);
+  ctl.endBreak('abort');
   await settle(mw);
-  for (const [name, code] of [['today', "__test.tab('today'); __test.scroll(0)"], ['library-d3', "__test.filter('d3')"], ['player', "__test.open('pushup')"],
+  for (const [name, code] of [['today', "__test.tab('today'); __test.scroll(0)"], ['library-d3', "__test.filter('d3')"], ['library-stretch', "__test.filter('stretch')"], ['player', "__test.open('pushup')"],
     ['history', `__test.close(); __test.tab('history'); __test.select('${failDay}').then(() => true)`], ['history-prev-month', `__test.select('${passDay}').then(() => true)`],
     ['settings', "__test.tab('settings'); __test.scroll(0)"]]) {
     await js(mw, code);
@@ -523,6 +629,50 @@ async function main() {
   await js(mw, "document.querySelector('#sLang [data-l=\"zh\"]').click(); true");
   await delay(300);
   assert(ctl.data.settings.lang === 'zh' && await js(mw, "document.querySelector('.nav-item[data-tab=\"today\"] .nav-label').textContent") === '今天', 'switches back to 繁中 live');
+
+  // ---------- stretch on 今天: training cleared, the last stop still owes the stretch ----------
+  console.log('today: stretch owed');
+  const tday = ctl.data.days[TODAY];
+  for (const u of tday.units) if (!D.isStretch(u)) while (u.doneSets < u.targetSets) D.recordSet(tday, u.id, 10);
+  assert(D.remainingSets(tday) === 1 && D.gradeDay(tday, TODAY, TODAY) === 'pending', 'all sets done, stretch owed → still pending');
+  await js(mw, "window.bf.saveSettings({}).then(() => true)"); // any save pushes state:changed → refresh
+  await settle(mw);
+  await js(mw, "__test.tab('today'); __test.scroll(0); __test.filter('d1')");
+  await delay(200);
+  const heroS = await js(mw, "document.querySelector('#heroText .hero-time').textContent + '|' + document.querySelector('#heroText .hero-name').textContent + '|' + document.querySelector('#heroText .hero-meta').textContent + '|' + !document.getElementById('heroClip').hidden + '|' + document.getElementById('heroClip').dataset.name");
+  assert(heroS === '21:00|拉伸|6 × 30 秒|true|胸肌拉伸', `今天 hero: the stretch at the last stop, first stretch clip (${heroS})`);
+  const lastStop = await js(mw, "(() => { const s = [...document.querySelectorAll('#timeline .stop')].pop(); return s.getAttribute('aria-label') + '|' + s.querySelector('.tip').textContent + '|' + s.className; })()");
+  assert(/拉伸/.test(lastStop.split('|')[0]) && /拉伸/.test(lastStop.split('|')[1]) && / next /.test(` ${lastStop.split('|')[2]} `), `day line: last stop label + tooltip say 拉伸, and it is the next stop (${lastStop})`);
+  await shot(mw, '50-today-stretch-owed', '今天：練完了，最後一站還要拉伸');
+  await js(mw, "__test.filter('stretch')");
+  await delay(150);
+  const libS = await js(mw, "[...document.querySelectorAll('#library .lib-card .n')].map((n) => n.textContent).join(',') + '|' + document.querySelector('#libFilter .on').textContent");
+  assert(libS === '胸肌拉伸,三角肌前束拉伸,肱三頭肌拉伸|拉伸', `library 拉伸 filter = today's stretches (${libS})`);
+  await js(mw, '__test.scroll(10000)');
+  await shot(mw, '51-library-stretch', '示範庫：拉伸(今天的三個)');
+  await js(mw, "__test.open('stretch_chest')");
+  assert(await js(mw, "document.getElementById('playerMeta').textContent") === '每邊 30 秒', 'stretch player: 每邊 30 秒');
+  await shot(mw, '52-library-stretch-player', '示範庫：拉伸放大播放');
+  await js(mw, "__test.close(); __test.scroll(0)");
+
+  // real last break: only the stretch is owed; leaving mid-stretch = not done = today fails
+  console.log('last break: leave mid-stretch');
+  clock.set(new Date(2026, 8, 24, 21, 0, 5));
+  ctl.check();
+  const bS = ctl.currentBreak;
+  assert(bS && bS.mode === 'slot' && bS.slot === D.lastSlot(tday) && bS.payload.items.map((i) => i.unitId).join(',') === 'stretch', `21:00 opens the last break with only the stretch (${bS && bS.payload.items.map((i) => i.unitId)})`);
+  const owR = ctl.overlayWins[0];
+  await waitLoad(owR);
+  await until(owR, 'window.__test && window.__test.ready()');
+  assert(await js(owR, "__test.steps().join(',')") === `${'stretchPreview,hold,'.repeat(6)}stretchDone`, 'stretch-only break: previews + holds');
+  await js(owR, "__test.show('intro', { remaining: 6 })");
+  await shot(owR, '53-last-break-stretch-only', '最後一次：只剩拉伸');
+  await js(owR, "__test.show('hold', { nth: 2, remaining: 14 })");
+  await js(owR, '__test.leave()');
+  assert(await js(owR, "document.getElementById('mBody').textContent") === '離開 = 今天不合格', 'leave mid-stretch warns the day fails');
+  await js(owR, "document.getElementById('mOk').click(); true");
+  await delay(400);
+  assert(!ctl.currentBreak && D.stretchDone(tday) === false && tday.status === 'fail', `left mid-stretch → stretch not done → today fails (${tday.status})`);
 
   fs.writeFileSync(path.join(OUT, 'results.json'), JSON.stringify({ results, failures }, null, 2));
   console.log(`\n${results.length} screenshots → ${OUT}`);
@@ -581,7 +731,8 @@ async function matrix(ctl, mw) {
     ['today-bottom', '__test.scroll(100000)', false],
     ['today-done', "__test.scroll(0); __test.hero('done')", true],
     ['today-rest', "__test.hero('rest')", true],
-    ['player', "__test.hero(null); __test.open('pushup')", true],
+    ['library-stretch', "__test.filter('stretch'); __test.scroll(100000)", true],
+    ['player', "__test.filter('d1'); __test.scroll(0); __test.hero(null); __test.open('pushup')", true],
     ['history', `__test.close(); __test.tab('history'); __test.select('${failDay}').then(() => __test.scroll(0))`, true],
     ['history-bottom', '__test.scroll(100000)', false],
     ['settings', "__test.tab('settings'); __test.scroll(0)", true],
@@ -596,6 +747,7 @@ async function matrix(ctl, mw) {
       ['finish', "__test.show('finish', { sets: 6, afterWork: true, reps: 13 })"], ['leave', "__test.show('work', { elapsed: 23 }) && __test.leave()"]]],
     ['d3', [['last-intro', "__test.show('intro', { remaining: 9.1 })"], ['timed', "__test.show('timed', { nth: 2, remaining: 18.2 })"],
       ['round-rest', "__test.show('roundRest', { remaining: 152 })"], ['finish-pass', "__test.show('finish', { sets: 2 })"]]],
+    ['stretch', STRETCH_SCREENS.filter(([n]) => !['stretch-hold-single', 'stretch-finish-fail'].includes(n)).map(([n, code]) => [n, code])],
   ];
 
   // 繁中 in both themes at every size; English (longer words) in dark at the sizes that bound the layouts.
@@ -622,9 +774,9 @@ async function matrix(ctl, mw) {
     await js(mw, '__test.close()');
     await resize(mw, 1280, 800, 1);
     for (const [pd, states] of QUICK ? [] : OV) {
-      const payload = pd === 'd1'
-        ? ctl.buildPayload(TODAY, ctl.ensureToday(), 'slot', 6)
-        : ctl.buildPayload(d3key, d3, 'slot', D.lastSlot(d3));
+      const payload = pd === 'd1' ? ctl.buildPayload(TODAY, ctl.ensureToday(), 'slot', 6)
+        : pd === 'stretch' ? stretchPayload(ctl)
+          : ctl.buildPayload(d3key, d3, 'slot', D.lastSlot(d3));
       payload.showDemo = true;
       ctl.openBreak('test', null, payload);
       const ow = ctl.overlayWins[0];
@@ -667,9 +819,9 @@ async function matrix(ctl, mw) {
 
 function run() {
   const guard = setTimeout(() => {
-    console.error(`SELFTEST TIMEOUT (${MATRIX ? 900 : 150} s)`);
+    console.error(`SELFTEST TIMEOUT (${MATRIX ? 1200 : 240} s)`);
     app.exit(2);
-  }, MATRIX ? 900000 : 150000);
+  }, MATRIX ? 1200000 : 240000);
   app.on('window-all-closed', () => {});
   app.whenReady()
     .then(main)

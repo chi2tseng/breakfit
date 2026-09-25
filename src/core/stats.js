@@ -24,7 +24,7 @@ function summarizeDay(key, day, todayKey) {
 function impliedDay(key, settings, plan) {
   const planDay = planDayFor(key, settings, plan.cycle);
   if (planDay === 'off' || planDay === 'rest') return { date: key, planDay, status: planDay, done: 0, total: 0, pct: 0, recorded: false };
-  const total = buildUnits(plan, planDay, settings.overrides).reduce((a, u) => a + u.targetSets, 0);
+  const total = totalSets({ units: buildUnits(plan, planDay, settings.overrides) });
   return { date: key, planDay, status: 'fail', done: 0, total, pct: 0, recorded: false };
 }
 

@@ -17,6 +17,7 @@ const store = require('../src/main/store');
 // 2026-09-21 is a Monday.
 const MON = '2026-09-21';
 const settings = (over = {}) => normalizeSettings({ cycleAnchor: { date: MON, index: 0 }, ...over });
+const train = (day) => day.units.filter((u) => !D.isStretch(u)); // training units (no end-of-day stretch)
 const complete = (day, unitId) => {
   const u = day.units.find((x) => x.id === unitId);
   while (u.doneSets < u.targetSets) D.recordSet(day, unitId, 10);
@@ -109,10 +110,10 @@ test('distribution: floor(i*M/N)', () => {
 test('createDay: d1 has 6 units, 25 sets, 11 slots, last slot empty buffer', () => {
   const day = D.createDay(MON, settings(), plan);
   assert.equal(day.planDay, 'd1');
-  assert.equal(day.units.length, 6);
+  assert.equal(train(day).length, 6);
   assert.equal(D.totalSets(day), 25);
   assert.equal(day.slots.length, 11);
-  assert.deepEqual(day.units.map((u) => u.slot), [0, 1, 3, 5, 7, 9]);
+  assert.deepEqual(train(day).map((u) => u.slot), [0, 1, 3, 5, 7, 9]);
   assert.equal(day.status, 'pending');
   assert.equal(D.pendingUnits(day, 2).length, 2);
 });
@@ -136,7 +137,7 @@ test('createDay: overrides apply to new days', () => {
 test('d3: two circuit units with 1 set each', () => {
   const day = D.createDay('2026-09-23', settings(), plan);
   assert.equal(day.planDay, 'd3');
-  assert.deepEqual(day.units.map((u) => [u.type, u.targetSets, u.slot]), [['circuit', 1, 0], ['circuit', 1, 5]]);
+  assert.deepEqual(train(day).map((u) => [u.type, u.targetSets, u.slot]), [['circuit', 1, 0], ['circuit', 1, 5]]);
 });
 
 // ---------- pending roll-over ----------
@@ -209,10 +210,11 @@ test('pending: last slot owes everything left today', () => {
   complete(day, 'pushup');
   const last = D.lastSlot(day);
   const p = D.pendingUnits(day, last);
-  assert.equal(p.length, 5);
-  assert.ok(p.every((x) => x.carried));
-  assert.equal(p.reduce((a, x) => a + x.unit.targetSets - x.unit.doneSets, 0), 20);
-  assert.equal(D.pendingUnits(day, Infinity).length, 5);
+  assert.equal(p.length, 6); // 5 training units carried + the stretch, last
+  assert.ok(p.slice(0, 5).every((x) => x.carried));
+  assert.equal(p[5].unit.id, 'stretch');
+  assert.equal(p.slice(0, 5).reduce((a, x) => a + x.unit.targetSets - x.unit.doneSets, 0), 20);
+  assert.equal(D.pendingUnits(day, Infinity).length, 6);
 });
 
 test('pending: after everything is done remaining slots never open', () => {
@@ -280,6 +282,103 @@ test('grade: last slot missed on startup -> fail', () => {
   assert.equal(D.gradeDay(day, MON, MON), 'fail');
 });
 
+// ---------- end-of-day stretch ----------
+const stretchOf = (day) => day.units.find((u) => u.id === 'stretch');
+
+test('stretch: one unit per training day, pinned to the last slot, outside the floor(i*M/N) spread', () => {
+  for (const [key, pd] of [[MON, 'd1'], ['2026-09-22', 'd2'], ['2026-09-23', 'd3']]) {
+    const day = D.createDay(key, settings(), plan);
+    assert.equal(day.planDay, pd);
+    const st = stretchOf(day);
+    assert.deepEqual([st.type, st.targetSets, st.doneSets, st.slot], ['stretch', 1, 0, D.lastSlot(day)], pd);
+    assert.deepEqual(st.stretches, plan.days[pd].stretch, pd);
+    assert.equal(day.units[day.units.length - 1], st, `${pd}: stretch is the last unit`);
+  }
+  // the training spread is exactly what it was without the stretch
+  assert.deepEqual(train(D.createDay(MON, settings(), plan)).map((u) => u.slot), [0, 1, 3, 5, 7, 9]);
+  // mid-day creation and a one-slot day: still the last slot
+  const late = D.createDay(MON, settings(), plan, T.parseHM('16:10'));
+  assert.equal(stretchOf(late).slot, D.lastSlot(late));
+  const one = D.createDay(MON, settings({ interval: 600 }), plan);
+  assert.equal(one.slots.length, 1);
+  assert.equal(stretchOf(one).slot, 0);
+  // rest / off days have none
+  assert.equal(D.createDay('2026-09-24', settings(), plan).units.length, 0);
+  assert.equal(D.createDay('2026-09-26', settings(), plan).units.length, 0);
+  // not a set: counts shown to the user stay training-only
+  assert.equal(D.totalSets(D.createDay(MON, settings(), plan)), 25);
+});
+
+test('stretch: never pending before the last slot, pending (after training) at it', () => {
+  const day = D.createDay(MON, settings(), plan);
+  const last = D.lastSlot(day);
+  for (let k = 0; k < last; k++) assert.ok(!D.pendingUnits(day, k).some((p) => p.unit.id === 'stretch'), `slot ${k}`);
+  const p = D.pendingUnits(day, last);
+  assert.equal(p[p.length - 1].unit.id, 'stretch');
+  assert.equal(p[p.length - 1].carried, false);
+  // manual break: pending(next slot) → only when the next pending slot is the last one
+  for (let k = 0; k < last; k++) day.slots[k].status = 'missed';
+  assert.equal(D.nextSlotIndex(day), last);
+  assert.ok(D.pendingUnits(day, D.nextSlotIndex(day)).some((p2) => p2.unit.id === 'stretch'));
+});
+
+test('stretch: training cleared early → middle slots only notify, the last slot opens for the stretch', () => {
+  const day = D.createDay(MON, settings(), plan);
+  train(day).forEach((u) => complete(day, u.id));
+  D.endBreak(day, 0, 'done', 25);
+  assert.equal(D.remainingSets(day), 1);
+  assert.equal(D.gradeDay(day, MON, MON), 'pending');
+  assert.equal(day.slots[1].status, 'pending', 'slots are not closed while the stretch is owed');
+  let r = D.planCheck(day, T.parseHM('12:00'));
+  assert.equal(r.open, null);
+  assert.deepEqual(r.marks, { 1: 'notified' });
+  D.applyMarks(day, r.marks);
+  r = D.planCheck(day, T.parseHM('21:00'));
+  assert.equal(r.open, D.lastSlot(day));
+  assert.deepEqual(D.pendingUnits(day, r.open).map((x) => x.unit.id), ['stretch']);
+});
+
+test('stretch: pass requires it; done → pass', () => {
+  const day = D.createDay(MON, settings(), plan);
+  train(day).forEach((u) => complete(day, u.id));
+  assert.equal(D.stretchDone(day), false);
+  assert.notEqual(D.gradeDay(day, MON, MON), 'pass');
+  assert.equal(D.gradeDay(day, MON, T.addDays(MON, 1)), 'fail', 'all sets but no stretch fails at day end');
+  D.recordSet(day, 'stretch', 0);
+  assert.equal(stretchOf(day).doneSets, 1);
+  assert.deepEqual(stretchOf(day).reps, []);
+  assert.equal(D.stretchDone(day), true);
+  assert.equal(D.gradeDay(day, MON, MON), 'pass');
+  D.recordSet(day, 'stretch', 0);
+  assert.equal(stretchOf(day).doneSets, 1, 'capped at 1');
+});
+
+test('stretch: abort mid-stretch in the last break → not done → day fails', () => {
+  const day = D.createDay(MON, settings(), plan);
+  train(day).forEach((u) => complete(day, u.id));
+  D.endBreak(day, D.lastSlot(day), 'abort', 0); // left during a hold: the stretch was never recorded
+  assert.equal(D.stretchDone(day), false);
+  assert.equal(day.slots[D.lastSlot(day)].status, 'skipped');
+  assert.equal(D.gradeDay(day, MON, MON), 'fail');
+});
+
+test('stretch: records made before it existed (no stretch unit) grade exactly as before', () => {
+  const day = D.createDay(MON, settings(), plan);
+  day.units = train(day); // old data.json record
+  assert.equal(D.stretchDone(day), null);
+  assert.equal(D.pendingUnits(day, D.lastSlot(day)).length, 6);
+  day.units.forEach((u) => complete(day, u.id));
+  assert.equal(D.remainingSets(day), 0);
+  assert.equal(D.gradeDay(day, MON, MON), 'pass');
+  D.closeRemainingIfDone(day);
+  assert.ok(day.slots.every((sl) => sl.status === 'empty'));
+  const failed = D.createDay(MON, settings(), plan);
+  failed.units = train(failed);
+  D.endBreak(failed, D.lastSlot(failed), 'skip', 0);
+  assert.equal(D.gradeDay(failed, MON, MON), 'fail');
+  assert.equal(S.summarizeDay(MON, day, MON).status, 'pass');
+});
+
 // ---------- rebuild ----------
 test('rebuildDay: new schedule keeps progress, re-distributes, past new slots missed', () => {
   const day = D.createDay(MON, settings(), plan);
@@ -291,7 +390,7 @@ test('rebuildDay: new schedule keeps progress, re-distributes, past new slots mi
   assert.equal(day.slots[1].status, 'done');
   assert.equal(day.units[0].doneSets, 5);
   // re-spread over the still-pending slots only (11:30 onward = index 2..7)
-  assert.deepEqual(day.units.map((u) => u.slot), [2, 3, 4, 5, 6, 7]);
+  assert.deepEqual(day.units.map((u) => u.slot), [2, 3, 4, 5, 6, 7, 7]); // stretch stays on the last slot
 });
 
 test('rebuildDay: switching today to rest clears units', () => {
@@ -374,7 +473,7 @@ test('store: atomic save round-trips, no tmp left; corrupt file kept aside', () 
   store.saveAtomic(file, data);
   store.saveAtomic(file, data);
   assert.equal(fs.existsSync(`${file}.tmp`), false);
-  assert.equal(store.load(file).days[MON].units.length, 6);
+  assert.equal(store.load(file).days[MON].units.length, 7);
   fs.writeFileSync(file, '{broken');
   assert.deepEqual(store.load(file).days, {});
   assert.ok(fs.readdirSync(dir).some((f) => f.includes('.corrupt-')));
@@ -440,7 +539,7 @@ test('regression: moving end before now keeps a pending final break that opens n
   assert.equal(last.status, 'pending');
   const r = D.planCheck(day, T.parseHM('15:30'));
   assert.equal(r.open, D.lastSlot(day));
-  assert.equal(D.pendingUnits(day, r.open).length, 6);
+  assert.equal(D.pendingUnits(day, r.open).length, 7);
 });
 
 test('regression: new slot inside the 5-min grace opens instead of being missed', () => {
@@ -507,7 +606,7 @@ test('regression: store never treats a read I/O error as corrupt (no empty data,
 test('regression: day first created mid-day spreads units over the slots still ahead', () => {
   // 10:00–21:00 / 60 → 11 slots (11:00..21:00); created at 16:10 → first open slot is 17:00 (index 6)
   const day = D.createDay(MON, settings(), plan, T.parseHM('16:10'));
-  const slots = day.units.map((u) => u.slot);
+  const slots = train(day).map((u) => u.slot);
   assert.equal(Math.min(...slots), 6);
   assert.ok(Math.max(...slots) < D.lastSlot(day) + 1);
   // the 16:00 slot is past grace → planCheck at startup marks earlier slots missed, and the first
@@ -557,6 +656,13 @@ test('i18n: every key exists in both languages; plan has English for every visib
     }
   }
   for (const m of en.circuits.core) assert.ok(!cjk.test(m.name + m.tips.join()), m.id);
+  for (const [id, st] of Object.entries(en.stretches)) {
+    assert.ok(!cjk.test(st.name + st.tips.join()), `stretch ${id}`);
+    assert.equal(st.clip, `stretch_${id}`);
+    assert.equal(typeof st.sides, 'boolean');
+    assert.ok(plan.stretches[id].tips.length >= 1 && plan.stretches[id].tips.length === st.tips.length, `stretch ${id} tips`);
+  }
+  for (const pd of ['d1', 'd2', 'd3']) for (const id of plan.days[pd].stretch) assert.ok(plan.stretches[id], `${pd} stretch ${id}`);
   assert.equal(en.days.d1.units[0].name, 'Push-up');
   assert.equal(I.localizePlan(plan, 'zh').days.d1.units[0].name, '伏地挺身');
   assert.equal(plan.days.d1.units[0].name, '伏地挺身', 'source plan untouched');
