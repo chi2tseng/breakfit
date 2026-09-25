@@ -203,7 +203,7 @@ async function main() {
     }
     if (ph === 'finish') break;
   }
-  check('Space walks preview → hold per side to finish', walked[walked.length - 1] === 'finish' && walked.filter((x) => x === 'hold').length === 6, walked.join(','));
+  check('Space walks preview → hold per side to finish', walked[walked.length - 1] === 'finish' && walked.filter((x) => x === 'hold').length === 5, walked.join(','));
   check('stretch recorded', await until("bf.getState().then((s) => s.day.units.find((u) => u.id === 'stretch').doneSets === 1)", 3000));
   await shot('desktop-last-stretch-finish');
   await js(frame("w.bf.end('done')"));

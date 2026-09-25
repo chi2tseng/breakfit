@@ -72,7 +72,7 @@ function repRange(it) {
   const [a, b] = it.target;
   return a === b ? `${a}` : `${a}–${b}`;
 }
-// Same meta as the break overlay's intro rows: `4 × 8–15 下` / `8 × 30 秒` / stretch holds `6 × 30 秒`.
+// Same meta as the break overlay's intro rows: `4 × 8–15 下` / `8 × 30 秒` / stretch holds `5 × 30 秒`.
 function itemMeta(it) {
   if (it.type === 'reps') return `${it.setsLeft} × ${t(it.perSide ? 'perSideReps' : 'repsN', { r: repRange(it) })}`;
   if (it.type === 'stretch') return t('timedMeta', { n: it.moves.reduce((a, m) => a + (m.sides ? 2 : 1), 0), s: it.holdSec });

@@ -541,11 +541,11 @@
         "03:54"
       ],
       "tips": [
-        "手搭在柱子或門框上，做弓步",
+        "手舉高抓住柱子，做弓步",
         "身體向前壓，感覺胸肌被拉開"
       ],
       "tips_en": [
-        "Hand on a post or door frame, step into a lunge",
+        "Grip a post overhead, step into a lunge",
         "Lean forward until you feel it across the chest"
       ]
     },
@@ -617,31 +617,31 @@
         "06:26"
       ],
       "tips": [
-        "同後束，但大拇指朝外",
-        "或手放身後，另一手往旁邊拉"
+        "手臂橫過胸前，大拇指朝外",
+        "另一手扣住手腕往身上拉"
       ],
       "tips_en": [
-        "Like the rear delt stretch, thumb pointing out",
-        "Or hand behind your back, pulled sideways"
+        "Arm across the chest, thumb pointing out",
+        "Pull it in at the wrist with the other hand"
       ]
     },
     "front_delt": {
       "id": "front_delt",
       "name": "三角肌前束拉伸",
       "name_en": "Front delt stretch",
-      "sides": true,
+      "sides": false,
       "clip": "stretch_front_delt",
       "window": [
         "06:26",
         "07:06"
       ],
       "tips": [
-        "手放身後扶住柱子",
-        "身體慢慢往前走，也會拉到胸"
+        "坐在地上，雙手撐在身後",
+        "屁股慢慢往前移、上身後仰，打開胸口和肩膀前側"
       ],
       "tips_en": [
-        "Hand behind you on a post",
-        "Walk your body forward — it also reaches the chest"
+        "Sit on the floor, hands planted behind you",
+        "Slide your hips forward and lean back to open the chest and front shoulders"
       ]
     },
     "biceps": {
@@ -693,12 +693,12 @@
         "10:20"
       ],
       "tips": [
-        "一腳搭在另一腳上",
-        "身體往後倒，感覺臀部被拉開"
+        "扶住柱子，一腳腳踝搭在另一腳膝蓋上",
+        "屁股往後往下坐，感覺臀部被拉開"
       ],
       "tips_en": [
-        "Cross one ankle over the other knee",
-        "Lean back until you feel it in the glute"
+        "Hold a post, cross one ankle over the other knee",
+        "Sit your hips back and down until you feel it in the glute"
       ]
     },
     "quad": {
@@ -731,11 +731,11 @@
         "13:46"
       ],
       "tips": [
-        "弓步，髖部往前推",
+        "半跪弓步，後腳膝蓋著地，髖部往前推",
         "骨盆不要前傾，上身和地面垂直"
       ],
       "tips_en": [
-        "Lunge and push the hips forward",
+        "Half-kneeling lunge, back knee down, push the hips forward",
         "Keep the pelvis neutral, torso upright"
       ]
     }

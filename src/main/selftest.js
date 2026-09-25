@@ -113,7 +113,8 @@ const STRETCH_SCREENS = [
   ['stretch-preview', "__test.show('stretchPreview', { remaining: 3.6 })", '拉伸：5 秒預覽(右側)'],
   ['stretch-hold-right', "__test.show('hold', { remaining: 21.4 })", '拉伸：右側 30 秒'],
   ['stretch-hold-left', "__test.show('hold', { nth: 1, remaining: 12.2 })", '拉伸：換左側'],
-  ['stretch-hold-single', "__test.show('hold', { nth: 5, remaining: 27 })", '拉伸：最後一個'],
+  ['stretch-hold-both', "__test.show('hold', { nth: 2, remaining: 18 })", '拉伸：雙手同時(前束，不分左右)'],
+  ['stretch-hold-single', "__test.show('hold', { nth: 4, remaining: 27 })", '拉伸：最後一個'],
   ['stretch-finish-pass', "__test.show('finish', { sets: 3, stretchDone: true })", '拉伸做完：今天合格'],
   ['stretch-finish-fail', "__test.show('finish', { sets: 3 })", '拉伸沒做完：今天不合格'],
 ];
@@ -354,15 +355,15 @@ async function main() {
   const pS = stretchPayload(ctl);
   assert(pS.isLast && pS.stretchOwed && pS.items.map((i) => `${i.unitId}${i.carried ? '*' : ''}`).join(',') === 'bench_dip*,stretch', `last break = carried bench dip, then the stretch (${pS.items.map((i) => i.unitId)})`);
   const stIt = pS.items[1];
-  assert(stIt.moves.map((m) => `${m.id}${m.sides ? '2' : ''}`).join(',') === 'chest2,front_delt2,triceps2' && stIt.holdSec === 30, `第 1 天 stretches: chest, front delt, triceps, both sides, 30 s (${stIt.moves.map((m) => m.id)})`);
+  assert(stIt.moves.map((m) => `${m.id}${m.sides ? '2' : ''}`).join(',') === 'chest2,front_delt,triceps2' && stIt.holdSec === 30, `第 1 天 stretches: chest ×2 sides, front delt (both arms at once), triceps ×2 sides, 30 s (${stIt.moves.map((m) => m.id)})`);
   ctl.openBreak('test', null, pS);
   const owS = ctl.overlayWins[0];
   await waitLoad(owS);
   await until(owS, 'window.__test && window.__test.ready()');
   const kindsS = (await js(owS, "__test.steps().join(',')")).split(',');
   const firstS = kindsS.indexOf('stretchPreview');
-  assert(firstS > 0 && kindsS[firstS - 1] === 'work' && kindsS.slice(firstS).join(',') === `${'stretchPreview,hold,'.repeat(6)}stretchDone`,
-    `steps: training, then (preview, hold) × 6 sides, no rest before the stretch (${kindsS.slice(firstS - 1).join(',')})`);
+  assert(firstS > 0 && kindsS[firstS - 1] === 'work' && kindsS.slice(firstS).join(',') === `${'stretchPreview,hold,'.repeat(5)}stretchDone`,
+    `steps: training, then (preview, hold) × 5 holds, no rest before the stretch (${kindsS.slice(firstS - 1).join(',')})`);
   for (const [name, code, desc] of STRETCH_SCREENS) {
     await js(owS, code);
     await shot(owS, `26-${name}`, desc);
@@ -375,7 +376,7 @@ async function main() {
   assert(await press(owS, ' ') === 'stretchPreview' && await js(owS, "document.getElementById('pMeta').textContent.startsWith('左側')"), 'Space on a hold → next: preview of the left side');
   await delay(450);
   assert(await press(owS, ' ') === 'hold', 'Space on the stretch preview → hold');
-  await js(owS, "__test.show('hold', { nth: 5, remaining: 3 })");
+  await js(owS, "__test.show('hold', { nth: 4, remaining: 3 })");
   await delay(450);
   assert(await press(owS, ' ') === 'finish', 'Space on the last hold → finish (stretch recorded)');
   assert(ctl.currentBreak && ctl.currentBreak.sets === 1, 'the stretch was recorded through IPC when its last hold ended');
@@ -433,7 +434,7 @@ async function main() {
   await waitLoad(owS2);
   await until(owS2, 'window.__test && window.__test.ready()');
   const kOffS = await js(owS2, "__test.steps().join(',')");
-  assert(!/stretchPreview/.test(kOffS) && (kOffS.match(/hold/g) || []).length === 6, `demo OFF: stretch goes hold → hold, no previews (${kOffS})`);
+  assert(!/stretchPreview/.test(kOffS) && (kOffS.match(/hold/g) || []).length === 5, `demo OFF: stretch goes hold → hold, no previews (${kOffS})`);
   await js(owS2, "__test.show('hold', { remaining: 2 })");
   await delay(450);
   assert(await press(owS2, ' ') === 'hold' && await js(owS2, "document.getElementById('pMeta').textContent.startsWith('左側')"), 'demo OFF: Space on the right-side hold → left-side hold');
@@ -640,7 +641,7 @@ async function main() {
   await js(mw, "__test.tab('today'); __test.scroll(0); __test.filter('d1')");
   await delay(200);
   const heroS = await js(mw, "document.querySelector('#heroText .hero-time').textContent + '|' + document.querySelector('#heroText .hero-name').textContent + '|' + document.querySelector('#heroText .hero-meta').textContent + '|' + !document.getElementById('heroClip').hidden + '|' + document.getElementById('heroClip').dataset.name");
-  assert(heroS === '21:00|拉伸|6 × 30 秒|true|胸肌拉伸', `今天 hero: the stretch at the last stop, first stretch clip (${heroS})`);
+  assert(heroS === '21:00|拉伸|5 × 30 秒|true|胸肌拉伸', `今天 hero: the stretch at the last stop, first stretch clip (${heroS})`);
   const lastStop = await js(mw, "(() => { const s = [...document.querySelectorAll('#timeline .stop')].pop(); return s.getAttribute('aria-label') + '|' + s.querySelector('.tip').textContent + '|' + s.className; })()");
   assert(/拉伸/.test(lastStop.split('|')[0]) && /拉伸/.test(lastStop.split('|')[1]) && / next /.test(` ${lastStop.split('|')[2]} `), `day line: last stop label + tooltip say 拉伸, and it is the next stop (${lastStop})`);
   await shot(mw, '50-today-stretch-owed', '今天：練完了，最後一站還要拉伸');
@@ -664,7 +665,7 @@ async function main() {
   const owR = ctl.overlayWins[0];
   await waitLoad(owR);
   await until(owR, 'window.__test && window.__test.ready()');
-  assert(await js(owR, "__test.steps().join(',')") === `${'stretchPreview,hold,'.repeat(6)}stretchDone`, 'stretch-only break: previews + holds');
+  assert(await js(owR, "__test.steps().join(',')") === `${'stretchPreview,hold,'.repeat(5)}stretchDone`, 'stretch-only break: previews + holds');
   await js(owR, "__test.show('intro', { remaining: 6 })");
   await shot(owR, '53-last-break-stretch-only', '最後一次：只剩拉伸');
   await js(owR, "__test.show('hold', { nth: 2, remaining: 14 })");
