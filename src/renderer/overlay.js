@@ -173,7 +173,8 @@ const mmss = (sec) => {
 function renderTop() {
   $('#slotText').textContent = P.slotTime;
   const tag = $('#modeTag');
-  const modeLabel = P.mode === 'manual' ? t('earlyBreak') : P.mode === 'test' ? t('test') : '';
+  const modeLabel = P.mode === 'manual' ? t('earlyBreak') : P.mode === 'test' ? t('test')
+    : P.mode === 'session' ? t(P.extra ? 'extraSession' : 'fullWorkout') : '';
   tag.hidden = !modeLabel;
   tag.textContent = modeLabel;
   const total = steps.length || 1;
@@ -188,7 +189,18 @@ function renderTop() {
 const btn = (id, icon, label, { primary = false, fill = false, kbd = '', cd = false } = {}) =>
   `<button class="btn ${primary ? 'primary' : 'ghost'}" id="${id}">${ICON(icon, fill ? 'fill' : '')}${esc(label)}${kbd ? `<kbd>${kbd}</kbd>` : ''}${cd ? '<span class="cd" id="cd"></span>' : ''}</button>`;
 
+// A phase title wider than the panel (English day titles, long move names) steps down the type
+// scale — display → title2 → title3 — instead of ending in an ellipsis.
+function fitTitle() {
+  const el = $('#pTitle');
+  el.classList.remove('fit2', 'fit3');
+  if (el.scrollWidth > el.clientWidth + 1) el.classList.add('fit2');
+  if (el.scrollWidth > el.clientWidth + 1) { el.classList.remove('fit2'); el.classList.add('fit3'); }
+}
+addEventListener('resize', fitTitle);
+
 function frame({ clip, chip, title = '', meta = '', body = '', sec = '', pri = '', cover = null }) {
+  $('#panel').classList.remove('menu');
   const box = $('#clipMain');
   if (clip) mountClip(box, clip.url, clip.name, { poster: clip.poster });
   const v = $('video', box);
@@ -205,6 +217,7 @@ function frame({ clip, chip, title = '', meta = '', body = '', sec = '', pri = '
     ? `<span class="chip ${chip.tone || ''}">${chip.icon ? ICON(chip.icon, chip.fill ? 'fill' : '') : ''}${esc(chip.text)}</span>`
     : '';
   $('#pTitle').textContent = title;
+  fitTitle();
   $('#pMeta').innerHTML = meta;
   const b = $('#pBody');
   b.innerHTML = body;
@@ -229,16 +242,23 @@ function renderIntro() {
     return `<li><span class="nm">${esc(it.name)}${it.carried ? ICON('history') : ''}</span><span class="mt">${esc(meta)}</span></li>`;
   }).join('');
   const last = !!P.isLast;
+  const session = P.mode === 'session';
+  // 完整訓練: the whole menu and roughly how long it takes; leaving is Esc (no 跳過這次)
+  const sets = P.items.reduce((a, it) => a + (it.type === 'reps' ? it.setsLeft : 0), 0);
   frame({
     clip: P.items.length ? firstClip(P.items[0]) : null,
-    chip: last ? { tone: 'fail', icon: 'warning', fill: true, text: t('lastBreak') } : { icon: 'calendar_today', text: P.dayLabel || '' },
+    chip: last ? { tone: 'fail', icon: 'warning', fill: true, text: t('lastBreak') }
+      : { icon: session ? 'fitness_center' : 'calendar_today', text: P.dayLabel || '' },
     title: P.dayTitle || '',
+    meta: session ? metaHTML(esc(t('aboutMin', { n: Math.max(1, Math.ceil((P.estSec || 0) / 60)) })), sets ? esc(t(sets === 1 ? 'setsN1' : 'setsN', { n: sets })) : '') : '',
     body: `<ul class="plan">${rows}</ul>`,
-    sec: btn('skipBtn', 'skip_next', t('skipThis')),
+    sec: session ? '' : btn('skipBtn', 'skip_next', t('skipThis')),
     pri: btn('startBtn', 'play_arrow', t('start'), { primary: true, fill: true, kbd: 'Space', cd: true }),
   });
   $('#startBtn').onclick = startSteps;
-  $('#skipBtn').onclick = askSkip;
+  if (!session) $('#skipBtn').onclick = askSkip;
+  // the whole day's menu: compact rows that share the height, in the empty secondary slot
+  if (session) $('#panel').classList.add('menu');
 }
 
 function renderDemo(s) {
@@ -368,9 +388,14 @@ function renderFinish() {
   const allDone = total > 0 && done >= total && !stretchOwed;
   const failed = P.isLast && !allDone && P.mode === 'slot';
   let chip = { icon: 'check_circle', text: t('done') };
+  const session = P.mode === 'session';
   if (!test && P.isLast && P.mode === 'slot') {
     chip = allDone ? { tone: 'accent', icon: 'check_circle', fill: true, text: t('passedToday') } : { tone: 'fail', icon: 'cancel', fill: true, text: t('failedToday') };
-  } else if (!test && allDone) chip = { tone: 'accent', icon: 'check_circle', fill: true, text: t('allDoneToday') };
+  } else if (!test && allDone) {
+    // a full workout of today's plan that clears the day passes it; an extra one is just done
+    const word = session ? (P.extra ? 'sessionDone' : 'passedToday') : 'allDoneToday';
+    chip = { tone: 'accent', icon: 'check_circle', fill: true, text: t(word) };
+  }
   // training cleared before the last break: say the stretch still waits there
   const later = !test && total > 0 && done >= total && stretchOwed && !P.isLast;
   const nextAt = !test && !allDone && P.nextBreak && !P.isLast
@@ -381,7 +406,7 @@ function renderFinish() {
       <div class="bar"><div style="width:${Math.min(100, (done / total) * 100)}%"></div></div></div>` : '';
   frame({
     chip,
-    title: t('thisBreak', { n: st.sessionSets }),
+    title: t(session ? 'thisSession' : 'thisBreak', { n: st.sessionSets }),
     // every set can be done and the day still fail: say it was the stretch
     meta: failed && stretchOwed ? metaHTML(`${ICON('self_improvement')}${esc(t('stretchNotDone'))}`) : nextAt,
     body: prog + adjust,
@@ -523,7 +548,7 @@ function askLeave() {
   const lastWarn = P.isLast && P.mode === 'slot';
   openModal({
     kind: 'leave',
-    title: t('leaveQ'),
+    title: t(P.mode === 'session' ? 'leaveSessionQ' : 'leaveQ'),
     body: lastWarn ? t('leaveFails') : '',
     ok: t('leave'),
     warn: lastWarn,

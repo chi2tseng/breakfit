@@ -110,7 +110,7 @@ then ≥ 15 px in `--muted` (≥ 4.5:1, §9).
 | Token | px / line-height / weight | Main window | Overlay (rem = px/16) |
 |---|---|---|---|
 | footnote | 13 / 18 / 400·600 | chart axis (400), pass/fail pill (600) | kbd, mode tag (600) |
-| subheadline | 15 / 20 / 400·600 | segments (selected 600), timeline counts + status, day-line stop times (next 600), reps line, weekday toggles; 600: eyebrow `第 1 天`, table headers `組` `次數`, calendar weekday row + day numbers | — |
+| subheadline | 15 / 20 / 400·600 | segments (selected 600), timeline counts + status, day-line stop times (next 600), reps line, weekday toggles; 600: eyebrow `第 1 天`, table headers `組` `次數`, calendar weekday row + day numbers | 完整訓練 menu rows (400) |
 | body | 17 / 24 / 400 | default: nav, row labels, inputs, buttons, timeline names, library names, tips, hero meta `2 × 8–15 下`, progress `7 / 25 組`, stat labels | slot time, plan rows, tips, `上一組` |
 | headline | 17 / 24 / 600 | active nav, table day header, calendar %, detail counts, next slot time (rows), stat values, the done count in `7 / 25 組` | chips, every button |
 | title3 | 21 / 26 / 600 (400 overlay meta) | section titles, detail date, brand, `還有 25 分` (accent) | meta line (400), unit `下` (400), `13 / 25 組` (600) |
@@ -193,6 +193,17 @@ floor keeps the smallest token (13 px) legal on 4:3 screens.
 The intro lists the stretch as its own row, last: `拉伸`  `5 × 30 秒` (holds × seconds; a sided
 stretch counts two holds). The stretch is not a set: `N / 25 組` never includes it.
 
+**完整訓練 (mode `session`, SPEC §5b).** Same stage, same phases; only the intro and finish differ.
+Top-bar mode tag `完整訓練` (`加練` when it does not count toward today). Intro: chip
+`fitness_center 第 1 天`, title = plan title, meta `約 47 分鐘`  `25 組` (estimate, two spans), body =
+the whole day's menu (up to 9 rows incl. 拉伸) in subheadline rows that start at 2.375rem and
+shrink to share the height (the list always fits, never scrolls); E (跳過這次) is dropped and
+its row goes to the list (`#panel.menu`: the foot is one row, so F stays exactly where it is).
+Any phase title wider than the panel (English day titles, long move names) steps down the scale
+instead of ending in an ellipsis: display → title2 → title3 600 (`.fit2` / `.fit3`).
+Finish: `這次 N 組`; verdict `今天合格` when the session cleared today, `訓練完成` for 加練 (English title `25 Sets Done`). Leave
+dialog title `結束訓練？`, no body line (leaving never fails the day by itself).
+
 Leave and skip dialogs: title and buttons only. A body line appears only for a consequence, in red
 (`離開 = 今天不合格`, `跳過 = 今天不合格`).
 
@@ -266,6 +277,19 @@ follow Windows display scaling too; 965×940 at 150 % = 643×627 CSS px):
   padding, 32 px segments, selected = neutral raised thumb (`--seg-on`: white + `--seg-edge`
   shadow in light, systemGray2 in dark) with primary text; labels subheadline, never wrap.
 - **Player:** video `1fr` + side column `clamp(220px, 30%, 320px)`, title2 title, 關閉 at the bottom.
+- **完整訓練 button + chooser:** the 今天 head carries two buttons (`.head-actions`, 12 px gap):
+  `fitness_center 完整訓練` (default / secondary fill) left of `play_arrow 現在就休息` (primary, the
+  one accent button; hidden when nothing is owed, 完整訓練 stays). Disabled while a break or session
+  runs. Content 480–679 px: 完整訓練 is icon-only (square, name kept as aria-label + tooltip) so
+the title keeps its room. Phone: they drop under the title, left-aligned, labels back. The chooser is a small sheet, not a page:
+  backdrop `--backdrop`, card `min(400px, 100%)`, `--surface`, hairline, `--r-lg`, 24 px padding,
+  20 px gaps: title3 `完整訓練` → full-width segmented `第 1 天 / 第 2 天 / 第 3 天` (default =
+  today's plan day; rest / off → next training day) → headline plan title + one muted meta row
+  (`6 個動作`  `約 47 分鐘`, or `2 輪`; a neutral `加練` pill when it won't count toward today) →
+  `取消` / `play_arrow 開始` (primary) right-aligned. 開始 has focus on open; Esc / backdrop click
+  closes. The tray's `完整訓練…` opens the main window on 今天 with the sheet open.
+- **History day detail, 加練:** one `.urow` per extra session after the move rows:
+  `加練　第 2 天` · `18 組` (accent) · `42 分鐘` (muted second line).
 - **History:** the streak is the hero: `連續 4 天` / `4 days in a row` with the numeral in
   `--t-hero` ink and the words in title2, one baseline. No streak: the same slot says when the next
   training starts (`下次 11:00` / `明天 11:00`, time in `--t-hero`), never a big `0`. The other three
@@ -327,7 +351,7 @@ month stat, Apple zh-TW / `Intl`), standalone counts and ordinals do (`183 組`,
 `7 / 25 組`, `還有 25 分`). `plan.json` days carry `label` (`第 1 天`) + `title` (`胸與三頭`); ids
 and structure unchanged. English titles are names joined with `,` / `&` (`Chest & Triceps`), never
 a `·` chain (the tray header is `Day 1: Chest & Triceps`; circuit rounds `Core Round 1`).
-**One verb per action, end to end:** `現在就休息` opens the break, whose intro button is `開始`;
+**One verb per action, end to end:** `現在就休息` opens the break, whose intro button is `開始` (`完整訓練` likewise: sheet `開始` → intro `開始`);
 the last screen says `完成`. English copy uses curly apostrophes (`don’t`) and Title
 Case for labels and buttons (`Walk Reminder`, `Open at Login`). One term per feature in both
 places it shows (`開機啟動` in settings and the tray; `預覽休息畫面` / `Preview Break`). The one
@@ -493,7 +517,8 @@ Hidden windows, temp profile, both themes:
   chart, top + bottom), 設定 (top + bottom incl. menu table).
 - Overlay 1024×768, 1280×720, 1280×800, 1366×768, 1440×900, 1536×864, 1920×1080, 2560×1440 →
   intro, demo, work, rest, finish, leave dialog (第 1 天) and last intro, timed, round rest,
-  finish pass (第 3 天).
+  finish pass (第 3 天), stretch screens, and 完整訓練 intro (第 2 天, 9 rows) / set rest / finish.
+  The main window also lints the 完整訓練 chooser (`#workout`, 第 2 天 = 加練).
 - PNGs: `selftest-out/matrix/<theme>-<screen>-<W>x<H>[@zoom].png`; lint: `selftest-out/matrix/lint.json`
   (`total`, `bySize`, `byRule`, distinct type combos with counts, every issue with selector +
   text + size). Lint source: `src/main/layout-lint.js`.

@@ -683,10 +683,153 @@ async function main() {
   await delay(400);
   assert(!ctl.currentBreak && D.stretchDone(tday) === false && tday.status === 'fail', `left mid-stretch → stretch not done → today fails (${tday.status})`);
 
+  await fullWorkout(ctl, mw, settle, clock);
+
   fs.writeFileSync(path.join(OUT, 'results.json'), JSON.stringify({ results, failures }, null, 2));
   console.log(`\n${results.length} screenshots → ${OUT}`);
   console.log(failures.length ? `SELFTEST FAIL (${failures.length})` : 'SELFTEST PASS');
   return failures.length ? 1 : 0;
+}
+
+// ---------- 完整訓練 (full workout): chooser, overlay screens, real recording paths ----------
+async function fullWorkout(ctl, mw, settle, clock) {
+  console.log('full workout');
+  const openOv = async (payload) => {
+    ctl.openBreak('test', null, payload);
+    const ow = ctl.overlayWins[0];
+    await waitLoad(ow);
+    await until(ow, 'window.__test && window.__test.ready()');
+    return ow;
+  };
+  const ready = async (win) => { await waitLoad(win); await until(win, 'window.__test && window.__test.ready()'); };
+  const scan = async (win, what) => { const bad = await js(win, CJK_SCAN); assert(!bad.length, `English ${what}: no CJK ${bad.length ? JSON.stringify(bad) : ''}`); };
+
+  // a fresh 第 1 天 at 10:50, nothing done yet
+  const s = ctl.data.settings;
+  clock.set(new Date(2026, 8, 24, 10, 50, 0));
+  ctl.data.days[TODAY] = D.createDay(TODAY, s, plan, T.parseHM('10:50'));
+  const tday = ctl.data.days[TODAY];
+  tday.planDay = 'rest';
+  assert(ctl.getState().session.def === 'd2', 'chooser default on a rest day = the next training day (第 2 天)');
+  tday.planDay = 'd1';
+
+  // chooser: default = today's plan day; another day says 加練 (both themes, both languages)
+  for (const [theme, lang, pre] of [['dark', 'zh', ''], ['light', 'zh', 'light-'], ['dark', 'en', 'en-'], ['light', 'en', 'en-light-']]) {
+    await js(mw, `window.bf.saveSettings({ theme: '${theme}', lang: '${lang}' }).then(() => true)`);
+    await settle(mw);
+    await js(mw, "__test.close(); __test.tab('today'); __test.scroll(0)");
+    assert(await js(mw, "__test.workout() && document.querySelector('#woDay .on').dataset.d") === 'd1', `${pre || 'zh-'}chooser opens on today's plan day`);
+    if (lang === 'en') await scan(mw, 'chooser');
+    await shot(mw, `${pre}60-workout-chooser`, `${pre}完整訓練：選第幾天(預設今天)`);
+    await js(mw, "__test.workout('d2')");
+    const meta = await js(mw, "document.getElementById('woName').textContent + '|' + document.getElementById('woMeta').textContent");
+    assert(/\|8 (個動作|exercises)/.test(meta) && /(加練|Extra Workout)$/.test(meta), `${pre || 'zh-'}chooser 第 2 天: 8 moves, time, 加練 (${meta})`);
+    await shot(mw, `${pre}61-workout-chooser-extra`, `${pre}完整訓練：選別天 = 加練`);
+    await js(mw, '__test.close()');
+  }
+  await js(mw, "window.bf.saveSettings({ theme: 'dark', lang: 'zh' }).then(() => true)");
+  await settle(mw);
+
+  // overlay screens (frozen): 第 1 天 full menu, a set rest, finish; 第 3 天 round rest
+  const p1 = ctl.buildSessionPayload(TODAY, D.createDay(TODAY, s, plan, 600), 'd1');
+  p1.showDemo = true;
+  assert(!p1.extra && p1.items.map((i) => i.unitId).join(',') === 'pushup,weighted_pushup,incline_pushup,diamond_pushup,triceps_pushup,bench_dip,stretch', 'session payload: whole day in plan order, stretch last');
+  const ow = await openOv(p1);
+  const steps = await js(ow, "__test.steps().join(',')");
+  assert(steps.startsWith('demo,work,rest,work,rest,work') && steps.endsWith('stretchDone') && !/rest,stretch/.test(steps), 'session steps: demo → sets with rests → … → stretch (no rest before it)');
+  await js(ow, "__test.show('intro', { remaining: 8 })");
+  const intro = await js(ow, "document.getElementById('modeTag').textContent + '|' + document.querySelectorAll('.plan li').length + '|' + document.getElementById('pMeta').textContent + '|' + !document.getElementById('skipBtn')");
+  assert(/^完整訓練\|7\|約 \d+ 分鐘25 組\|true$/.test(intro), `session intro: tag, 7 rows, time + sets, no 跳過 (${intro})`);
+  await shot(ow, '62-session-intro', '完整訓練：開場列出整天菜單 + 預估時間');
+  await js(ow, "__test.show('rest', { nth: 6, remaining: 38, reps: 11 })");
+  await shot(ow, '63-session-set-rest', '完整訓練：組間休息 60 秒(下一組)');
+  await js(ow, '__test.leave()');
+  assert(await js(ow, "document.getElementById('mTitle').textContent") === '結束訓練？', 'Esc in a session asks 結束訓練？');
+  await js(ow, "__test.show('finish', { sets: 25, stretchDone: true })");
+  assert(await js(ow, "document.querySelector('#pChip .chip').lastChild.textContent") === '今天合格', 'session of today, all done → 今天合格');
+  await shot(ow, '65-session-finish', '完整訓練：完成(今天合格)');
+  ctl.endBreak('abort');
+  const p3 = ctl.buildSessionPayload(TODAY, tday, 'd3');
+  p3.showDemo = true;
+  assert(p3.extra && p3.items.map((i) => i.type).join(',') === 'circuit,circuit,stretch', 'session of 第 3 天 (another day) = 加練: both rounds + stretch');
+  const ow3 = await openOv(p3);
+  assert(/timed,round,roundRest,preview/.test(await js(ow3, "__test.steps().join(',')")), 'd3 session: round 1 → 180 s round rest → round 2');
+  await js(ow3, "__test.show('roundRest', { remaining: 131 })");
+  await shot(ow3, '64-session-round-rest', '完整訓練第 3 天：輪間休息 3 分鐘');
+  await js(ow3, "__test.show('finish', { sets: 2, stretchDone: true })");
+  const fin = await js(ow3, "document.querySelector('#pChip .chip').lastChild.textContent + '|' + document.getElementById('modeTag').textContent");
+  assert(fin === '訓練完成|加練', `extra session finish: 訓練完成, tagged 加練 (${fin})`);
+  await shot(ow3, '66-session-finish-extra', '加練完成');
+  ctl.endBreak('abort');
+  for (const [theme, lang, pre] of [['light', 'zh', 'light-'], ['dark', 'en', 'en-']]) {
+    await js(mw, `window.bf.saveSettings({ theme: '${theme}', lang: '${lang}' }).then(() => true)`);
+    const px = ctl.buildSessionPayload(TODAY, D.createDay(TODAY, s, plan, 600), 'd2');
+    px.showDemo = true;
+    const owX = await openOv(px);
+    await js(owX, "__test.show('intro', { remaining: 8 })");
+    if (lang === 'en') await scan(owX, 'session intro');
+    await shot(owX, `${pre}62-session-intro-d2`, `${pre}完整訓練第 2 天(加練)開場`);
+    await js(owX, "__test.show('rest', { nth: 3, remaining: 38, reps: 11 })");
+    if (lang === 'en') await scan(owX, 'session rest');
+    await shot(owX, `${pre}63-session-set-rest`, `${pre}完整訓練：組間休息`);
+    ctl.endBreak('abort');
+  }
+  await js(mw, "window.bf.saveSettings({ theme: 'dark', lang: 'zh' }).then(() => true)");
+  await settle(mw);
+
+  // real path 1: today's session from 10:50; 11:00 and 12:00 come due meanwhile → never a 2nd overlay
+  assert(ctl.openSession('d1') && ctl.currentBreak.mode === 'session' && !ctl.currentBreak.extra, "openSession(d1) on a 第 1 天 = today's session");
+  const owA = ctl.overlayWins[0];
+  await ready(owA);
+  assert(!ctl.openBreak('manual') && !ctl.openSession('d2') && ctl.overlayWins.length === 1, 'no break / second session while a session runs');
+  for (let i = 0; i < 5; i++) await js(owA, "window.bf.setDone('pushup', 10)");
+  clock.set(new Date(2026, 8, 24, 12, 10, 0));
+  ctl.check();
+  assert(ctl.currentBreak && ctl.currentBreak.mode === 'session' && ctl.overlayWins.length === 1, 'breaks due during the session do not open');
+  await js(owA, "setTimeout(() => window.bf.end('abort'), 0); true");
+  await delay(400);
+  assert(!ctl.currentBreak && tday.units[0].doneSets === 5 && D.doneSets(tday) === 5, 'left mid-way: the 5 sets stay recorded');
+  assert(tday.slots[0].status === 'empty' && tday.slots[1].status === 'missed' && tday.status === 'pending', `stops due meanwhile absorbed (${tday.slots[0].status}/${tday.slots[1].status}), day still pending`);
+  ctl.check();
+  assert(!ctl.currentBreak, '12:10 check after the session: nothing opens');
+  assert(D.pendingUnits(tday, 2).some((p) => p.unit.id === 'weighted_pushup' && p.carried), 'the rest carries on to the next break');
+
+  // real path 2: a second session does the remaining sets only → today passes, no more pop-ups
+  ctl.openSession('d1');
+  const pay = ctl.currentBreak.payload;
+  assert(pay.items[0].unitId === 'weighted_pushup' && pay.items[0].setNo === 1 && pay.items.length === 6, 'second session: remaining units only (pushup done)');
+  const owB = ctl.overlayWins[0];
+  await ready(owB);
+  for (const it of pay.items) {
+    const n = it.type === 'reps' ? it.setsLeft : 1;
+    for (let i = 0; i < n; i++) await js(owB, `window.bf.setDone(${JSON.stringify(it.unitId)}, 10)`);
+  }
+  await js(owB, "setTimeout(() => window.bf.end('done'), 0); true");
+  await delay(400);
+  assert(tday.status === 'pass' && tday.slots.slice(2).every((x) => x.status === 'empty'), `full session → today passes, remaining stops empty (${tday.status})`);
+  const ends = tday.events.filter((e) => e.type === 'session_end').map((e) => `${e.detail.outcome}:${e.detail.sets}`).join(',');
+  assert(ends === 'abort:5,done:20', `session_end events (${ends})`);
+
+  // real path 3: another plan day = 加練: logged on today's record, grade and sets unchanged
+  ctl.openSession('d2');
+  assert(ctl.currentBreak.extra, 'd2 on a 第 1 天 = 加練');
+  const owC = ctl.overlayWins[0];
+  await ready(owC);
+  for (let i = 0; i < 3; i++) await js(owC, "window.bf.setDone('y_raise', 15)");
+  clock.set(new Date(2026, 8, 24, 12, 40, 0));
+  await js(owC, "setTimeout(() => window.bf.end('abort'), 0); true");
+  await delay(400);
+  const ex = D.extraSessions(tday);
+  assert(ex.length === 1 && ex[0].planDay === 'd2' && ex[0].sets === 3 && ex[0].sec >= 60 && tday.status === 'pass' && D.doneSets(tday) === 25,
+    `加練 logged (${JSON.stringify(ex)}), today untouched`);
+  await js(mw, 'window.bf.saveSettings({}).then(() => true)');
+  await settle(mw);
+  await js(mw, `__test.tab('history'); __test.select('${TODAY}').then(() => __test.scroll(0))`);
+  await delay(250);
+  const row = await js(mw, "[...document.querySelectorAll('#detail .urow')].map((r) => r.textContent).filter((x) => x.startsWith('加練')).join('|')");
+  assert(/^加練　第 2 天3 組\d+ 分鐘$/.test(row), `history day detail shows 加練 (${row})`);
+  await shot(mw, '67-history-extra', '記錄：當天明細的加練');
+  await js(mw, "__test.tab('today')");
 }
 
 // ---------- size matrix + layout lint (DESIGN.md §10) ----------
@@ -742,6 +885,7 @@ async function matrix(ctl, mw) {
     ['today-rest', "__test.hero('rest')", true],
     ['library-stretch', "__test.filter('stretch'); __test.scroll(100000)", true],
     ['player', "__test.filter('d1'); __test.scroll(0); __test.hero(null); __test.open('pushup')", true],
+    ['workout', "__test.close(); __test.workout('d2')", true],
     ['history', `__test.close(); __test.tab('history'); __test.select('${failDay}').then(() => __test.scroll(0))`, true],
     ['history-bottom', '__test.scroll(100000)', false],
     ['settings', "__test.tab('settings'); __test.scroll(0)", true],
@@ -757,6 +901,8 @@ async function matrix(ctl, mw) {
     ['d3', [['last-intro', "__test.show('intro', { remaining: 9.1 })"], ['timed', "__test.show('timed', { nth: 2, remaining: 18.2 })"],
       ['round-rest', "__test.show('roundRest', { remaining: 152 })"], ['finish-pass', "__test.show('finish', { sets: 2 })"]]],
     ['stretch', STRETCH_SCREENS.filter(([n]) => !['stretch-hold-single', 'stretch-finish-fail'].includes(n)).map(([n, code]) => [n, code])],
+    ['session', [['session-intro', "__test.show('intro', { remaining: 8 })"], ['session-rest', "__test.show('rest', { nth: 6, remaining: 38, reps: 11 })"],
+      ['session-finish', "__test.show('finish', { sets: 25, stretchDone: true })"]]],
   ];
 
   // 繁中 in both themes at every size; English (longer words) in dark at the sizes that bound the layouts.
@@ -776,7 +922,7 @@ async function matrix(ctl, mw) {
       const tag = `${w}x${h}${z === 1 ? '' : `@${Math.round(z * 100)}`}`;
       for (const [screen, code, doLint] of MAIN_STATES) {
         await js(mw, code);
-        await snap(mw, `${pre}${theme}-${screen}-${tag}`, doLint ? { kind: 'main', root: screen === 'player' ? '#player' : 'body' } : null);
+        await snap(mw, `${pre}${theme}-${screen}-${tag}`, doLint ? { kind: 'main', root: screen === 'player' ? '#player' : screen === 'workout' ? '#workout' : 'body' } : null);
       }
       console.log(`  main ${tag} (css ${inner.join('x')})`);
     }
@@ -785,6 +931,7 @@ async function matrix(ctl, mw) {
     for (const [pd, states] of QUICK ? [] : OV) {
       const payload = pd === 'd1' ? ctl.buildPayload(TODAY, ctl.ensureToday(), 'slot', 6)
         : pd === 'stretch' ? stretchPayload(ctl)
+          : pd === 'session' ? ctl.buildSessionPayload(TODAY, D.createDay(TODAY, ctl.data.settings, plan, 600), 'd2')
           : ctl.buildPayload(d3key, d3, 'slot', D.lastSlot(d3));
       payload.showDemo = true;
       ctl.openBreak('test', null, payload);

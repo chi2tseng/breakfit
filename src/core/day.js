@@ -204,6 +204,66 @@ function endBreak(day, slotIndex, outcome, setsThisBreak) {
   closeRemainingIfDone(day);
 }
 
+// ---------- full workout (「完整訓練」) ----------
+// A session of today's plan day = every unit still owing sets, in plan order (the stretch unit is
+// built last, so it is only reached once all training is done). Nothing owed → null (the session
+// is then an extra one that records nothing into the day).
+function sessionUnits(day) {
+  const left = day.units.filter((u) => u.doneSets < u.targetSets);
+  return left.length ? left : null;
+}
+
+// Rough length of a session (seconds), for the chooser and the intro: 4 s a rep (3–5 s tempo, ×2 per
+// side), the set / round rests, demos and the 5 s previews when 示範 is on, stretch holds.
+const TEMPO_SEC = 4;
+const PREVIEW_SEC = 5;
+function estimateSec(plan, units, { demoSec = 8, showDemo = true } = {}) {
+  const src = (id) => Object.values(plan.days).flatMap((d) => d.units).find((u) => u.id === id) || {};
+  const look = showDemo ? PREVIEW_SEC : 0;
+  let sec = 0;
+  let prev = null;
+  for (const u of units) {
+    const left = Math.max(0, u.targetSets - u.doneSets);
+    if (!left) continue;
+    if (isStretch(u)) {
+      const holds = u.stretches.reduce((a, id) => a + ((plan.stretches[id] || {}).sides ? 2 : 1), 0);
+      sec += holds * ((plan.stretchHoldSec || 30) + look);
+      continue;
+    }
+    if (prev) sec += prev.type === 'circuit' && u.type === 'circuit' ? (plan.days.d3.roundRestSec || 180) : plan.setRestSec;
+    if (u.type === 'circuit') {
+      sec += left * plan.circuits[u.moves].reduce((a, m) => a + m.sec + look, 0);
+    } else {
+      const [lo, hi] = u.target;
+      const set = Math.round(((lo + hi) / 2) * TEMPO_SEC * (src(u.id).perSide ? 2 : 1));
+      sec += (showDemo ? demoSec : 0) + left * set + (left - 1) * plan.setRestSec;
+    }
+    prev = u;
+  }
+  return sec;
+}
+
+// Scheduled breaks never open over a session: when it ends, every stop that came due meanwhile
+// (except the last, which always opens while the day owes anything) is handled — `empty` when it no
+// longer owes anything, else `missed` (its sets roll on to the next break, as for any missed stop).
+function absorbDueSlots(day, nowMin) {
+  const last = lastSlot(day);
+  day.slots.forEach((s, k) => {
+    if (k === last || s.status !== 'pending' || parseHM(s.time) > nowMin) return;
+    s.status = pendingUnits(day, k).length ? 'missed' : 'empty';
+  });
+}
+
+// A workout of another plan day (or on a rest / off / finished day): logged as 加練 on today's
+// record, never touching its units or its grade.
+function recordExtra(day, t, { planDay, sets = 0, sec = 0, stretch = false }) {
+  if (!(sets > 0 || stretch)) return null;
+  const e = { t, type: 'extra_session', detail: { planDay, sets, sec: Math.max(0, Math.round(sec)), stretch: !!stretch } };
+  day.events.push(e);
+  return e;
+}
+const extraSessions = (day) => (day.events || []).filter((e) => e.type === 'extra_session').map((e) => ({ t: e.t, ...e.detail }));
+
 // "Pause until tomorrow": every pending slot is missed and the day fails.
 function pauseDay(day) {
   day.paused = true;
@@ -296,4 +356,5 @@ module.exports = {
   pendingUnits, nextSlotIndex, gradeDay, createDay, planCheck, applyMarks, recordSet, setReps,
   endBreak, pauseDay, pauseUntil, rebuildDay, closeRemainingIfDone, isDecided,
   createMissedDay, fillMissedDays, initialAnchor,
+  sessionUnits, estimateSec, absorbDueSlots, recordExtra, extraSessions,
 };

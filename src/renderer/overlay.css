@@ -11,6 +11,7 @@ body { overflow: hidden; display: flex; flex-direction: column; font: var(--o-bo
   --ph: max(var(--vh), 28.125rem);    /* stage height: 16:9, but never too short for the panel (4:3 screens letterbox the clip) */
   /* type tokens (DESIGN.md §3), rem = px / 16 */
   --o-footnote-em: 600 0.8125rem/1.125rem var(--font);      /* 13/18  kbd, mode tag */
+  --o-subhead:     400 0.9375rem/1.25rem var(--font);       /* 15/20  完整訓練 menu rows */
   --o-body:        400 1.0625rem/1.5rem var(--font);        /* 17/24  */
   --o-headline:    600 1.0625rem/1.5rem var(--font);        /* 17/24  chips, buttons */
   --o-title3:      400 1.3125rem/1.625rem var(--font);      /* 21/26  meta line, unit 下 */
@@ -88,6 +89,8 @@ kbd { font: var(--o-footnote-em); letter-spacing: var(--tr-13); padding: 0.125re
 }
 .p-head { display: grid; grid-template-rows: 2rem 3rem 1.625rem; row-gap: 0.5rem; min-width: 0; }
 .p-title { font: var(--o-display); letter-spacing: var(--tr-display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.p-title.fit2 { font: var(--o-title2); align-self: center; } /* too wide at display (fitTitle) */
+.p-title.fit3 { font: var(--o-title3-em); align-self: center; }
 .p-meta {
   font: var(--o-title3); letter-spacing: var(--tr-display); color: var(--muted);
   display: flex; align-items: center; gap: 1rem; white-space: nowrap; overflow: hidden;
@@ -139,6 +142,13 @@ kbd { font: var(--o-footnote-em); letter-spacing: var(--tr-13); padding: 0.125re
 .plan .nm { display: flex; align-items: center; gap: 0.5rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .plan .nm .ms { font-size: 1.25rem; color: var(--muted); }
 .plan .mt { color: var(--muted); white-space: nowrap; }
+/* 完整訓練 intro: the day's whole menu (up to 9 rows) always fits, never scrolls: the list takes the
+   empty secondary slot (the primary button keeps its place) and its rows (subheadline 15/20) shrink
+   from 2.375rem to share the height. */
+#panel.menu .p-foot { grid-template-rows: 3.5rem; }
+#panel.menu .p-sec { display: none; }
+#panel.menu .plan { display: flex; flex-direction: column; overflow: hidden; }
+#panel.menu .plan li { flex: 0 1 2.375rem; height: auto; min-height: 0; font: var(--o-subhead); letter-spacing: var(--tr-15); }
 
 .tips { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.625rem; }
 .tips li { display: flex; gap: 0.5rem; color: var(--text); }

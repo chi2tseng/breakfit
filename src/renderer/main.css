@@ -224,6 +224,28 @@ body { display: flex; overflow: hidden; }
 }
 @media (max-width: 559px) { .player-card { grid-template-columns: minmax(0, 1fr); } .player-side .btn { margin-top: 16px; } }
 
+/* ---------- 完整訓練 chooser (a small sheet: title, day segments, what it is, 取消 / 開始) ---------- */
+.head-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; flex: none; }
+.head-actions .btn[hidden] { display: none; }
+/* between phone and ~900 px windows the title needs the room: 完整訓練 shows its icon only (the
+   name stays as its accessible name / tooltip); on a phone the actions wrap, so the label is back */
+@container content (min-width: 480px) and (max-width: 679px) {
+  #workoutBtn { width: var(--btn); padding: 0; }
+  #workoutBtn .lbl { display: none; }
+}
+#workout { position: fixed; inset: 0; background: var(--backdrop); display: flex; z-index: 20; padding: 16px; overflow-y: auto; overscroll-behavior: contain; }
+#workout[hidden] { display: none; }
+.wo-card {
+  margin: auto; width: min(400px, 100%); display: flex; flex-direction: column; gap: 20px;
+  background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-lg); padding: 24px;
+}
+.wo-card h2 { font: var(--t-title3); letter-spacing: var(--tr-display); }
+.wo-card .seg { width: 100%; }
+.wo-info { display: flex; flex-direction: column; gap: 4px; min-height: 52px; }
+.wo-name { font: var(--t-headline); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wo-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; color: var(--muted); }
+.wo-btns { display: flex; justify-content: flex-end; gap: 12px; }
+
 /* ---------- history ----------
    Streak = the one hero numeral, the other stats a quiet inline row; calendar + day detail are the
    raised surfaces; the 30-day chart sits on the ground (DESIGN.md §5). */
@@ -392,6 +414,7 @@ input[type="range"]::-webkit-slider-thumb {
   .tab { --gutter: 16px; --pad: 12px; }
   .page-head { flex-wrap: wrap; min-height: 72px; }
   .page-head h1 { font: var(--t-title2); }
+  .head-actions { justify-content: flex-start; }
   .hero { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .hero-text { padding-right: 0; }
   .streak-row { margin-bottom: 16px; }

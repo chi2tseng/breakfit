@@ -670,3 +670,110 @@ test('i18n: every key exists in both languages; plan has English for every visib
   assert.equal(I.dayLabel('zh', '2026-09-24'), '9月24日 週四');
   assert.equal(I.weekdays('zh').join(''), '日一二三四五六');
 });
+
+// ---------- full workout (完整訓練) ----------
+test('session: remaining units of today in plan order, stretch last; nothing owed → null', () => {
+  const s = settings();
+  const day = D.createDay(MON, s, plan, 600); // d1
+  complete(day, 'pushup');
+  D.recordSet(day, 'weighted_pushup', 10);
+  const ids = D.sessionUnits(day).map((u) => u.id);
+  assert.deepEqual(ids, ['weighted_pushup', 'incline_pushup', 'diamond_pushup', 'triceps_pushup', 'bench_dip', 'stretch']);
+  assert.equal(D.sessionUnits(day)[0].targetSets - D.sessionUnits(day)[0].doneSets, 3, 'already-done sets are skipped');
+  for (const u of day.units) complete(day, u.id);
+  assert.equal(D.sessionUnits(day), null);
+});
+
+test('session: 第 3 天 = both core rounds back to back, then the stretch', () => {
+  const s = settings();
+  const wed = T.addDays(MON, 2);
+  const day = D.createDay(wed, s, plan, 600);
+  assert.equal(day.planDay, 'd3');
+  assert.deepEqual(D.sessionUnits(day).map((u) => `${u.id}:${u.type}`), ['core_round_1:circuit', 'core_round_2:circuit', 'stretch:stretch']);
+  // the estimate includes the 180 s round rest between them
+  const one = D.estimateSec(plan, [D.sessionUnits(day)[0]], s);
+  const two = D.estimateSec(plan, D.sessionUnits(day).slice(0, 2), s);
+  assert.equal(two - 2 * one, plan.days.d3.roundRestSec);
+});
+
+test('session estimate: reps at 4 s, set rests, demo, stretch holds', () => {
+  const s = settings({ demoSec: 8, showDemo: true });
+  const units = D.buildUnits(plan, 'd1', {});
+  const push = units[0]; // 5 × 8–15
+  assert.equal(D.estimateSec(plan, [push], s), 8 + 5 * 46 + 4 * 60);
+  assert.equal(D.estimateSec(plan, [push], { ...s, showDemo: false }), 5 * 46 + 4 * 60);
+  const st = units.find(D.isStretch); // chest(2) front_delt(1) triceps(2) = 5 holds
+  assert.equal(D.estimateSec(plan, [st], s), 5 * (30 + 5));
+  const min = Math.ceil(D.estimateSec(plan, units, s) / 60);
+  assert.ok(min > 30 && min < 70, `d1 ≈ ${min} min`);
+});
+
+test('session of today: sets count toward today; finishing everything passes and empties the slots', () => {
+  const s = settings();
+  const day = D.createDay(MON, s, plan, 600);
+  D.recordSet(day, 'pushup', 10);
+  day.slots[0].status = 'done';
+  for (const u of D.sessionUnits(day)) while (u.doneSets < u.targetSets) D.recordSet(day, u.id, 10);
+  D.endBreak(day, null, 'done', 24);
+  assert.equal(D.remainingSets(day), 0);
+  assert.equal(D.gradeDay(day, MON, MON), 'pass');
+  assert.ok(day.slots.slice(1).every((x) => x.status === 'empty'), 'no more pop-ups today');
+  assert.equal(day.slots[0].status, 'done');
+});
+
+test('session of today after the last slot failed the day: a full session still passes it', () => {
+  const s = settings();
+  const day = D.createDay(MON, s, plan, 600);
+  day.slots.forEach((x) => { x.status = 'skipped'; });
+  assert.equal(D.gradeDay(day, MON, MON), 'fail');
+  for (const u of D.sessionUnits(day)) while (u.doneSets < u.targetSets) D.recordSet(day, u.id, 10);
+  D.endBreak(day, null, 'done', 25);
+  assert.equal(D.gradeDay(day, MON, MON), 'pass');
+});
+
+test('session abort: what was done stays; the rest carries on to the remaining breaks', () => {
+  const s = settings();
+  const day = D.createDay(MON, s, plan, 600);
+  complete(day, 'pushup');
+  complete(day, 'weighted_pushup');
+  D.recordSet(day, 'incline_pushup', 10);
+  D.endBreak(day, null, 'abort', 10);
+  assert.equal(D.doneSets(day), 10);
+  assert.ok(day.slots.every((x) => x.status === 'pending'), 'a session marks no slot');
+  const next = D.pendingUnits(day, D.lastSlot(day) - 1).map((p) => p.unit.id);
+  assert.ok(next.includes('incline_pushup') && !next.includes('pushup'));
+  assert.deepEqual(D.pendingUnits(day, D.lastSlot(day)).map((p) => p.unit.id).slice(-1), ['stretch']);
+  assert.equal(D.gradeDay(day, MON, MON), 'pending');
+});
+
+test('breaks due during a session are absorbed (the last one still opens)', () => {
+  const s = settings();
+  const day = D.createDay(MON, s, plan, 600); // slots 11:00 … 21:00
+  // session 10:50–12:10: 11:00 and 12:00 came due meanwhile
+  complete(day, 'pushup'); // slot 0's unit
+  D.absorbDueSlots(day, T.parseHM('12:10'));
+  assert.equal(day.slots[0].status, 'empty', '11:00 owes nothing now');
+  assert.equal(day.slots[1].status, 'missed', '12:00 still owed → missed, rolls on');
+  assert.equal(day.slots[2].status, 'pending');
+  assert.ok(D.pendingUnits(day, 2).some((p) => p.unit.id === 'weighted_pushup' && p.carried));
+  // at 21:30 the last slot is left for the scheduler
+  D.absorbDueSlots(day, T.parseHM('21:30'));
+  assert.equal(day.slots[D.lastSlot(day)].status, 'pending');
+  assert.equal(D.planCheck(day, T.parseHM('21:30')).open, D.lastSlot(day));
+});
+
+test('extra session (other plan day / rest day): logged as 加練, grade and units untouched', () => {
+  const s = settings();
+  const day = D.createDay(MON, s, plan, 600); // d1
+  const before = JSON.stringify(day.units);
+  assert.equal(D.recordExtra(day, '2026-09-21T12:00:00.000Z', { planDay: 'd2', sets: 0 }), null, 'nothing done → nothing logged');
+  D.recordExtra(day, '2026-09-21T12:00:00.000Z', { planDay: 'd2', sets: 18, sec: 2520.4, stretch: true });
+  assert.equal(JSON.stringify(day.units), before);
+  assert.equal(D.gradeDay(day, MON, MON), 'pending');
+  assert.deepEqual(D.extraSessions(day), [{ t: '2026-09-21T12:00:00.000Z', planDay: 'd2', sets: 18, sec: 2520, stretch: true }]);
+  const sat = T.addDays(MON, 5);
+  const off = D.createDay(sat, s, plan, 600);
+  D.recordExtra(off, `${sat}T09:00:00.000Z`, { planDay: 'd1', sets: 25, sec: 2800 });
+  assert.equal(D.gradeDay(off, sat, sat), 'off');
+  assert.equal(S.summarizeDay(sat, off, sat).status, 'off');
+});

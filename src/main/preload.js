@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('bf', {
   setCycleToday: (index) => ipcRenderer.invoke('cycle:today', index),
   breakNow: () => ipcRenderer.invoke('break:now'),
   testBreak: () => ipcRenderer.invoke('break:test'),
+  startSession: (planDay) => ipcRenderer.invoke('session:start', planDay),
   // overlay
   payload: () => ipcRenderer.invoke('break:payload'),
   setDone: (unitId, reps) => ipcRenderer.invoke('break:set', { unitId, reps }),

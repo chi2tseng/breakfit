@@ -290,6 +290,59 @@ function createController({ clock, selftest = false, fast = false }) {
     };
   }
 
+  // 完整訓練 chooser default: today's plan day; rest / off day → the next training day.
+  function sessionDefault(day, key) {
+    if (plan.days[day.planDay]) return day.planDay;
+    const nt = nextTraining(key);
+    return nt ? nt.planDay : 'd1';
+  }
+
+  // Full workout of plan day `pd`. Today's plan day while it still owes anything: its remaining units
+  // (sets count toward today); any other day, or nothing owed: the whole day as an extra session (加練).
+  function buildSessionPayload(key, day, pd) {
+    const lp = planIn(lang());
+    const own = pd === day.planDay ? D.sessionUnits(day) : null;
+    const units = own || D.buildUnits(plan, pd, data.settings.overrides);
+    const items = units.map((u) => toItem(u, false, lang()));
+    const trainSets = units.reduce((a, u) => a + (D.isStretch(u) ? 0 : u.targetSets - u.doneSets), 0);
+    return {
+      mode: 'session',
+      extra: !own,
+      lang: lang(),
+      planDay: pd,
+      isLast: false,
+      slotTime: T.fmtHM(Math.floor(T.minutesOf(clock.now()))),
+      dayLabel: lp.days[pd].label,
+      dayTitle: lp.days[pd].title,
+      items,
+      demoSec: data.settings.demoSec,
+      showDemo: data.settings.showDemo,
+      setRestSec: plan.setRestSec,
+      roundRestSec: plan.days.d3.roundRestSec || 180,
+      // today's progress for today's session; the session's own sets for an extra one
+      todayDone: own ? D.doneSets(day) : 0,
+      todayTotal: own ? D.totalSets(day) : trainSets,
+      stretchOwed: units.some(D.isStretch),
+      estSec: D.estimateSec(plan, units, data.settings),
+      nextBreak: null,
+      selftest,
+    };
+  }
+
+  function openSession(pd) {
+    if (!plan.days[pd]) return false;
+    if (currentBreak) { focusOverlay(); return false; }
+    const { key } = nowInfo();
+    const day = ensureToday();
+    const payload = buildSessionPayload(key, day, pd);
+    currentBreak = { mode: 'session', key, slot: null, sets: 0, payload, extra: payload.extra, planDay: pd, startedAt: clock.now().getTime(), stretch: false };
+    log(day, 'session_start', { planDay: pd, extra: payload.extra, units: payload.items.map((i) => i.unitId) });
+    save();
+    showOverlay();
+    changed();
+    return true;
+  }
+
   // "現在就休息" has something to do: pending(next slot) — the stretch only when that is the last slot.
   function canBreakNow(day) {
     if (currentBreak || day.status !== 'pending') return false;
@@ -342,7 +395,22 @@ function createController({ clock, selftest = false, fast = false }) {
     currentBreak = null;
     let status = null;
     try {
-      if (b.mode === 'slot' || b.mode === 'manual') {
+      if (b.mode === 'session') {
+        const day = data.days[b.key];
+        const { min } = nowInfo();
+        const sec = (clock.now().getTime() - b.startedAt) / 1000;
+        if (b.extra) {
+          D.recordExtra(day, clock.now().toISOString(), { planDay: b.planDay, sets: b.sets, sec, stretch: b.stretch });
+        } else {
+          D.endBreak(day, null, outcome, b.sets);
+        }
+        log(day, 'session_end', { planDay: b.planDay, extra: b.extra, outcome, sets: b.sets, sec: Math.round(sec) });
+        // stops that came due during the session were never opened: handle them (the last one still opens)
+        if (b.key === nowInfo().key) D.absorbDueSlots(day, min);
+        regrade(b.key);
+        status = day.status;
+        save();
+      } else if (b.mode === 'slot' || b.mode === 'manual') {
         const day = data.days[b.key];
         D.endBreak(day, b.mode === 'slot' ? b.slot : null, outcome, b.sets);
         const type = outcome === 'skip' ? 'skip' : outcome === 'abort' ? 'abort' : 'break_end';
@@ -538,6 +606,17 @@ function createController({ clock, selftest = false, fast = false }) {
       done: D.doneSets(day),
       total: D.totalSets(day),
       canBreakNow: canBreakNow(day),
+      // 完整訓練 chooser: the default day, and per day its title, move count, length, whether it is 加練
+      session: {
+        def: sessionDefault(day, key),
+        days: Object.fromEntries(['d1', 'd2', 'd3'].map((pd) => {
+          const own = pd === day.planDay ? D.sessionUnits(day) : null;
+          const units = own || D.buildUnits(plan, pd, data.settings.overrides);
+          const moves = units.filter((u) => u.type === 'reps').length;
+          const rounds = units.filter((u) => u.type === 'circuit').length;
+          return [pd, { title: lp.days[pd].title, moves, rounds, min: Math.ceil(D.estimateSec(plan, units, data.settings) / 60), extra: !own }];
+        })),
+      },
       breakActive: !!currentBreak,
       history,
       stats: S.computeStats(history, key.slice(0, 7)),
@@ -616,6 +695,7 @@ function createController({ clock, selftest = false, fast = false }) {
       { label: st.next ? tr('trayNextBreak', { t: st.next.time }) : tr('noMoreBreaks'), enabled: false },
       { type: 'separator' },
       { label: tr('breakNow'), enabled: canBreakNow(day), click: () => openBreak('manual') },
+      { label: tr('fullWorkoutMenu'), enabled: !currentBreak, click: () => openMain('workout') },
       { label: paused ? tr('pauseRemindersUntil', { t: T.fmtHM(day.pausedUntil) }) : tr('pauseReminders'), submenu: pauseItems },
       { type: 'separator' },
       { label: tr('openMain'), click: () => openMain('today') },
@@ -697,10 +777,17 @@ function createController({ clock, selftest = false, fast = false }) {
     });
     ipcMain.handle('break:now', () => openBreak('manual'));
     ipcMain.handle('break:test', () => openBreak('test'));
+    ipcMain.handle('session:start', (_e, pd) => openSession(String(pd)));
     ipcMain.handle('break:payload', () => (currentBreak ? currentBreak.payload : null));
     ipcMain.handle('break:set', (_e, { unitId, reps }) => {
       if (!currentBreak) return -1;
-      currentBreak.sets += 1;
+      if (currentBreak.extra) {
+        // 加練: counted for the log only; the stretch is not a set
+        if (unitId === D.STRETCH_ID) currentBreak.stretch = true;
+        else currentBreak.sets += 1;
+        return -1;
+      }
+      if (currentBreak.mode !== 'session' || unitId !== D.STRETCH_ID) currentBreak.sets += 1;
       if (currentBreak.mode === 'test') return currentBreak.sets - 1;
       const day = data.days[currentBreak.key];
       const idx = D.recordSet(day, unitId, reps);
@@ -711,7 +798,7 @@ function createController({ clock, selftest = false, fast = false }) {
       return idx;
     });
     ipcMain.handle('break:reps', (_e, { unitId, index, reps }) => {
-      if (!currentBreak || currentBreak.mode === 'test') return false;
+      if (!currentBreak || currentBreak.mode === 'test' || currentBreak.extra) return false;
       const ok = D.setReps(data.days[currentBreak.key], unitId, index, reps);
       if (ok) save();
       return ok;
@@ -738,7 +825,7 @@ function createController({ clock, selftest = false, fast = false }) {
 
   return {
     data, file, clock, plan,
-    initSettings, ensureToday, applyTheme, applyLang, trayModel, check, openBreak, endBreak, buildPayload, pauseToday, pauseFor, applyLoginItem,
+    initSettings, ensureToday, applyTheme, applyLang, trayModel, check, openBreak, openSession, endBreak, buildPayload, buildSessionPayload, pauseToday, pauseFor, applyLoginItem,
     openMain, openCoverForTest, createTray, registerIpc, startLoop, getState, dayDetail, setQuitting,
     get currentBreak() { return currentBreak; },
     get overlayWins() { return overlayWins; },

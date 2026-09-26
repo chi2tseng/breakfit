@@ -29,7 +29,10 @@
     <section class="tab" id="tab-today">
       <header class="page-head">
         <div class="head-text"><div class="eyebrow" id="todayLabel"></div><h1 id="todayTitle"></h1></div>
-        <button class="btn primary" id="breakNowBtn"><span aria-hidden="true" class="ms fill">play_arrow</span><span data-i18n="breakNow"></span></button>
+        <div class="head-actions">
+          <button class="btn" id="workoutBtn" data-i18n-aria="fullWorkout" data-i18n-title="fullWorkout"><span aria-hidden="true" class="ms">fitness_center</span><span class="lbl" data-i18n="fullWorkout"></span></button>
+          <button class="btn primary" id="breakNowBtn"><span aria-hidden="true" class="ms fill">play_arrow</span><span data-i18n="breakNow"></span></button>
+        </div>
       </header>
       <div class="panel hero" id="hero">
         <div class="clip hero-clip" id="heroClip"></div>
@@ -113,6 +116,18 @@
         <div class="player-meta" id="playerMeta"></div>
         <ul class="tips" id="playerTips"></ul>
         <button class="btn" id="playerClose"><span aria-hidden="true" class="ms">close</span><span data-i18n="close"></span></button>
+      </div>
+    </div>
+  </div>
+  <!-- 完整訓練 chooser: which day, then 開始 (SPEC §8) -->
+  <div id="workout" hidden>
+    <div class="wo-card" role="dialog" aria-modal="true" aria-labelledby="woTitle">
+      <h2 id="woTitle" data-i18n="fullWorkout"></h2>
+      <div class="seg" id="woDay"><button data-d="d1" data-i18n="d1"></button><button data-d="d2" data-i18n="d2"></button><button data-d="d3" data-i18n="d3"></button></div>
+      <div class="wo-info"><div class="wo-name" id="woName"></div><div class="wo-meta" id="woMeta"></div></div>
+      <div class="wo-btns">
+        <button class="btn" id="woCancel" data-i18n="cancel"></button>
+        <button class="btn primary" id="woStart"><span aria-hidden="true" class="ms fill">play_arrow</span><span data-i18n="start"></span></button>
       </div>
     </div>
   </div>

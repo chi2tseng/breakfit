@@ -74,6 +74,7 @@ async function refresh() {
   renderHistory();
   renderSettings();
   tick();
+  if (pendingWorkout) { pendingWorkout = false; openWorkout(); }
 }
 
 // ---------- 今天 ----------
@@ -99,6 +100,9 @@ function renderToday() {
   $('#todayTitle').textContent = training ? S.dayTitle : fmtKey(S.today);
   $('#breakNowBtn').disabled = !S.canBreakNow;
   $('#breakNowBtn').hidden = !S.canBreakNow && !S.upNext; // nothing owed today: no dead button next to the directive hero
+  $('#workoutBtn').disabled = S.breakActive;
+  if (S.breakActive) closeWorkout();
+  else if (!$('#workout').hidden) renderWorkout();
   renderHero();
   renderLine();
   renderLibrary();
@@ -374,6 +378,16 @@ async function loadDetail() {
   if (!units || !units.length) {
     html += `<div class="sec"><div class="empty-state">${ICON(sm.planDay === 'off' ? 'event_busy' : 'self_improvement')}<span>${sm.planDay === 'off' ? t('dayOff') : t('restDay')}</span></div></div>`;
   }
+  // 加練: full workouts of another plan day (never part of the day's grade)
+  const extras = det.day ? (det.day.events || []).filter((e) => e.type === 'extra_session') : [];
+  if (extras.length) {
+    const sep = window.LANG === 'en' ? ': ' : '　';
+    html += `<div class="sec">${extras.map((e) => {
+      const x = e.detail || {};
+      const sets = x.sets ? t(x.sets === 1 ? 'setsN1' : 'setsN', { n: x.sets }) : t('stretch');
+      return `<div class="urow"><span>${esc(`${t('extraSession')}${sep}${t(x.planDay) || ''}`)}</span><span class="c ok">${esc(sets)}</span><span class="r">${esc(t('minN', { n: Math.max(1, Math.round((x.sec || 0) / 60)) }))}</span></div>`;
+    }).join('')}</div>`;
+  }
   if (det.day) {
     html += `<div class="sec"><textarea id="note" placeholder="${t('note')}" aria-label="${t('note')}">${esc(det.day.note || '')}</textarea></div>`;
   }
@@ -519,6 +533,41 @@ function bindSettings() {
   $('#testBreakBtn').addEventListener('click', () => window.bf.testBreak());
 }
 
+// ---------- 完整訓練 chooser ----------
+// Segments 第1天/第2天/第3天 (default = today's plan day, rest / off → next training day), then what
+// that day is: title, moves (or rounds), about how long, and 加練 when it won't count toward today.
+let woDay = null;
+let pendingWorkout = false; // tray 完整訓練… before the first state arrived
+function renderWorkout() {
+  const days = S.session.days;
+  if (!days[woDay]) woDay = S.session.def;
+  $$('#woDay button').forEach((b) => {
+    const on = b.dataset.d === woDay;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+  const d = days[woDay];
+  const count = d.rounds ? t(d.rounds === 1 ? 'roundsN1' : 'roundsN', { n: d.rounds })
+    : d.moves ? t(d.moves === 1 ? 'movesN1' : 'movesN', { n: d.moves }) : t('stretch'); // only the stretch left
+  $('#woName').textContent = d.title;
+  $('#woMeta').innerHTML = `<span>${esc(count)}</span><span>${esc(t('aboutMin', { n: d.min }))}</span>${d.extra ? `<span class="pill">${esc(t('extraSession'))}</span>` : ''}`;
+  $('#woStart').disabled = S.breakActive;
+}
+function openWorkout() {
+  if (!S || S.breakActive) return;
+  showTab('today');
+  woDay = S.session.def;
+  $('#workout').hidden = false;
+  renderWorkout();
+  $('#woStart').focus();
+}
+function closeWorkout() { $('#workout').hidden = true; }
+async function startWorkout() {
+  if ($('#woStart').disabled) return;
+  closeWorkout();
+  await window.bf.startSession(woDay);
+}
+
 // ---------- tabs / chrome ----------
 function showTab(name) {
   tab = name;
@@ -546,11 +595,20 @@ function tick() {
 $$('.nav-item').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
 $$('#libFilter button').forEach((b) => b.addEventListener('click', () => { libFilter = b.dataset.f; libPickedDay = S.today; syncUrl(); renderLibrary(); }));
 $('#breakNowBtn').addEventListener('click', () => window.bf.breakNow());
+$('#workoutBtn').addEventListener('click', openWorkout);
+$$('#woDay button').forEach((b) => b.addEventListener('click', () => { woDay = b.dataset.d; renderWorkout(); }));
+$('#woCancel').addEventListener('click', closeWorkout);
+$('#woStart').addEventListener('click', startWorkout);
+$('#workout').addEventListener('click', (e) => { if (e.target.id === 'workout') closeWorkout(); });
 $('#prevMonth').addEventListener('click', () => shiftMonth(-1));
 $('#nextMonth').addEventListener('click', () => shiftMonth(1));
 $('#playerClose').addEventListener('click', closePlayer);
 $('#player').addEventListener('click', (e) => { if (e.target.id === 'player') closePlayer(); });
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('#player').hidden) closePlayer(); });
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  if (!$('#player').hidden) closePlayer();
+  if (!$('#workout').hidden) closeWorkout();
+});
 
 function shiftMonth(d) {
   const [y, m] = viewMonth.split('-').map(Number);
@@ -571,7 +629,10 @@ new ResizeObserver(() => {
 }).observe($('#dayLine'));
 window.bf.onState(() => refresh());
 addEventListener('bf:lang', () => { if (S) refresh(); });
-window.bf.onNav((name) => { if (['today', 'history', 'settings'].includes(name)) showTab(name); });
+window.bf.onNav((name) => {
+  if (name === 'workout') { if (S) openWorkout(); else pendingWorkout = true; } // tray 完整訓練…
+  else if (['today', 'history', 'settings'].includes(name)) showTab(name);
+});
 if (['history', 'settings'].includes(Q0.get('tab'))) showTab(Q0.get('tab'));
 setInterval(() => {
   tick();
@@ -589,7 +650,8 @@ window.__test = {
   filter: (f) => { libFilter = f; libPickedDay = S.today; renderLibrary(); return true; },
   libDefault: () => defaultLibFilter(),
   open: (id) => { openPlayer(id); return true; },
-  close: () => { closePlayer(); return true; },
+  close: () => { closePlayer(); closeWorkout(); return true; },
+  workout: (pd) => { openWorkout(); if (pd) { woDay = pd; renderWorkout(); } return !$('#workout').hidden; },
   scroll: (y) => { $('#content').scrollTop = y; return $('#content').scrollTop; },
   // Directive hero states without touching the data: 'done' | 'over' | 'rest'; null = back to the real state.
   hero: (kind) => {
