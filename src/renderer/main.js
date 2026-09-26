@@ -22,6 +22,9 @@ let S = null;
 let receivedAt = 0;
 let tab = 'today';
 let libFilter = ['d1', 'd2', 'd3', 'stretch'].includes(Q0.get('f')) ? Q0.get('f') : 'd1';
+// The library follows today's plan until the user picks a filter; that pick holds for the rest of
+// the day (a ?f= in the URL counts as a pick for the day the page opens on).
+let libPickedDay = ['d1', 'd2', 'd3', 'stretch'].includes(Q0.get('f')) ? 'url' : null;
 let selDate = /^\d{4}-\d{2}-\d{2}$/.test(Q0.get('date') || '') ? Q0.get('date') : null;
 let viewMonth = selDate ? selDate.slice(0, 7) : null; // 'YYYY-MM'
 let noteTimer = null;
@@ -51,6 +54,13 @@ function pill(status) {
   return status === 'pass' || status === 'fail' ? `<span class="pill ${status}">${DAY_TXT(status)}</span>` : '';
 }
 
+// Today's plan day; rest/off → the next training day's; every set done but the stretch still owed → 拉伸.
+function defaultLibFilter() {
+  const pd = S.day.planDay;
+  if (!['d1', 'd2', 'd3'].includes(pd)) return (S.nextTraining && S.nextTraining.planDay) || 'd1';
+  return S.total > 0 && S.done >= S.total && S.upNext ? 'stretch' : pd;
+}
+
 // ---------- data ----------
 async function refresh() {
   S = await window.bf.getState();
@@ -58,6 +68,8 @@ async function refresh() {
   if (S.settings.lang !== window.LANG) { window.LANG = S.settings.lang; I18N.apply(document, window.LANG); }
   if (!viewMonth) viewMonth = S.today.slice(0, 7);
   if (!selDate) selDate = S.today;
+  if (libPickedDay === 'url') libPickedDay = S.today;
+  if (libPickedDay !== S.today) libFilter = defaultLibFilter();
   renderToday();
   renderHistory();
   renderSettings();
@@ -532,7 +544,7 @@ function tick() {
 }
 
 $$('.nav-item').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
-$$('#libFilter button').forEach((b) => b.addEventListener('click', () => { libFilter = b.dataset.f; syncUrl(); renderLibrary(); }));
+$$('#libFilter button').forEach((b) => b.addEventListener('click', () => { libFilter = b.dataset.f; libPickedDay = S.today; syncUrl(); renderLibrary(); }));
 $('#breakNowBtn').addEventListener('click', () => window.bf.breakNow());
 $('#prevMonth').addEventListener('click', () => shiftMonth(-1));
 $('#nextMonth').addEventListener('click', () => shiftMonth(1));
@@ -574,7 +586,8 @@ window.__test = {
   tab: (name) => { showTab(name); return true; },
   select: async (key) => { selDate = key; viewMonth = key.slice(0, 7); renderHistory(); await loadDetail(); return true; },
   month: (d) => { shiftMonth(d); return true; },
-  filter: (f) => { libFilter = f; renderLibrary(); return true; },
+  filter: (f) => { libFilter = f; libPickedDay = S.today; renderLibrary(); return true; },
+  libDefault: () => defaultLibFilter(),
   open: (id) => { openPlayer(id); return true; },
   close: () => { closePlayer(); return true; },
   scroll: (y) => { $('#content').scrollTop = y; return $('#content').scrollTop; },

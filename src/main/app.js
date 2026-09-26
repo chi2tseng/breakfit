@@ -249,7 +249,7 @@ function createController({ clock, selftest = false, fast = false }) {
       const it = toItem(D.buildUnits(plan, pd, data.settings.overrides)[0], false, lang());
       const mv = it.type === 'reps' ? it : it.moves[0];
       return {
-        key: k, tomorrow: i === 1, label: lp.days[pd].label, title: lp.days[pd].title, time: computeSlots(data.settings)[0],
+        key: k, tomorrow: i === 1, planDay: pd, label: lp.days[pd].label, title: lp.days[pd].title, time: computeSlots(data.settings)[0],
         name: mv.name, clipUrl: mv.clipUrl, posterUrl: mv.posterUrl, item: it,
       };
     }

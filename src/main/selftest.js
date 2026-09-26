@@ -242,6 +242,14 @@ async function main() {
   await shot(mw, '01-today-stop-hover', '今天：滑到下一站，顯示該做的動作');
   mw.webContents.sendInputEvent({ type: 'mouseMove', x: 5, y: 5 });
   assert(await js(mw, "!!document.querySelector('#heroText .hero-time')"), '今天 hero back to the next stop');
+  // Library defaults to today's plan day (rest → next training day, only stretch owed → 拉伸).
+  assert(await js(mw, "document.querySelector('#libFilter button.on').dataset.f") === 'd1', 'library defaults to today (第 1 天)');
+  const libDefaults = await js(mw, `(() => { const real = S, out = [];
+    S = { ...real, day: { ...real.day, planDay: 'd3' } }; out.push(defaultLibFilter());
+    S = { ...real, day: { ...real.day, planDay: 'rest' }, nextTraining: { planDay: 'd2' } }; out.push(defaultLibFilter());
+    S = { ...real, total: 5, done: 5, upNext: { index: 10 } }; out.push(defaultLibFilter());
+    S = real; return out.join(','); })()`);
+  assert(libDefaults === 'd3,d2,stretch', `library default: d3 day / rest day / stretch owed (${libDefaults})`);
   await js(mw, "__test.scroll(0); __test.filter('d3')");
   await shot(mw, '03-library-d3', '示範庫切到第 3 天(腹肌)');
   await js(mw, "__test.open('pushup')");
