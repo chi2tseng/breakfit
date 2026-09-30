@@ -151,6 +151,8 @@ function createController({ clock, selftest = false, fast = false }) {
   const toastIcon = notifyIcon();
   let currentBreak = null; // { mode, key, slot, sets, payload }
   let overlayWins = [];
+  let overlayWindowed = false; // this break's overlay is a normal draggable/resizable window, not full screen
+  let windowedBounds = null; // where the user last left it (kept until the app quits)
   let allowOverlayClose = false;
   let mainWin = null;
   let tray = null;
@@ -491,6 +493,7 @@ function createController({ clock, selftest = false, fast = false }) {
 
   function showOverlay() {
     allowOverlayClose = false;
+    overlayWindowed = false;
     const primary = screen.getPrimaryDisplay();
     const displays = selftest ? [primary] : screen.getAllDisplays();
     for (const d of displays) {
@@ -507,7 +510,7 @@ function createController({ clock, selftest = false, fast = false }) {
         });
         if (isMain) {
           win.on('blur', () => setTimeout(() => {
-            if (currentBreak && !win.isDestroyed()) { win.moveTop(); win.focus(); }
+            if (currentBreak && !overlayWindowed && !win.isDestroyed()) { win.moveTop(); win.focus(); }
           }, 400));
         }
       }
@@ -519,10 +522,83 @@ function createController({ clock, selftest = false, fast = false }) {
 
   function focusOverlay() {
     const w = overlayWins.find((x) => x.isMainOverlay && !x.isDestroyed());
-    if (w && !selftest) { w.show(); w.focus(); }
+    if (w && !selftest) { if (w.isMinimized()) w.restore(); w.show(); w.focus(); }
+  }
+
+  // A cover window darkens one of the other displays while the break is full screen.
+  function makeCover(d) {
+    const win = new BrowserWindow(overlayOptions(d, false));
+    win.removeMenu();
+    win.on('close', (e) => { if (!allowOverlayClose && !quitting) e.preventDefault(); });
+    if (!selftest) {
+      win.setAlwaysOnTop(true, 'screen-saver');
+      win.setVisibleOnAllWorkspaces(true);
+      win.once('ready-to-show', () => win.show());
+    }
+    win.loadFile(path.join(RENDERER, 'cover.html'), themeQuery());
+    win.isMainOverlay = false;
+    overlayWins.push(win);
+  }
+
+  // Full screen ⇄ normal window (draggable, resizable, minimizable; the other displays' covers go away
+  // while windowed). Same BrowserWindow throughout, so the page keeps its phase, timers and sets.
+  const OVERLAY_MIN = { width: 400, height: 480 };
+  function windowedBoundsFor(wa) {
+    const b = windowedBounds;
+    const reachable = b && b.width >= OVERLAY_MIN.width && b.height >= OVERLAY_MIN.height && screen.getAllDisplays().some((d) => {
+      const w = d.workArea;
+      return Math.min(b.x + b.width, w.x + w.width) - Math.max(b.x, w.x) > 96 && Math.min(b.y + b.height, w.y + w.height) - Math.max(b.y, w.y) > 64;
+    });
+    if (reachable) return b;
+    const width = Math.max(OVERLAY_MIN.width, Math.min(wa.width - 32, Math.round(wa.width * 0.6)));
+    const height = Math.max(OVERLAY_MIN.height, Math.min(wa.height - 32, Math.round((width * 10) / 16)));
+    return { x: Math.round(wa.x + (wa.width - width) / 2), y: Math.round(wa.y + (wa.height - height) / 2), width, height };
+  }
+  function setOverlayWindowed(on) {
+    const win = overlayWins.find((x) => x.isMainOverlay && !x.isDestroyed());
+    if (!win || !currentBreak || overlayWindowed === on) return overlayWindowed;
+    overlayWindowed = on;
+    if (!selftest) {
+      const disp = screen.getDisplayMatching(win.getBounds());
+      if (on) {
+        for (const w of overlayWins.slice()) if (w !== win && !w.isDestroyed()) w.destroy();
+        overlayWins = [win];
+        win.setResizable(true);
+        win.setMovable(true);
+        win.setMinimizable(true);
+        win.setSkipTaskbar(false); // a minimized break must be findable in the taskbar
+        win.setMinimumSize(OVERLAY_MIN.width, OVERLAY_MIN.height);
+        const place = () => {
+          if (win.isDestroyed() || !overlayWindowed) return;
+          win.setBounds(windowedBoundsFor(disp.workArea));
+          win.show();
+          win.focus();
+        };
+        if (win.isFullScreen()) {
+          win.once('leave-full-screen', place);
+          win.setFullScreen(false);
+          setTimeout(place, 400); // in case the event never comes; placing twice is harmless
+        } else place();
+      } else {
+        if (!win.isFullScreen() && !win.isMinimized()) windowedBounds = win.getBounds();
+        if (win.isMinimized()) win.restore();
+        win.setMinimumSize(0, 0);
+        win.setFullScreen(true);
+        win.setMinimizable(false);
+        win.setResizable(false);
+        win.setMovable(false);
+        win.setSkipTaskbar(true);
+        for (const d of screen.getAllDisplays()) if (d.id !== disp.id) makeCover(d);
+        win.show();
+        win.focus();
+      }
+    }
+    win.webContents.send('view', on ? 'window' : 'full');
+    return overlayWindowed;
   }
 
   function closeOverlay() {
+    overlayWindowed = false;
     allowOverlayClose = true;
     for (const w of overlayWins) if (!w.isDestroyed()) w.destroy();
     overlayWins = [];
@@ -779,6 +855,12 @@ function createController({ clock, selftest = false, fast = false }) {
     ipcMain.handle('break:test', () => openBreak('test'));
     ipcMain.handle('session:start', (_e, pd) => openSession(String(pd)));
     ipcMain.handle('break:payload', () => (currentBreak ? currentBreak.payload : null));
+    ipcMain.handle('break:view', () => setOverlayWindowed(!overlayWindowed));
+    ipcMain.handle('break:minimize', () => {
+      const w = overlayWins.find((x) => x.isMainOverlay && !x.isDestroyed());
+      if (w && overlayWindowed && !selftest) w.minimize();
+      return true;
+    });
     ipcMain.handle('break:set', (_e, { unitId, reps }) => {
       if (!currentBreak) return -1;
       if (currentBreak.extra) {

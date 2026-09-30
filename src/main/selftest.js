@@ -287,6 +287,15 @@ async function main() {
   await until(ow, 'window.__test && window.__test.ready()');
   await js(ow, "__test.show('intro', { remaining: 7.3 })");
   await shot(ow, '10-intro', '開場：清單(上次留下標記)+10 秒倒數');
+  // full screen ⇄ normal window: the button/F key flip data-view through main (window ops are skipped in selftest)
+  assert(await js(ow, "document.documentElement.dataset.view === 'full' && document.querySelector('#minBtn').hidden"), 'overlay starts full screen (minimize button hidden)');
+  await js(ow, "document.querySelector('#viewBtn').click()");
+  await until(ow, "document.documentElement.dataset.view === 'window'");
+  assert(await js(ow, "!document.querySelector('#minBtn').hidden && document.querySelector('#viewBtn .ms').textContent === 'fullscreen' && getComputedStyle(document.querySelector('#top')).webkitAppRegion === 'drag'"), 'windowed: minimize shown, button = back to full screen, header is the drag region');
+  await shot(ow, '10w-windowed', '視窗化：標題列可拖、最小化與全螢幕鈕');
+  await js(ow, "document.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', bubbles: true }))");
+  await until(ow, "document.documentElement.dataset.view === 'full'");
+  assert(await js(ow, "document.querySelector('#minBtn').hidden"), 'F key returns to full screen');
   await js(ow, "__test.show('demo', { remaining: 5.2 })");
   await shot(ow, '11-demo', '示範：循環示範片/佔位 + 要點 + 目標組數');
   await js(ow, "__test.show('work', { elapsed: 23 })");

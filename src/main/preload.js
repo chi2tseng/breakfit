@@ -20,4 +20,7 @@ contextBridge.exposeInMainWorld('bf', {
   setDone: (unitId, reps) => ipcRenderer.invoke('break:set', { unitId, reps }),
   setReps: (unitId, index, reps) => ipcRenderer.invoke('break:reps', { unitId, index, reps }),
   end: (outcome) => ipcRenderer.invoke('break:end', { outcome }),
+  toggleView: () => ipcRenderer.invoke('break:view'),
+  minimize: () => ipcRenderer.invoke('break:minimize'),
+  onView: (cb) => ipcRenderer.on('view', (_e, v) => cb(v)),
 });

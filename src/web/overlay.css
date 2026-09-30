@@ -16,3 +16,6 @@
   #panel { height: auto; }
   .modal-card { width: auto; max-width: calc(100vw - 2rem); }
 }
+
+/* the web overlay is an in-page layer: no window to shrink or minimize */
+#viewBtn, #minBtn { display: none !important; }

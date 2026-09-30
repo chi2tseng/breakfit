@@ -196,3 +196,28 @@ kbd { font: var(--o-footnote-em); letter-spacing: var(--tr-13); padding: 0.125re
 .modal-card p:empty { display: none; }
 .modal-btns { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 2rem; }
 .modal-btns .btn { height: 3rem; padding: 0 1.5rem; font: var(--o-headline); letter-spacing: var(--tr-17); }
+
+/* ---------- full screen ⇄ normal window (data-view on <html>, set from overlay.js) ---------- */
+.top-r { justify-self: end; display: flex; align-items: center; gap: 0.75rem; }
+#viewBtn, #minBtn { height: 2.75rem; min-width: 2.75rem; padding: 0 1rem; gap: 0.5rem; font: var(--o-body); letter-spacing: var(--tr-17); }
+#viewBtn .ms, #minBtn .ms { font-size: 1.25rem; }
+/* windowed: the header drags the window; its 6 px margin stays outside the drag region so the native
+   resize handles on the top and side edges remain reachable */
+html[data-view="window"] #top { -webkit-app-region: drag; margin: 6px 6px 0; }
+html[data-view="window"] #top .btn { -webkit-app-region: no-drag; }
+/* narrow or portrait window: stack video over panel like the phone layout; the stage scrolls when short */
+@media (max-width: 1023px), (max-aspect-ratio: 1/1) {
+  html[data-view="window"] { --vw: calc(100vw - 2rem); --pw: calc(100vw - 2rem); }
+  html[data-view="window"] #top { grid-template-columns: minmax(0, 1fr) auto; column-gap: 1rem; padding: 0 0.5rem; }
+  html[data-view="window"] #stage {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(26rem, 1fr);
+    row-gap: 1.5rem;
+    align-content: start;
+    padding: 0 1rem 1rem;
+    overflow-y: auto;
+  }
+  html[data-view="window"] .vbox { width: 100%; height: auto; }
+  html[data-view="window"] #panel { height: auto; }
+  html[data-view="window"] .modal-card { width: auto; max-width: calc(100vw - 2rem); }
+}

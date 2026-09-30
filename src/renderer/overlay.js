@@ -592,6 +592,11 @@ document.addEventListener('keydown', (e) => {
     else askLeave();
     return;
   }
+  if ((e.key === 'f' || e.key === 'F') && !st.modal && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    e.preventDefault();
+    toggleView();
+    return;
+  }
   if (st.modal) {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
@@ -617,6 +622,26 @@ function pressPrimary() {
 }
 
 $('#leaveBtn').onclick = (e) => { e.currentTarget.blur(); askLeave(); };
+
+// ---------- full screen ⇄ normal window: main resizes the SAME window, so this page keeps its state ----------
+function applyView(v) {
+  const w = v === 'window';
+  document.documentElement.dataset.view = w ? 'window' : 'full';
+  const b = $('#viewBtn');
+  b.querySelector('.ms').textContent = w ? 'fullscreen' : 'close_fullscreen';
+  b.title = t(w ? 'toFull' : 'toWindow');
+  b.setAttribute('aria-label', b.title);
+  const m = $('#minBtn');
+  m.hidden = !w;
+  m.title = t('minimize');
+  m.setAttribute('aria-label', m.title);
+}
+const toggleView = () => { if ($('#viewBtn').offsetParent) window.bf.toggleView(); }; // hidden in the web build
+$('#viewBtn').onclick = (e) => { e.currentTarget.blur(); toggleView(); };
+$('#minBtn').onclick = (e) => { e.currentTarget.blur(); window.bf.minimize(); };
+window.bf.onView(applyView);
+applyView('full');
+addEventListener('bf:lang', () => applyView(document.documentElement.dataset.view));
 $('#mCancel').onclick = closeModal;
 $('#mOk').onclick = () => { const f = st.modal && st.modal.onOk; closeModal(); if (f) f(); };
 

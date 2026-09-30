@@ -28,7 +28,7 @@
       sets: '組數', minReps: '最少次數', maxReps: '最多次數', reset: '還原', colSets: '組', colReps: '次數',
       prevMonth: '上個月', nextMonth: '下個月', decreaseReps: '減少次數', increaseReps: '增加次數',
       // overlay
-      breakTime: '休息時間', leave: '離開', earlyBreak: '提前休息', test: '測試', skipThis: '跳過這次',
+      breakTime: '休息時間', toWindow: '縮小成視窗', toFull: '全螢幕', minimize: '最小化', leave: '離開', earlyBreak: '提前休息', test: '測試', skipThis: '跳過這次',
       perSide: '每邊', repsN: '{r} 下', perSideReps: '每邊 {r} 下', setNo: '第 {n}/{t} 組', timedMeta: '{n} × {s} 秒',
       yourTurn: '換你做', repUnit: '下', tempo: '3–5 秒/下', doneSet: '完成這組', upNext: '下一個', nextSet: '下一組',
       nextMove: '下一個動作', nextRound: '下一輪', plus30: '延長 30 秒', skipRest: '跳過休息', prevSet: '上一組',
@@ -67,7 +67,7 @@
       language: 'Language', demo: 'Demo', demoSec: 'Demo Length', launchAtLogin: 'Open at Login', overrides: 'Sets / Reps',
       sets: 'Sets', minReps: 'Min Reps', maxReps: 'Max Reps', reset: 'Reset', colSets: 'Sets', colReps: 'Reps',
       prevMonth: 'Previous Month', nextMonth: 'Next Month', decreaseReps: 'Fewer Reps', increaseReps: 'More Reps',
-      breakTime: 'Break Time', leave: 'Leave', earlyBreak: 'Early Break', test: 'Test', skipThis: 'Skip This One',
+      breakTime: 'Break Time', toWindow: 'Shrink to Window', toFull: 'Full Screen', minimize: 'Minimize', leave: 'Leave', earlyBreak: 'Early Break', test: 'Test', skipThis: 'Skip This One',
       perSide: 'Each side', repsN: '{r} reps', perSideReps: '{r} reps each side', setNo: 'Set {n}/{t}', timedMeta: '{n} × {s} s',
       yourTurn: 'Your Turn', repUnit: 'reps', tempo: '3–5 s per rep', doneSet: 'Set Done', upNext: 'Up Next', nextSet: 'Next Set',
       nextMove: 'Next Exercise', nextRound: 'Next Round', plus30: '+30 s', skipRest: 'Skip Rest', prevSet: 'Last Set',
