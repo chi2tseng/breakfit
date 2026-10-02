@@ -122,6 +122,7 @@ const params = new URLSearchParams(location.search);
 const FAST = params.has('fast');
 const app = {
   isPackaged: false,
+  isWeb: true, // app.js: breaks always open full (settings.breakView is desktop-only)
   getPath: (k) => (k === 'userData' ? DATA + (FAST ? '/fast' : '') : '/'),
   whenReady: () => Promise.resolve(),
   on() {},

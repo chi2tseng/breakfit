@@ -435,6 +435,7 @@ function renderSettings() {
   document.documentElement.dataset.theme = s.theme;
   $$('#sTheme button').forEach((b) => b.classList.toggle('on', b.dataset.t === s.theme));
   $$('#sLang button').forEach((b) => b.classList.toggle('on', b.dataset.l === s.lang));
+  viewSeg('#sView');
   $('#sShowDemo').classList.toggle('on', s.showDemo);
   $('#sDemoRow').classList.toggle('off', !s.showDemo);
   $('#sDemo').disabled = !s.showDemo;
@@ -527,10 +528,21 @@ function bindSettings() {
   $('#sDemo').addEventListener('change', (e) => save({ demoSec: Number(e.target.value) }));
   $$('#sTheme button').forEach((b) => b.addEventListener('click', () => save({ theme: b.dataset.t }).then(renderSettings)));
   $$('#sLang button').forEach((b) => b.addEventListener('click', () => save({ lang: b.dataset.l })));
+  // 休息顯示 (desktop only; the web build hides the row): settings page and the 完整訓練 sheet share it
+  $$('#sView button, #woView button').forEach((b) => b.addEventListener('click', () => save({ breakView: b.dataset.v }).then(() => { viewSeg('#sView'); viewSeg('#woView'); })));
   $('#sShowDemo').addEventListener('click', () => save({ showDemo: !S.settings.showDemo }).then(renderSettings));
   $('#sNotify').addEventListener('click', () => save({ notifyEmptySlots: !S.settings.notifyEmptySlots }));
   $('#sLaunch').addEventListener('click', () => save({ autoLaunch: !S.settings.autoLaunch }));
   $('#testBreakBtn').addEventListener('click', () => window.bf.testBreak());
+}
+
+// 全螢幕 | 視窗: how every break opens (settings.breakView; the overlay's own toggle saves it too)
+function viewSeg(sel) {
+  $$(`${sel} button`).forEach((b) => {
+    const on = b.dataset.v === S.settings.breakView;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
 }
 
 // ---------- 完整訓練 chooser ----------
@@ -551,6 +563,7 @@ function renderWorkout() {
     : d.moves ? t(d.moves === 1 ? 'movesN1' : 'movesN', { n: d.moves }) : t('stretch'); // only the stretch left
   $('#woName').textContent = d.title;
   $('#woMeta').innerHTML = `<span>${esc(count)}</span><span>${esc(t('aboutMin', { n: d.min }))}</span>${d.extra ? `<span class="pill">${esc(t('extraSession'))}</span>` : ''}`;
+  viewSeg('#woView');
   $('#woStart').disabled = S.breakActive;
 }
 function openWorkout() {

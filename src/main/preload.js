@@ -23,4 +23,5 @@ contextBridge.exposeInMainWorld('bf', {
   toggleView: () => ipcRenderer.invoke('break:view'),
   minimize: () => ipcRenderer.invoke('break:minimize'),
   onView: (cb) => ipcRenderer.on('view', (_e, v) => cb(v)),
+  onAskLeave: (cb) => ipcRenderer.on('ask-leave', () => cb()), // windowed overlay closed by Alt+F4 / the taskbar
 });

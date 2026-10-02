@@ -1,6 +1,8 @@
 /* Web build only (index.html). Tokens from base.css; no colour literals. */
 /* Desktop-only settings: start at login. */
 .field:has(#sLaunch) { display: none; }
+/* Desktop-only: 休息顯示 (full screen | window); a web break is an in-page layer */
+.field:has(#sView), .wo-view { display: none; }
 
 /* A desktop "window" (break overlay) = a full-viewport frame over the page. */
 .bf-window {

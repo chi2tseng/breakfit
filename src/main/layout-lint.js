@@ -12,6 +12,8 @@
 //   f also checks tracking: letter-spacing must match the size's DESIGN.md §1.1 value
 //   h role         comparable elements (opts.roles: row labels, table headers, card titles …)
 //                  rendering with more than one size / line-height / weight / tracking combo
+//   opts.scroller  (windowed overlay) the one element allowed to scroll vertically: it is not
+//                  "clipped" (c), and what sits below its fold is reachable, not "outside" (b)
 
 function lint(opts) {
   const kind = opts.kind; // 'main' | 'overlay'
@@ -76,7 +78,7 @@ function lint(opts) {
       add('c-truncated', el, `ellipsis: ${el.scrollWidth}px text in ${el.clientWidth}px`);
     } else if (hasText && el.clientWidth > 0) {
       const hid = (v) => v === 'hidden' || v === 'clip';
-      const overlayScroller = kind === 'overlay' && (cs.overflowY === 'auto' || cs.overflowY === 'scroll');
+      const overlayScroller = kind === 'overlay' && (cs.overflowY === 'auto' || cs.overflowY === 'scroll') && !(opts.scroller && el.matches(opts.scroller));
       if ((hid(cs.overflowX) && el.scrollWidth > el.clientWidth + 1)
         || ((hid(cs.overflowY) || overlayScroller) && el.scrollHeight > el.clientHeight + 1)) {
         add('c-truncated', el, `clipped: content ${el.scrollWidth}×${el.scrollHeight} in ${el.clientWidth}×${el.clientHeight}`);
@@ -91,7 +93,8 @@ function lint(opts) {
     if (r.width === 0 && r.height === 0) continue;
     const cs = getComputedStyle(el);
     if (cs.position === 'fixed') continue;
-    if (r.left < -1 || r.right > vw + 1 || (kind === 'overlay' && r.bottom > vh + 1)) {
+    const below = kind === 'overlay' && r.bottom > vh + 1 && !(opts.scroller && el.parentElement && el.parentElement.closest(opts.scroller));
+    if (r.left < -1 || r.right > vw + 1 || below) {
       add('b-outside', el, `outside window ${vw}×${vh}: [${r1(r.left)}, ${r1(r.top)}, ${r1(r.right)}, ${r1(r.bottom)}]`);
       continue;
     }

@@ -245,6 +245,8 @@ body { display: flex; overflow: hidden; }
 .wo-name { font: var(--t-headline); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .wo-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; color: var(--muted); }
 .wo-btns { display: flex; justify-content: flex-end; gap: 12px; }
+.wo-card .field { min-height: 0; padding: 16px 0 0; border-top: 1px solid var(--line-soft); }
+.wo-card .wo-view .seg { width: auto; }
 
 /* ---------- history ----------
    Streak = the one hero numeral, the other stats a quiet inline row; calendar + day detail are the

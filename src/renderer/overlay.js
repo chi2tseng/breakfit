@@ -635,12 +635,18 @@ function applyView(v) {
   m.hidden = !w;
   m.title = t('minimize');
   m.setAttribute('aria-label', m.title);
+  const l = $('#leaveBtn'); // a narrow window shows its icon only
+  l.title = t('leave');
+  l.setAttribute('aria-label', l.title);
 }
 const toggleView = () => { if ($('#viewBtn').offsetParent) window.bf.toggleView(); }; // hidden in the web build
 $('#viewBtn').onclick = (e) => { e.currentTarget.blur(); toggleView(); };
 $('#minBtn').onclick = (e) => { e.currentTarget.blur(); window.bf.minimize(); };
 window.bf.onView(applyView);
-applyView('full');
+// the break opens in the saved view (main passes ?view=); the web build has no window view
+applyView(new URLSearchParams(location.search).get('view') === 'window' && $('#viewBtn').offsetParent ? 'window' : 'full');
+// windowed: Alt+F4 / the taskbar's Close asks like 離開 (main keeps the window open)
+window.bf.onAskLeave(() => { if (P && !st.ended && !st.modal) askLeave(); });
 addEventListener('bf:lang', () => applyView(document.documentElement.dataset.view));
 $('#mCancel').onclick = closeModal;
 $('#mOk').onclick = () => { const f = st.modal && st.modal.onOk; closeModal(); if (f) f(); };
@@ -713,6 +719,8 @@ window.__test = {
   skip: () => { askSkip(); return true; },
   steps: () => steps.map((s) => s.kind),
   phase: () => (st.phase === 'step' ? cur().kind : st.phase),
+  // what a live view switch must not change
+  state: () => JSON.stringify({ phase: st.phase === 'step' ? cur().kind : st.phase, i: st.i, remaining: st.remaining, elapsed: st.elapsed, sets: st.sessionSets, lastRec: st.lastRec }),
   key: (key, repeat = false) => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key, repeat, bubbles: true }));
     return st.phase === 'step' ? cur().kind : st.phase;

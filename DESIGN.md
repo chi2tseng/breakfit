@@ -207,6 +207,25 @@ dialog title `結束訓練？`, no body line (leaving never fails the day by its
 Leave and skip dialogs: title and buttons only. A body line appears only for a consequence, in red
 (`離開 = 今天不合格`, `跳過 = 今天不合格`).
 
+### 4a. Windowed overlay (`settings.breakView = 'window'`, SPEC §5a)
+
+Same page, `html[data-view="window"]` (set from `?view=` at load, then live from main). Top bar
+right: `remove` (minimize, windowed only), `close_fullscreen` / `fullscreen` + `F` keycap, 離開.
+The header is the drag region (`-webkit-app-region: drag`, buttons `no-drag`, a 6 px margin keeps
+the native resize edges free). Geometry (pure, unit-tested): `src/core/overlay-window.js`
+(`defaultWindowBounds`, `pickSavedBounds`, `planOverlayWindows`, minimum 400×400 DIP).
+
+| Window (CSS px) | Layout |
+|---|---|
+| ≥ 1024 wide, ≥ 560 tall, landscape | the full-screen stage unchanged (§4) |
+| < 1024 wide, or < 560 tall, landscape | clip column (`minmax(0,1fr)`, clip centred) \| panel 24rem; header 3.5rem; panel at least the window's height (F at the bottom), row gap 1rem |
+| portrait, or < 640 wide | clip above the panel; clip height `--clip-h` = what the panel (26rem) leaves, 6rem minimum, ≤ 16:9 of the width |
+| < 640 wide | header buttons icon only (no keycaps, 離開 label → tooltip / aria-label) |
+| < 480 wide | slot time hidden (mode tag + progress stay) |
+
+The panel grows with its content instead of clipping it; only then does `#stage` scroll
+(`overflow-y: auto`), so the primary button is always reachable. The matrix checks that (rule i).
+
 ## 5. Main window
 
 **Window.** Content size (`useContentSize`), minimum **800×600** CSS px (the smallest size the
@@ -519,6 +538,13 @@ Hidden windows, temp profile, both themes:
   intro, demo, work, rest, finish, leave dialog (第 1 天) and last intro, timed, round rest,
   finish pass (第 3 天), stretch screens, and 完整訓練 intro (第 2 天, 9 rows) / set rest / finish.
   The main window also lints the 完整訓練 chooser (`#workout`, 第 2 天 = 加練).
+- Windowed overlay (§4a) 1280×800, 1024×640, 960×540, 800×450, 640×400, 520×640, 400×620, 400×480,
+  plus 800×450 at 125 % / 150 % → intro, demo, work, set rest, leave, finish (第 1 天); last intro,
+  circuit preview, timed, round rest, finish pass, skip dialog (第 3 天 last break); stretch preview +
+  hold; 完整訓練 intro (第 2 天) — both themes, 繁中 + English (`<theme>-win-<screen>-<size>.png`).
+  `#stage` is the one allowed scroller (lint `scroller`); (i) the primary button (or the dialog's OK)
+  must scroll fully into view. Screens whose stage scrolls are listed in the run's output.
+  `-- --matrix --window`: the windowed screens only.
 - PNGs: `selftest-out/matrix/<theme>-<screen>-<W>x<H>[@zoom].png`; lint: `selftest-out/matrix/lint.json`
   (`total`, `bySize`, `byRule`, distinct type combos with counts, every issue with selector +
   text + size). Lint source: `src/main/layout-lint.js`.
@@ -530,7 +556,7 @@ Rules: (a) horizontal overflow (scrollWidth > clientWidth + 1) unless `[data-lin
 (e) list/table column edges differing > 1 px (settings fields, menu rows + header, timeline,
 detail rows, overlay plan rows); (f) font-size / line-height / weight not a §3 token, or < 13 px
 rendered; (g) hit targets: main window ≥ 28×28 (macOS default control size), `.btn` ≥ 44 high;
-overlay ≥ 44×44.
+overlay ≥ 44×44; (i) windowed overlay: primary button reachable.
 
 Phone widths (web build only; the desktop window's minimum is 800×600): `npm.cmd run test:web`
 runs the same lint (`TOKENS` / `GROUPS` / `ROLES` exported from `layout-lint.js`) at 390×844 and
@@ -540,4 +566,5 @@ Result 2026-09-24: 6444 issues before (1280×720 alone: 348) → **0** at every 
 Result 2026-09-25: phone widths 750 issues → **0**; matrix still 0 (306 screens).
 Result 2026-09-25 (hero pass): matrix **0** (364 screens) incl. the new 今天 hero / day line / directive states and
 the 記錄 streak row, both themes, 繁中 + English; phone lint 0.
+Result 2026-10-02 (windowed overlay): every windowed screen 0 issues (dark 繁中 pass, 160 screens); full 3-pass run: see the next result line.
 Intentional exceptions: none.

@@ -9,6 +9,8 @@ const DEFAULT_SETTINGS = Object.freeze({
   showDemo: true, // false: the break skips every demo countdown + circuit preview (video still loops)
   theme: 'dark', // 'dark' (green accent) | 'light' (orange accent)
   lang: 'zh', // 'zh' (繁中) | 'en' (English)
+  breakView: 'full', // how every break opens: 'full' (full screen) | 'window' (normal window); the web build ignores it
+  windowBounds: null, // { x, y, width, height } (DIP) where the windowed break was last left
   notifyEmptySlots: true,
   autoLaunch: true, // SPEC 2026-09-24: default ON (registered only in packaged builds)
   cycleAnchor: null, // { date: 'YYYY-MM-DD', index: 0..3 }
@@ -20,6 +22,18 @@ function clampInt(v, lo, hi, dflt) {
   const n = Math.round(Number(v));
   if (!Number.isFinite(n)) return dflt;
   return Math.min(hi, Math.max(lo, n));
+}
+
+// A saved window rectangle: four finite numbers (rounded), positive size; anything else → null.
+function normalizeBounds(b) {
+  if (!b || typeof b !== 'object') return null;
+  const r = {};
+  for (const k of ['x', 'y', 'width', 'height']) {
+    const n = Number(b[k]);
+    if (b[k] === null || b[k] === '' || !Number.isFinite(n)) return null;
+    r[k] = Math.round(n);
+  }
+  return r.width > 0 && r.height > 0 ? r : null;
 }
 
 function normalizeSettings(raw = {}) {
@@ -36,6 +50,8 @@ function normalizeSettings(raw = {}) {
   s.showDemo = s.showDemo == null ? DEFAULT_SETTINGS.showDemo : !!s.showDemo;
   s.theme = s.theme === 'light' ? 'light' : 'dark';
   s.lang = s.lang === 'en' ? 'en' : 'zh';
+  s.breakView = s.breakView === 'window' ? 'window' : 'full';
+  s.windowBounds = normalizeBounds(s.windowBounds);
   s.overrides = s.overrides && typeof s.overrides === 'object' ? { ...s.overrides } : {};
   return s;
 }

@@ -19,6 +19,7 @@ const { lintSource, TOKENS, GROUPS, ROLES } = require('./layout-lint');
 
 const MATRIX = process.argv.includes('--matrix'); // `npm.cmd run selftest -- --matrix`: size matrix + layout lint only
 const QUICK = process.argv.includes('--quick'); // with --matrix: main window at 965/1366/1920/2560 only, no zoom, no overlay
+const WONLY = process.argv.includes('--window'); // with --matrix: the windowed overlay only (quick iteration on its layout)
 
 // Packaged builds run from inside the read-only app.asar; __dirname there resolves to a path
 // under app.asar, and writing there throws ENOTDIR. Write next to the exe instead when packaged.
@@ -267,6 +268,17 @@ async function main() {
   await shot(mw, '07-history-bottom', '記錄：捲到底');
 
   await js(mw, "__test.tab('settings')");
+  // 設定 → 一般 → 休息顯示: 全螢幕 | 視窗 (settings.breakView); the 完整訓練 sheet shows the same choice
+  assert(ctl.data.settings.breakView === 'full' && await js(mw, "document.querySelector('#sView .on').dataset.v") === 'full', '休息顯示 defaults to 全螢幕');
+  await js(mw, "document.querySelector('#sView [data-v=\"window\"]').click(), true");
+  await until(mw, "document.querySelector('#sView .on').dataset.v === 'window'");
+  assert(ctl.data.settings.breakView === 'window', '休息顯示 → 視窗 saves settings.breakView');
+  assert(await js(mw, "__test.workout() && document.querySelector('#woView .on').dataset.v") === 'window', '完整訓練 sheet shows the same 休息顯示 choice');
+  await shot(mw, '08b-workout-view', '完整訓練：休息顯示 全螢幕 | 視窗');
+  await js(mw, "document.querySelector('#woView [data-v=\"full\"]').click(), true");
+  await until(mw, "document.querySelector('#woView .on').dataset.v === 'full'");
+  assert(ctl.data.settings.breakView === 'full', '完整訓練 sheet: 全螢幕 saves it back');
+  await js(mw, "__test.close(); __test.tab('settings')");
   await shot(mw, '08-settings', '設定：時段、循環、休息畫面、菜單覆寫');
   await js(mw, '__test.scroll(10000)');
   await shot(mw, '09-settings-bottom', '設定：捲到底');
@@ -287,15 +299,24 @@ async function main() {
   await until(ow, 'window.__test && window.__test.ready()');
   await js(ow, "__test.show('intro', { remaining: 7.3 })");
   await shot(ow, '10-intro', '開場：清單(上次留下標記)+10 秒倒數');
-  // full screen ⇄ normal window: the button/F key flip data-view through main (window ops are skipped in selftest)
-  assert(await js(ow, "document.documentElement.dataset.view === 'full' && document.querySelector('#minBtn').hidden"), 'overlay starts full screen (minimize button hidden)');
+  // full screen ⇄ normal window, live, mid-break (button / F key → main; showing / moving the window
+  // is skipped in selftest): same phase, timer and sets, and the choice is saved for the next break
+  assert(ctl.overlayView === 'full' && ow.bfView.regrab && !ow.isResizable() && await js(ow, "document.documentElement.dataset.view === 'full' && document.querySelector('#minBtn').hidden"), 'overlay opens in the saved view: full screen (minimize hidden, blur re-grab on)');
+  await js(ow, "__test.show('rest', { remaining: 42, reps: 12 })");
+  const live0 = await js(ow, '__test.state()');
+  const done0 = D.doneSets(ctl.data.days[TODAY]);
   await js(ow, "document.querySelector('#viewBtn').click()");
   await until(ow, "document.documentElement.dataset.view === 'window'");
+  assert(ctl.overlayView === 'window' && ctl.data.settings.breakView === 'window', 'button → windowed, saved as settings.breakView = window');
+  assert(ow.isResizable() && ow.isMovable() && ow.isMinimizable() && !ow.bfView.skipTaskbar && ow.bfView.alwaysOnTop && !ow.bfView.regrab, 'windowed flags: resizable, movable, minimizable, in the taskbar, on top, no blur re-grab');
   assert(await js(ow, "!document.querySelector('#minBtn').hidden && document.querySelector('#viewBtn .ms').textContent === 'fullscreen' && getComputedStyle(document.querySelector('#top')).webkitAppRegion === 'drag'"), 'windowed: minimize shown, button = back to full screen, header is the drag region');
-  await shot(ow, '10w-windowed', '視窗化：標題列可拖、最小化與全螢幕鈕');
+  const live1 = await js(ow, '__test.state()');
+  assert(live1 === live0 && ctl.currentBreak.sets === 0 && D.doneSets(ctl.data.days[TODAY]) === done0, `live switch keeps phase, timer, sets (${live1})`);
+  await shot(ow, '10w-windowed', '視窗化(組間休息中切換)：標題列可拖、最小化與全螢幕鈕');
   await js(ow, "document.dispatchEvent(new KeyboardEvent('keydown', { key: 'f', bubbles: true }))");
   await until(ow, "document.documentElement.dataset.view === 'full'");
-  assert(await js(ow, "document.querySelector('#minBtn').hidden"), 'F key returns to full screen');
+  assert(await js(ow, "document.querySelector('#minBtn').hidden") && ctl.data.settings.breakView === 'full' && !ow.isResizable() && ow.bfView.regrab, 'F key returns to full screen and saves it');
+  assert(await js(ow, '__test.state()') === live0, 'round trip: phase, timer, sets unchanged');
   await js(ow, "__test.show('demo', { remaining: 5.2 })");
   await shot(ow, '11-demo', '示範：循環示範片/佔位 + 要點 + 目標組數');
   await js(ow, "__test.show('work', { elapsed: 23 })");
@@ -322,6 +343,36 @@ async function main() {
   await delay(200);
   assert(!ctl.currentBreak && ctl.data.days[TODAY].slots[5].status === 'partial', 'abort → slot partial, overlay closed');
   assert(D.pendingUnits(ctl.data.days[TODAY], 6).map((p) => p.unit.id).join(',') === 'weighted_pushup,incline_pushup', 'unfinished sets roll to next slot');
+
+  // ---------- a break that opens directly windowed (saved view + saved rectangle) ----------
+  console.log('overlay (opens windowed)');
+  ctl.data.settings.breakView = 'window';
+  const rect = { x: 60, y: 60, width: 960, height: 600 };
+  ctl.data.settings.windowBounds = { ...rect };
+  assert(ctl.openBreak('test'), '預覽休息畫面 opens');
+  const wo = ctl.overlayWins[0];
+  await waitLoad(wo);
+  await until(wo, 'window.__test && window.__test.ready()');
+  const wb = wo.getBounds();
+  assert(ctl.overlayWins.length === 1 && ctl.overlayView === 'window' && JSON.stringify(wb) === JSON.stringify(rect), `opens windowed at the saved rectangle, no cover windows (${JSON.stringify(wb)})`);
+  assert(!wo.isFullScreen() && !wo.isVisible() && wo.isResizable() && wo.isMovable() && wo.isMinimizable() && !wo.bfView.skipTaskbar && wo.bfView.alwaysOnTop && !wo.bfView.regrab,
+    'windowed from the start: not full screen (hidden in selftest), resizable, movable, minimizable, in the taskbar, on top, no blur re-grab');
+  assert(await js(wo, "document.documentElement.dataset.view === 'window' && !document.querySelector('#minBtn').hidden"), 'the page starts in window view');
+  await shot(wo, '17-opens-windowed', '直接以視窗開啟(上次的位置與大小)');
+  // Alt+F4 / the taskbar's Close = 離開: asks first, the break stays
+  wo.close();
+  await until(wo, "!document.getElementById('modal').hidden");
+  assert(ctl.currentBreak && !wo.isDestroyed() && await js(wo, "document.getElementById('mTitle').textContent") === '離開休息？', 'closing the windowed break (Alt+F4) asks 離開休息？, the break stays');
+  await shot(wo, '17b-windowed-close-asks', '視窗模式按 Alt+F4：先問要不要離開');
+  await js(wo, "document.getElementById('mCancel').click(), true");
+  // moved / resized: remembered (debounced) in data.json, so it survives a restart
+  wo.setBounds({ x: 80, y: 70, width: 900, height: 620 });
+  await delay(900);
+  const onDisk = JSON.parse(fs.readFileSync(ctl.file, 'utf8')).settings;
+  assert(JSON.stringify(onDisk.windowBounds) === JSON.stringify({ x: 80, y: 70, width: 900, height: 620 }) && onDisk.breakView === 'window', `moved / resized window saved to data.json (${JSON.stringify(onDisk.windowBounds)})`);
+  ctl.endBreak('abort');
+  assert(!ctl.currentBreak && ctl.overlayWins.length === 0, 'windowed preview break closed');
+  ctl.data.settings.breakView = 'full';
 
   const press = (win, key, repeat = false) => js(win, `__test.key(${JSON.stringify(key)}, ${repeat})`);
 
@@ -792,6 +843,16 @@ async function fullWorkout(ctl, mw, settle, clock) {
   await ready(owA);
   assert(!ctl.openBreak('manual') && !ctl.openSession('d2') && ctl.overlayWins.length === 1, 'no break / second session while a session runs');
   for (let i = 0; i < 5; i++) await js(owA, "window.bf.setDone('pushup', 10)");
+  // live switch mid-session: same screen, timer and sets; session continues in the same window
+  await js(owA, "__test.show('rest', { nth: 2, remaining: 33, reps: 10 })");
+  const sess0 = await js(owA, '__test.state()');
+  await js(owA, "__test.key('f')");
+  await until(owA, "document.documentElement.dataset.view === 'window'");
+  assert(ctl.currentBreak.mode === 'session' && ctl.currentBreak.sets === 5 && ctl.overlayWins.length === 1 && ctl.overlayView === 'window' && await js(owA, '__test.state()') === sess0,
+    `mid-session switch to window: phase, timer, 5 sets unchanged (${sess0})`);
+  await js(owA, "__test.key('f')");
+  await until(owA, "document.documentElement.dataset.view === 'full'");
+  assert(ctl.currentBreak.sets === 5 && tday.units[0].doneSets === 5 && await js(owA, '__test.state()') === sess0 && ctl.data.settings.breakView === 'full', 'mid-session round trip back to full screen: unchanged');
   clock.set(new Date(2026, 8, 24, 12, 10, 0));
   ctl.check();
   assert(ctl.currentBreak && ctl.currentBreak.mode === 'session' && ctl.overlayWins.length === 1, 'breaks due during the session do not open');
@@ -847,6 +908,8 @@ const ZOOMS = [[965, 940, 1.25], [965, 940, 1.5]];
 const EN_MAIN_SIZES = [[800, 600], [965, 940], [1366, 768], [1920, 1080], [2560, 1440]];
 const EN_OV_SIZES = [[1024, 768], [1366, 768], [1920, 1080]];
 const OV_SIZES = [[1024, 768], [1280, 720], [1280, 800], [1366, 768], [1440, 900], [1536, 864], [1920, 1080], [2560, 1440]];
+// windowed overlay (settings.breakView = 'window'): window content sizes, zoom = Windows display scaling
+const WIN_SIZES = [[1280, 800, 1], [1024, 640, 1], [960, 540, 1], [800, 450, 1], [640, 400, 1], [520, 640, 1], [400, 620, 1], [400, 480, 1], [800, 450, 1.25], [800, 450, 1.5]];
 
 async function settleLayout(win) {
   await win.webContents.executeJavaScript(
@@ -866,6 +929,24 @@ async function resize(win, w, h, zoom = 1) {
   if (cw !== w || ch !== h) console.log(`  WARN content size ${cw}x${ch} != ${w}x${h}`);
   return inner;
 }
+
+// Windowed overlay: does the stage scroll, and can the primary button (or the dialog's OK) be
+// scrolled fully into view? Leaves the stage scrolled back to the top.
+const REACH_CHECK = `(() => {
+  const st = document.getElementById('stage');
+  const modal = !document.getElementById('modal').hidden;
+  const b = modal ? document.getElementById('mOk') : document.querySelector('#pPri .btn');
+  const over = st.scrollHeight - st.clientHeight;
+  let reach = true, msg = '';
+  if (b) {
+    b.scrollIntoView({ block: 'nearest' });
+    const r = b.getBoundingClientRect();
+    reach = r.top >= -1 && r.bottom <= innerHeight + 1 && r.left >= -1 && r.right <= innerWidth + 1;
+    msg = [r.top, r.bottom, innerHeight].map(Math.round).join('/');
+  }
+  st.scrollTop = 0;
+  return JSON.stringify({ reach, msg, sel: b ? b.id : '', scrolls: over > 1, over });
+})()`;
 
 async function matrix(ctl, mw) {
   const dir = path.join(OUT, 'matrix');
@@ -903,6 +984,19 @@ async function matrix(ctl, mw) {
   let d3key = TODAY;
   while (C.planDayFor(d3key, ctl.data.settings, plan.cycle) !== 'd3') d3key = T.addDays(d3key, 1);
   const d3 = D.createDay(d3key, ctl.data.settings, plan);
+  const openFor = async (pd) => {
+    const payload = pd === 'd1' ? ctl.buildPayload(TODAY, ctl.ensureToday(), 'slot', 6)
+      : pd === 'stretch' ? stretchPayload(ctl)
+        : pd === 'session' ? ctl.buildSessionPayload(TODAY, D.createDay(TODAY, ctl.data.settings, plan, 600), 'd2')
+          : ctl.buildPayload(d3key, d3, 'slot', D.lastSlot(d3));
+    payload.showDemo = true;
+    ctl.openBreak('test', null, payload);
+    const ow = ctl.overlayWins[0];
+    await waitLoad(ow);
+    await until(ow, 'window.__test && window.__test.ready()');
+    return ow;
+  };
+  const scrolled = [];
   const OV = [
     ['d1', [['intro', "__test.show('intro', { remaining: 7.3 })"], ['demo', "__test.show('demo', { remaining: 5.2 })"],
       ['work', "__test.show('work', { elapsed: 23 })"], ['rest', "__test.show('rest', { remaining: 42, reps: 12 })"],
@@ -912,6 +1006,15 @@ async function matrix(ctl, mw) {
     ['stretch', STRETCH_SCREENS.filter(([n]) => !['stretch-hold-single', 'stretch-finish-fail'].includes(n)).map(([n, code]) => [n, code])],
     ['session', [['session-intro', "__test.show('intro', { remaining: 8 })"], ['session-rest', "__test.show('rest', { nth: 6, remaining: 38, reps: 11 })"],
       ['session-finish', "__test.show('finish', { sets: 25, stretchDone: true })"]]],
+  ];
+
+  const WOV = [
+    ['d1', OV[0][1]],
+    ['d3', [['last-intro', "__test.show('intro', { remaining: 9.1 })"], ['preview', "__test.show('preview', { nth: 1, remaining: 3.2 })"],
+      ['timed', "__test.show('timed', { nth: 2, remaining: 18.2 })"], ['round-rest', "__test.show('roundRest', { remaining: 152 })"],
+      ['finish-pass', "__test.show('finish', { sets: 2 })"], ['skip', "__test.show('intro', { remaining: 9.1 }) && __test.skip()"]]],
+    ['stretch', [['stretch-preview', "__test.show('stretchPreview', { remaining: 3.6 })"], ['stretch-hold', "__test.show('hold', { nth: 1, remaining: 12.2 })"]]],
+    ['session', [['session-intro', "__test.show('intro', { remaining: 8 })"]]],
   ];
 
   // 繁中 in both themes at every size; English (longer words) in dark at the sizes that bound the layouts.
@@ -926,7 +1029,7 @@ async function matrix(ctl, mw) {
     const sizes = QUICK
       ? base.filter(([w]) => [965, 1366, 1920, 2560].includes(w)).map(([w, h]) => [w, h, 1])
       : [...base.map(([w, h]) => [w, h, 1]), ...(lang === 'en' ? [] : ZOOMS)];
-    for (const [w, h, z] of sizes) {
+    for (const [w, h, z] of WONLY ? [] : sizes) {
       const inner = await resize(mw, w, h, z);
       const tag = `${w}x${h}${z === 1 ? '' : `@${Math.round(z * 100)}`}`;
       for (const [screen, code, doLint] of MAIN_STATES) {
@@ -937,7 +1040,7 @@ async function matrix(ctl, mw) {
     }
     await js(mw, '__test.close()');
     await resize(mw, 1280, 800, 1);
-    for (const [pd, states] of QUICK ? [] : OV) {
+    for (const [pd, states] of QUICK || WONLY ? [] : OV) {
       const payload = pd === 'd1' ? ctl.buildPayload(TODAY, ctl.ensureToday(), 'slot', 6)
         : pd === 'stretch' ? stretchPayload(ctl)
           : pd === 'session' ? ctl.buildSessionPayload(TODAY, D.createDay(TODAY, ctl.data.settings, plan, 600), 'd2')
@@ -958,7 +1061,35 @@ async function matrix(ctl, mw) {
       ctl.endBreak('abort');
       await delay(150);
     }
+
+    // windowed overlay: every phase + both dialogs at every window size; the stage may scroll only
+    // when the window is too short, and the primary button must always be reachable
+    ctl.data.settings.breakView = 'window';
+    for (const [pd, states] of QUICK ? [] : WOV) {
+      const ow = await openFor(pd);
+      assert(ctl.overlayView === 'window' && await js(ow, "document.documentElement.dataset.view === 'window'"), `matrix ${pd}: break opens windowed`);
+      for (const [w, h, z] of WIN_SIZES) {
+        await resize(ow, w, h, z);
+        const tag = `${w}x${h}${z === 1 ? '' : `@${Math.round(z * 100)}`}`;
+        for (const [screen, code] of states) {
+          await js(ow, code);
+          await snap(ow, `${pre}${theme}-win-${screen}-${tag}`, { kind: 'overlay', scroller: '#stage' });
+          const r = JSON.parse(await js(ow, REACH_CHECK));
+          const run = runs[runs.length - 1];
+          if (!r.reach) run.issues.push({ rule: 'i-reach', sel: r.sel, text: '', size: '', msg: `primary button not reachable (${r.msg})` });
+          if (r.scrolls) scrolled.push(`${run.name} (${r.over}px)`);
+        }
+      }
+      console.log(`  windowed ${pd}: ${runs.reduce((a, r) => a + r.issues.length, 0)} issues so far`);
+      fs.writeFileSync(path.join(dir, 'lint-partial.json'), JSON.stringify(runs.filter((r) => r.issues.length).map((r) => ({ name: r.name, issues: r.issues })), null, 1));
+      ctl.endBreak('abort');
+      await delay(150);
+    }
+    ctl.data.settings.breakView = 'full';
+    // after every pass: the issues so far (a long run can be read while it goes on)
+    fs.writeFileSync(path.join(dir, 'lint-partial.json'), JSON.stringify(runs.filter((r) => r.issues.length).map((r) => ({ name: r.name, issues: r.issues })), null, 1));
   }
+  console.log(`windowed screens that scroll: ${scrolled.length}${scrolled.length ? `\n  ${scrolled.join('\n  ')}` : ''}`);
 
   // summary: issue counts per size and rule, distinct type combos
   const bySize = {};
@@ -966,7 +1097,7 @@ async function matrix(ctl, mw) {
   const combos = {};
   for (const r of runs) {
     const m = /-(\d+x\d+(?:@\d+)?)$/.exec(r.name);
-    const key = `${r.name.startsWith('en-') ? 'en ' : ''}${r.name.includes('-ov-') ? 'overlay' : 'main'} ${m ? m[1] : '?'}`;
+    const key = `${r.name.startsWith('en-') ? 'en ' : ''}${r.name.includes('-ov-') ? 'overlay' : r.name.includes('-win-') ? 'window' : r.name.includes('-pip-') ? 'pip' : 'main'} ${m ? m[1] : '?'}`;
     bySize[key] = (bySize[key] || 0) + r.issues.length;
     for (const i of r.issues) byRule[i.rule] = (byRule[i.rule] || 0) + 1;
     for (const [k, v] of Object.entries(r.combos)) {
@@ -984,9 +1115,9 @@ async function matrix(ctl, mw) {
 
 function run() {
   const guard = setTimeout(() => {
-    console.error(`SELFTEST TIMEOUT (${MATRIX ? 1200 : 240} s)`);
+    console.error(`SELFTEST TIMEOUT (${MATRIX ? 5400 : 240} s)`);
     app.exit(2);
-  }, MATRIX ? 1200000 : 240000);
+  }, MATRIX ? 5400000 : 240000);
   app.on('window-all-closed', () => {});
   app.whenReady()
     .then(main)
