@@ -219,12 +219,27 @@ the native resize edges free). Geometry (pure, unit-tested): `src/core/overlay-w
 |---|---|
 | ≥ 1024 wide, ≥ 560 tall, landscape | the full-screen stage unchanged (§4) |
 | < 1024 wide, or < 560 tall, landscape | clip column (`minmax(0,1fr)`, clip centred) \| panel 24rem; header 3.5rem; panel at least the window's height (F at the bottom), row gap 1rem |
-| portrait, or < 640 wide | clip above the panel; clip height `--clip-h` = what the panel (26rem) leaves, 6rem minimum, ≤ 16:9 of the width |
+| portrait, or < 640 wide | clip above the panel; clip height `--clip-h` = what the panel (26.75rem; PIP 23rem) leaves, 6rem minimum, ≤ 16:9 of the width |
 | < 640 wide | header buttons icon only (no keycaps, 離開 label → tooltip / aria-label) |
 | < 480 wide | slot time hidden (mode tag + progress stay) |
 
 The panel grows with its content instead of clipping it; only then does `#stage` scroll
 (`overflow-y: auto`), so the primary button is always reachable. The matrix checks that (rule i).
+The same small-window rules apply to PIP (`html:not([data-view="full"])`).
+
+### 4b. PIP (`settings.breakView = 'pip'`, the default; SPEC §5a)
+
+Same page, `data-view="pip"`. Header: `picture_in_picture_alt` / `select_window` / `fullscreen` — the
+two views that are not current (F keycap only on full ⇄ window, never in PIP), 離開. Mouse-only:
+the window is not focusable, keys are ignored, every `kbd` hidden. Drag: `#top`, `.vbox`, `.p-head`,
+`.p-body` are `drag`, every button / stepper / dialog `no-drag`, `body` keeps a 6 px no-drag rim for
+the native resize edges; `#grip` (two diagonal `--muted` strokes, 12 px) marks the bottom-right
+corner. Root size `max(16px, min(100vh / 40, 100vw / 25))` (grows with a big PIP, never below the
+16 px base). From 360 px wide the secondary and primary buttons share one row (primary right; an
+empty secondary slot leaves the primary full width), so the default 400×580 fits every phase but
+the 9-row 完整訓練 intro without scrolling; below 360 the rest ring and stepper wrap. Geometry:
+`defaultPipBounds` (400×580, bottom-right of the work area of the display under the cursor, 16 px
+in), minimum 320×300, `pickSavedBounds` with `settings.pipBounds`.
 
 ## 5. Main window
 
@@ -544,7 +559,9 @@ Hidden windows, temp profile, both themes:
   hold; 完整訓練 intro (第 2 天) — both themes, 繁中 + English (`<theme>-win-<screen>-<size>.png`).
   `#stage` is the one allowed scroller (lint `scroller`); (i) the primary button (or the dialog's OK)
   must scroll fully into view. Screens whose stage scrolls are listed in the run's output.
-  `-- --matrix --window`: the windowed screens only.
+  `-- --matrix --window`: the windowed + PIP screens only.
+- PIP (§4b) 320×440, 360×520, 400×580, 480×800, 560×315, 640×360, 720×405, 960×540, plus 400×580 and
+  640×360 at 125 % / 150 % → the same screens as the windowed list (`<theme>-pip-<screen>-<size>.png`).
 - PNGs: `selftest-out/matrix/<theme>-<screen>-<W>x<H>[@zoom].png`; lint: `selftest-out/matrix/lint.json`
   (`total`, `bySize`, `byRule`, distinct type combos with counts, every issue with selector +
   text + size). Lint source: `src/main/layout-lint.js`.
@@ -566,5 +583,10 @@ Result 2026-09-24: 6444 issues before (1280×720 alone: 348) → **0** at every 
 Result 2026-09-25: phone widths 750 issues → **0**; matrix still 0 (306 screens).
 Result 2026-09-25 (hero pass): matrix **0** (364 screens) incl. the new 今天 hero / day line / directive states and
 the 記錄 streak row, both themes, 繁中 + English; phone lint 0.
-Result 2026-10-02 (windowed overlay): every windowed screen 0 issues (dark 繁中 pass, 160 screens); full 3-pass run: see the next result line.
-Intentional exceptions: none.
+Result 2026-10-02 (windowed overlay): matrix **0** (1043 screens incl. 480 windowed, both themes, 繁中 + English).
+Windowed screens that scroll at ≥ 520 px tall: only the 9-row 完整訓練 intro and (before the 26.75rem reserve) the work /
+leave screens by 11 px; everything else that scrolls is ≤ 480 tall or zoomed.
+Result 2026-10-02 (PIP): matrix **0** (1583 screens: main + full-screen overlay + 480 windowed + 576 PIP, both themes, 繁中 + English). At the default 400×580 only the 9-row 完整訓練 intro scrolls; 360×520 and every PIP ≤ 440 tall scroll a little (primary reachable, rule i).
+Intentional exceptions: one — in a window / PIP, a phase title that does not fit at title3 wraps to two lines
+(`fitTitle` adds `.wrap` + `data-lint-wrap`; rule (d) skips it) instead of an ellipsis. Below 320 px wide the
+mode tag in the header is hidden (the progress bar stays).

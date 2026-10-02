@@ -158,8 +158,12 @@ async function main() {
     await shot('phone-pause-menu');
     await js("document.querySelector('.bf-menu').hidden = true");
   }
+  // 休息顯示 is desktop-only: the row is hidden and a saved 'pip' still opens the in-page layer
+  check('web: 休息顯示 row hidden', await js("getComputedStyle(document.querySelector('#sView').closest('.field')).display === 'none'"));
+  await js("bf.saveSettings({ breakView: 'pip' }).then(() => true)");
   await js("document.querySelector('#testBreakBtn').click()");
   await until(frame('w.__test && w.__test.ready()'));
+  check('web ignores breakView (pip saved → full in-page break, no view buttons)', await js(frame("w.document.documentElement.dataset.view === 'full' && [...w.document.querySelectorAll('.vbtn, #minBtn')].every((b) => !b.offsetParent)")));
   await shot('phone-break-intro');
   for (const k of ['work', 'rest']) { await js(frame(`w.__test.show('${k}')`)); await shot(`phone-break-${k}`); }
   await js(frame("w.bf.end('abort')"));

@@ -25,7 +25,9 @@
     </div>
     <div class="top-r">
       <button class="btn ghost" id="minBtn" hidden><span aria-hidden="true" class="ms">remove</span></button>
-      <button class="btn ghost" id="viewBtn"><span aria-hidden="true" class="ms">close_fullscreen</span><kbd>F</kbd></button>
+      <button class="btn ghost vbtn" id="pipBtn" data-v="pip"><span aria-hidden="true" class="ms">picture_in_picture_alt</span></button>
+      <button class="btn ghost vbtn" id="winBtn" data-v="window"><span aria-hidden="true" class="ms">select_window</span><kbd>F</kbd></button>
+      <button class="btn ghost vbtn" id="fullBtn" data-v="full"><span aria-hidden="true" class="ms">fullscreen</span><kbd>F</kbd></button>
       <button class="btn ghost" id="leaveBtn"><span aria-hidden="true" class="ms">logout</span><span data-i18n="leave"></span><kbd>Esc</kbd></button>
     </div>
   </header>
@@ -60,6 +62,7 @@
       </div>
     </div>
   </div>
+<span id="grip" aria-hidden="true"></span>
 <script src="clip.js"></script>
 <script src="overlay.js"></script>
 </body>

@@ -193,9 +193,15 @@ const btn = (id, icon, label, { primary = false, fill = false, kbd = '', cd = fa
 // scale — display → title2 → title3 — instead of ending in an ellipsis.
 function fitTitle() {
   const el = $('#pTitle');
-  el.classList.remove('fit2', 'fit3');
+  el.classList.remove('fit2', 'fit3', 'wrap');
+  delete el.dataset.lintWrap;
   if (el.scrollWidth > el.clientWidth + 1) el.classList.add('fit2');
   if (el.scrollWidth > el.clientWidth + 1) { el.classList.remove('fit2'); el.classList.add('fit3'); }
+  // a narrow window / PIP: still too wide at title3 → two lines (the only title that may wrap)
+  if (el.scrollWidth > el.clientWidth + 1 && document.documentElement.dataset.view !== 'full') {
+    el.classList.add('wrap');
+    el.dataset.lintWrap = '';
+  }
 }
 addEventListener('resize', fitTitle);
 
@@ -586,6 +592,7 @@ setInterval(() => {
 
 document.addEventListener('keydown', (e) => {
   if (st.ended) return;
+  if (document.documentElement.dataset.view === 'pip') return; // PIP is mouse-only: the keyboard belongs to the app underneath
   if (e.key === 'Escape') {
     e.preventDefault();
     if (st.modal) closeModal();
@@ -623,29 +630,37 @@ function pressPrimary() {
 
 $('#leaveBtn').onclick = (e) => { e.currentTarget.blur(); askLeave(); };
 
-// ---------- full screen ⇄ normal window: main resizes the SAME window, so this page keeps its state ----------
+// ---------- PIP ⇄ window ⇄ full screen: main reshapes the SAME window, so this page keeps its state ----------
+const VIEW_LABEL = { pip: 'viewPipMenu', window: 'viewWindow', full: 'viewFull' }; // button tooltips
 function applyView(v) {
-  const w = v === 'window';
-  document.documentElement.dataset.view = w ? 'window' : 'full';
-  const b = $('#viewBtn');
-  b.querySelector('.ms').textContent = w ? 'fullscreen' : 'close_fullscreen';
-  b.title = t(w ? 'toFull' : 'toWindow');
-  b.setAttribute('aria-label', b.title);
+  const view = VIEW_LABEL[v] ? v : 'full';
+  document.documentElement.dataset.view = view;
+  if (P) fitTitle();
+  // the header offers the two other views; F (full ⇄ window) shows its keycap on the button it presses
+  for (const b of document.querySelectorAll('.vbtn')) {
+    b.hidden = b.dataset.v === view;
+    b.title = t(VIEW_LABEL[b.dataset.v]);
+    b.setAttribute('aria-label', b.title);
+  }
+  $('#winBtn kbd').hidden = view !== 'full';
+  $('#fullBtn kbd').hidden = view !== 'window';
   const m = $('#minBtn');
-  m.hidden = !w;
+  m.hidden = view !== 'window';
   m.title = t('minimize');
   m.setAttribute('aria-label', m.title);
   const l = $('#leaveBtn'); // a narrow window shows its icon only
   l.title = t('leave');
   l.setAttribute('aria-label', l.title);
 }
-const toggleView = () => { if ($('#viewBtn').offsetParent) window.bf.toggleView(); }; // hidden in the web build
-$('#viewBtn').onclick = (e) => { e.currentTarget.blur(); toggleView(); };
+const hasViews = () => [...document.querySelectorAll('.vbtn')].some((b) => b.offsetParent); // hidden in the web build
+const toggleView = () => { if (hasViews()) window.bf.toggleView(); };
+for (const b of document.querySelectorAll('.vbtn')) b.onclick = (e) => { e.currentTarget.blur(); if (hasViews()) window.bf.setView(b.dataset.v); };
 $('#minBtn').onclick = (e) => { e.currentTarget.blur(); window.bf.minimize(); };
 window.bf.onView(applyView);
 // the break opens in the saved view (main passes ?view=); the web build has no window view
-applyView(new URLSearchParams(location.search).get('view') === 'window' && $('#viewBtn').offsetParent ? 'window' : 'full');
-// windowed: Alt+F4 / the taskbar's Close asks like 離開 (main keeps the window open)
+applyView(new URLSearchParams(location.search).get('view') || 'full');
+if (!hasViews()) applyView('full');
+// window / PIP: Alt+F4 / the taskbar's Close asks like 離開 (main keeps the window open)
 window.bf.onAskLeave(() => { if (P && !st.ended && !st.modal) askLeave(); });
 addEventListener('bf:lang', () => applyView(document.documentElement.dataset.view));
 $('#mCancel').onclick = closeModal;

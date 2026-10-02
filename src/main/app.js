@@ -483,7 +483,7 @@ function createController({ clock, selftest = false, fast = false }) {
     webPreferences: { preload: PRELOAD, backgroundThrottling: false, autoplayPolicy: 'no-user-gesture-required' },
   });
   // selftest windows: hidden, never focusable, never full screen or on top (1280×720 at 0,0; a windowed
-  // break gets its planned rectangle, still hidden, so the selftest can check where it would go)
+  // or PIP break gets its planned rectangle, still hidden, so the selftest can check where it would go)
   const hiddenTest = { focusable: false, paintWhenInitiallyHidden: true };
   function coverOptions(bounds) {
     if (selftest) return { ...overlayCommon(), width: 1280, height: 720, x: 0, y: 0, ...hiddenTest };
@@ -492,7 +492,8 @@ function createController({ clock, selftest = false, fast = false }) {
       fullscreen: true, resizable: false, movable: false, minimizable: false, maximizable: false, alwaysOnTop: true, focusable: false,
     };
   }
-  // m = planOverlayWindows(...).main: rectangle + the view's flags (src/core/overlay-window.js)
+  // m = planOverlayWindows(...).main: rectangle + the view's flags (src/core/overlay-window.js).
+  // maximizable stays false (no Aero Snap); fullscreenable stays true (the full view needs it).
   function mainOverlayOptions(m) {
     const flags = { resizable: m.resizable, movable: m.movable, minimizable: m.minimizable, maximizable: false };
     if (selftest) {
@@ -501,29 +502,47 @@ function createController({ clock, selftest = false, fast = false }) {
     }
     return {
       ...overlayCommon(), ...m.bounds, ...flags,
-      ...(m.fullscreen ? {} : { minWidth: W.OVERLAY_MIN.width, minHeight: W.OVERLAY_MIN.height }),
-      fullscreen: m.fullscreen, skipTaskbar: m.skipTaskbar, alwaysOnTop: m.alwaysOnTop, focusable: true,
+      ...(m.min ? { minWidth: m.min.width, minHeight: m.min.height } : {}),
+      fullscreen: m.fullscreen, skipTaskbar: m.skipTaskbar, alwaysOnTop: m.alwaysOnTop, focusable: m.focusable,
     };
   }
   const mainOverlay = () => overlayWins.find((x) => x.isMainOverlay && !x.isDestroyed());
+  const BOUNDS_KEY = { window: 'windowBounds', pip: 'pipBounds' };
 
-  // The windowed overlay's rectangle is a setting (data.json), so it survives restarts.
-  function storeBounds(win) {
-    if (win.isDestroyed() || win.isMinimized() || win.isFullScreen() || win.isMaximized()) return;
+  // The window / PIP rectangle is a setting (data.json), so it survives restarts.
+  function storeBounds(win, view) {
+    const key = BOUNDS_KEY[view];
+    if (!key || win.isDestroyed() || win.isMinimized() || win.isFullScreen() || win.isMaximized()) return;
     const b = win.getBounds();
-    const o = data.settings.windowBounds;
+    const o = data.settings[key];
     if (o && o.x === b.x && o.y === b.y && o.width === b.width && o.height === b.height) return;
-    data.settings.windowBounds = { x: b.x, y: b.y, width: b.width, height: b.height };
+    data.settings[key] = { x: b.x, y: b.y, width: b.width, height: b.height };
     save();
   }
 
-  // Every break opens in the saved view (settings.breakView): full screen with a cover on every other
-  // display, or one normal window at the saved rectangle (no covers).
+  // PIP stays above a video playing underneath: re-assert always-on-top every ~1.7 s, never focusing.
+  function keepOnTop(win) {
+    clearInterval(win.bfTopTimer);
+    win.bfTopTimer = null;
+    if (selftest || !win.bfView.keepOnTop) return;
+    win.bfTopTimer = setInterval(() => {
+      if (win.isDestroyed()) return;
+      win.setAlwaysOnTop(true, 'screen-saver');
+      win.moveTop();
+    }, 1700);
+  }
+  // PIP opens on the display under the cursor (the screen the user is working on).
+  const pipDisplay = () => screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  const planFor = (view, mainDisplayId, displays) => W.planOverlayWindows(displays, mainDisplayId, view, data.settings[BOUNDS_KEY[view]] || null);
+
+  // Every break opens in the saved view (settings.breakView): PIP (small, on top, mouse-only), one
+  // normal window, or full screen with a cover on every other display.
   function showOverlay() {
     allowOverlayClose = false;
     const primary = screen.getPrimaryDisplay();
     const displays = selftest ? [primary] : screen.getAllDisplays();
-    const p = W.planOverlayWindows(displays, primary.id, WEB ? 'full' : data.settings.breakView, data.settings.windowBounds);
+    const view = WEB ? 'full' : W.normView(data.settings.breakView);
+    const p = planFor(view, view === 'pip' && !selftest ? pipDisplay().id : primary.id, displays);
     overlayView = p.view;
     const win = new BrowserWindow(mainOverlayOptions(p.main));
     win.removeMenu();
@@ -532,27 +551,34 @@ function createController({ clock, selftest = false, fast = false }) {
     win.on('close', (e) => {
       if (allowOverlayClose || quitting) return;
       e.preventDefault();
-      // windowed: Alt+F4 / the taskbar's Close = 離開, which asks first (like Esc)
-      if (currentBreak && overlayView === 'window' && !win.isDestroyed()) {
-        if (!selftest) { if (win.isMinimized()) win.restore(); win.show(); win.focus(); }
+      // window / PIP: Alt+F4 / the taskbar's Close = 離開, which asks first (like Esc)
+      if (currentBreak && overlayView !== 'full' && !win.isDestroyed()) {
+        if (!selftest) {
+          if (win.isMinimized()) win.restore();
+          if (win.bfView.focusable) { win.show(); win.focus(); } else win.showInactive();
+        }
         win.webContents.send('ask-leave');
       }
     });
     let boundsTimer = null;
     const remember = () => {
       clearTimeout(boundsTimer);
-      boundsTimer = setTimeout(() => { if (overlayView === 'window' && currentBreak) storeBounds(win); }, 500);
+      boundsTimer = setTimeout(() => { if (currentBreak) storeBounds(win, overlayView); }, 500);
     };
     win.on('resize', remember);
     win.on('move', remember);
+    win.on('closed', () => clearInterval(win.bfTopTimer));
     if (!selftest) {
       win.setAlwaysOnTop(true, 'screen-saver');
       win.setVisibleOnAllWorkspaces(true);
-      win.once('ready-to-show', () => { win.show(); win.focus(); });
+      win.once('ready-to-show', () => {
+        if (win.bfView.focusable) { win.show(); win.focus(); } else win.showInactive(); // PIP never takes the keyboard
+      });
       win.on('blur', () => setTimeout(() => {
         if (currentBreak && !win.isDestroyed() && win.bfView.regrab) { win.moveTop(); win.focus(); }
       }, 400));
     }
+    keepOnTop(win);
     win.loadFile(path.join(RENDERER, 'overlay.html'), { query: { ...themeQuery().query, view: overlayView } });
     overlayWins.push(win);
     for (const c of p.covers) makeCover(c.bounds);
@@ -560,7 +586,9 @@ function createController({ clock, selftest = false, fast = false }) {
 
   function focusOverlay() {
     const w = mainOverlay();
-    if (w && !selftest) { if (w.isMinimized()) w.restore(); w.show(); w.focus(); }
+    if (!w || selftest) return;
+    if (w.isMinimized()) w.restore();
+    if (w.bfView.focusable) { w.show(); w.focus(); } else { w.showInactive(); w.moveTop(); }
   }
 
   // A cover window darkens one of the other displays while the break is full screen.
@@ -578,35 +606,37 @@ function createController({ clock, selftest = false, fast = false }) {
     overlayWins.push(win);
   }
 
-  // Full screen ⇄ normal window, live (overlay button / F key). Same BrowserWindow throughout, so the page
-  // keeps its phase, timers and sets. The choice is saved: the next break opens the same way.
+  // PIP ⇄ window ⇄ full screen, live (overlay buttons / F key / tray). Same BrowserWindow throughout, so
+  // the page keeps its phase, timers and sets. The choice is saved: the next break opens the same way.
   function setOverlayView(view) {
     const win = mainOverlay();
     const v = W.normView(view);
     if (!win || !currentBreak || WEB) return overlayView;
     if (data.settings.breakView !== v) { data.settings.breakView = v; save(); changed(); }
     if (overlayView === v) return overlayView;
-    if (v === 'full') storeBounds(win); // leaving the window: keep where it was (the move/resize debounce may not have fired)
+    storeBounds(win, overlayView); // leaving a window / PIP: keep where it was (the debounce may not have fired)
     overlayView = v;
     const disp = selftest ? screen.getPrimaryDisplay() : screen.getDisplayMatching(win.getBounds());
-    const p = W.planOverlayWindows(selftest ? [disp] : screen.getAllDisplays(), disp.id, v, data.settings.windowBounds);
+    const p = planFor(v, disp.id, selftest ? [disp] : screen.getAllDisplays());
     const m = p.main;
     win.bfView = m;
-    // safe on a hidden selftest window too; everything that shows / moves a window is skipped there
+    // safe on a hidden selftest window too; everything that shows / moves / focuses a window is skipped there
     win.setResizable(m.resizable);
     win.setMovable(m.movable);
     win.setMinimizable(m.minimizable);
+    keepOnTop(win);
     if (!selftest) {
-      if (v === 'window') {
+      win.setFocusable(m.focusable);
+      if (v !== 'full') {
         for (const w of overlayWins.slice()) if (w !== win && !w.isDestroyed()) w.destroy();
         overlayWins = [win];
-        win.setSkipTaskbar(m.skipTaskbar); // a minimized break must be findable in the taskbar
-        win.setMinimumSize(W.OVERLAY_MIN.width, W.OVERLAY_MIN.height);
+        win.setSkipTaskbar(m.skipTaskbar); // a minimized window must be findable in the taskbar; PIP is not in it
+        win.setMinimumSize(m.min.width, m.min.height);
         const place = () => {
-          if (win.isDestroyed() || overlayView !== 'window') return;
+          if (win.isDestroyed() || overlayView !== v) return;
+          if (win.isMinimized()) win.restore();
           win.setBounds(m.bounds);
-          win.show();
-          win.focus();
+          if (m.focusable) { win.show(); win.focus(); } else { win.showInactive(); win.moveTop(); }
         };
         if (win.isFullScreen()) {
           win.once('leave-full-screen', place);
@@ -627,9 +657,18 @@ function createController({ clock, selftest = false, fast = false }) {
     return overlayView;
   }
 
+  // 休息顯示 from the tray or settings while no break is open: just the setting; during a break: live.
+  function setBreakView(v) {
+    if (currentBreak && mainOverlay()) return setOverlayView(v);
+    data.settings.breakView = W.normView(v);
+    save();
+    changed();
+    return data.settings.breakView;
+  }
+
   function closeOverlay() {
     const main = mainOverlay();
-    if (main && overlayView === 'window') storeBounds(main);
+    if (main) { storeBounds(main, overlayView); clearInterval(main.bfTopTimer); }
     allowOverlayClose = true;
     for (const w of overlayWins) if (!w.isDestroyed()) w.destroy();
     overlayWins = [];
@@ -769,6 +808,7 @@ function createController({ clock, selftest = false, fast = false }) {
   }
 
   const DAY_LABEL = { rest: 'restDay', off: 'noTraining' };
+  const VIEW_LABEL = { pip: 'viewPipMenu', window: 'viewWindow', full: 'viewFull' }; // tray: the long PIP name
 
   function updateTray() {
     if (!tray) return;
@@ -804,6 +844,10 @@ function createController({ clock, selftest = false, fast = false }) {
       { label: tr('breakNow'), enabled: canBreakNow(day), click: () => openBreak('manual') },
       { label: tr('fullWorkoutMenu'), enabled: !currentBreak, click: () => openMain('workout') },
       { label: paused ? tr('pauseRemindersUntil', { t: T.fmtHM(day.pausedUntil) }) : tr('pauseReminders'), submenu: pauseItems },
+      {
+        label: tr('breakView'),
+        submenu: W.VIEWS.map((v) => ({ label: tr(VIEW_LABEL[v]), type: 'radio', checked: (currentBreak ? overlayView : data.settings.breakView) === v, click: () => setBreakView(v) })),
+      },
       { type: 'separator' },
       { label: tr('openMain'), click: () => openMain('today') },
       { label: tr('navHistory'), click: () => openMain('history') },
@@ -866,6 +910,7 @@ function createController({ clock, selftest = false, fast = false }) {
       if ('autoLaunch' in patch) applyLoginItem(data.settings.autoLaunch);
       if ('theme' in patch && data.settings.theme !== prev.theme) applyTheme();
       if ('lang' in patch && data.settings.lang !== prev.lang) applyLang();
+      if ('breakView' in patch && currentBreak) setOverlayView(data.settings.breakView); // an open break follows live
       const sched = ['start', 'end', 'interval'];
       if (sched.some((k) => k in patch) && !currentBreak) {
         D.rebuildDay(ensureToday(), key, data.settings, plan, min);
@@ -886,7 +931,8 @@ function createController({ clock, selftest = false, fast = false }) {
     ipcMain.handle('break:test', () => openBreak('test'));
     ipcMain.handle('session:start', (_e, pd) => openSession(String(pd)));
     ipcMain.handle('break:payload', () => (currentBreak ? currentBreak.payload : null));
-    ipcMain.handle('break:view', () => setOverlayView(overlayView === 'window' ? 'full' : 'window'));
+    // no argument = the F key: full screen ⇄ window
+    ipcMain.handle('break:view', (_e, v) => setOverlayView(v || (overlayView === 'window' ? 'full' : 'window')));
     ipcMain.handle('break:minimize', () => {
       const w = mainOverlay();
       if (w && overlayView === 'window' && !selftest) w.minimize();
@@ -938,7 +984,7 @@ function createController({ clock, selftest = false, fast = false }) {
 
   return {
     data, file, clock, plan,
-    initSettings, ensureToday, applyTheme, applyLang, trayModel, check, openBreak, openSession, endBreak, buildPayload, buildSessionPayload, pauseToday, pauseFor, applyLoginItem,
+    initSettings, ensureToday, applyTheme, setBreakView, applyLang, trayModel, check, openBreak, openSession, endBreak, buildPayload, buildSessionPayload, pauseToday, pauseFor, applyLoginItem,
     openMain, openCoverForTest, createTray, registerIpc, startLoop, getState, dayDetail, setQuitting,
     get currentBreak() { return currentBreak; },
     get overlayWins() { return overlayWins; },

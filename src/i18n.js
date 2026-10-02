@@ -24,7 +24,7 @@
       daysN: '{n} 天', daysN1: '{n} 天', setsN: '{n} 組', setsN1: '{n} 組', monthShort: '{m}月', noTrainingDays: '還沒有訓練日', noRecord: '沒有記錄', repsList: '{r} 下', note: '筆記',
       settingsTitle: '設定', testBreak: '預覽休息畫面', hours: '時段', start: '開始', end: '結束', interval: '間隔（分鐘）',
       workdays: '上班日', walkReminder: '提醒走動', general: '一般', todayIs: '今天是', appearance: '配色', dark: '深色', light: '淺色',
-      language: '語言', breakView: '休息顯示', viewFull: '全螢幕', viewWindow: '視窗', demo: '示範', demoSec: '示範秒數', launchAtLogin: '開機啟動', overrides: '菜單組數 / 次數',
+      language: '語言', breakView: '休息顯示', viewPip: '畫中畫', viewPipMenu: '畫中畫', viewFull: '全螢幕', viewWindow: '視窗', demo: '示範', demoSec: '示範秒數', launchAtLogin: '開機啟動', overrides: '菜單組數 / 次數',
       sets: '組數', minReps: '最少次數', maxReps: '最多次數', reset: '還原', colSets: '組', colReps: '次數',
       prevMonth: '上個月', nextMonth: '下個月', decreaseReps: '減少次數', increaseReps: '增加次數',
       // overlay
@@ -64,7 +64,7 @@
       daysN: '{n} days', daysN1: '{n} day', setsN: '{n} sets', setsN1: '{n} set', monthShort: '{month}', noTrainingDays: 'No training days yet', noRecord: 'No record', repsList: '{r} reps', note: 'Notes',
       settingsTitle: 'Settings', testBreak: 'Preview Break', hours: 'Hours', start: 'Start', end: 'End', interval: 'Interval (min)',
       workdays: 'Workdays', walkReminder: 'Walk Reminder', general: 'General', todayIs: 'Today is', appearance: 'Appearance', dark: 'Dark', light: 'Light',
-      language: 'Language', breakView: 'Break Display', viewFull: 'Full Screen', viewWindow: 'Window', demo: 'Demo', demoSec: 'Demo Length', launchAtLogin: 'Open at Login', overrides: 'Sets / Reps',
+      language: 'Language', breakView: 'Break Display', viewPip: 'PiP', viewPipMenu: 'Picture-in-Picture', viewFull: 'Full Screen', viewWindow: 'Window', demo: 'Demo', demoSec: 'Demo Length', launchAtLogin: 'Open at Login', overrides: 'Sets / Reps',
       sets: 'Sets', minReps: 'Min Reps', maxReps: 'Max Reps', reset: 'Reset', colSets: 'Sets', colReps: 'Reps',
       prevMonth: 'Previous Month', nextMonth: 'Next Month', decreaseReps: 'Fewer Reps', increaseReps: 'More Reps',
       breakTime: 'Break Time', toWindow: 'Shrink to Window', toFull: 'Full Screen', minimize: 'Minimize', leave: 'Leave', earlyBreak: 'Early Break', test: 'Test', skipThis: 'Skip This One',

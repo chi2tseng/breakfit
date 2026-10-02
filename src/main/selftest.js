@@ -11,6 +11,7 @@ const os = require('os');
 const path = require('path');
 
 const { createController, createClock } = require('./app');
+const W = require('../core/overlay-window');
 const T = require('../core/time');
 const D = require('../core/day');
 const C = require('../core/cycle');
@@ -198,6 +199,8 @@ async function main() {
   const today = seedToday(ctl);
   ctl.data.days[TODAY].status = D.gradeDay(today, TODAY, TODAY);
   ctl.registerIpc();
+  assert(ctl.data.settings.breakView === 'pip', 'a new install opens breaks as 畫中畫 (settings.breakView default = pip)');
+  ctl.data.settings.breakView = 'full'; // the full-screen suites below keep their screenshots
   fs.writeFileSync(path.join(OUT, 'tray-icon.png'), ctl.icon.toPNG());
 
   // ---------- main window ----------
@@ -269,7 +272,7 @@ async function main() {
 
   await js(mw, "__test.tab('settings')");
   // 設定 → 一般 → 休息顯示: 全螢幕 | 視窗 (settings.breakView); the 完整訓練 sheet shows the same choice
-  assert(ctl.data.settings.breakView === 'full' && await js(mw, "document.querySelector('#sView .on').dataset.v") === 'full', '休息顯示 defaults to 全螢幕');
+  assert(await js(mw, "[...document.querySelectorAll('#sView button')].map((b) => b.dataset.v).join() + '|' + document.querySelector('#sView .on').dataset.v") === 'pip,window,full|full', '休息顯示: 畫中畫 | 視窗 | 全螢幕 (PIP first), shows the saved view');
   await js(mw, "document.querySelector('#sView [data-v=\"window\"]').click(), true");
   await until(mw, "document.querySelector('#sView .on').dataset.v === 'window'");
   assert(ctl.data.settings.breakView === 'window', '休息顯示 → 視窗 saves settings.breakView');
@@ -305,11 +308,11 @@ async function main() {
   await js(ow, "__test.show('rest', { remaining: 42, reps: 12 })");
   const live0 = await js(ow, '__test.state()');
   const done0 = D.doneSets(ctl.data.days[TODAY]);
-  await js(ow, "document.querySelector('#viewBtn').click()");
+  await js(ow, "document.querySelector('#winBtn').click()");
   await until(ow, "document.documentElement.dataset.view === 'window'");
   assert(ctl.overlayView === 'window' && ctl.data.settings.breakView === 'window', 'button → windowed, saved as settings.breakView = window');
   assert(ow.isResizable() && ow.isMovable() && ow.isMinimizable() && !ow.bfView.skipTaskbar && ow.bfView.alwaysOnTop && !ow.bfView.regrab, 'windowed flags: resizable, movable, minimizable, in the taskbar, on top, no blur re-grab');
-  assert(await js(ow, "!document.querySelector('#minBtn').hidden && document.querySelector('#viewBtn .ms').textContent === 'fullscreen' && getComputedStyle(document.querySelector('#top')).webkitAppRegion === 'drag'"), 'windowed: minimize shown, button = back to full screen, header is the drag region');
+  assert(await js(ow, "!document.querySelector('#minBtn').hidden && document.querySelector('#winBtn').hidden && !document.querySelector('#fullBtn').hidden && !document.querySelector('#pipBtn').hidden && getComputedStyle(document.querySelector('#top')).webkitAppRegion === 'drag'"), 'windowed: minimize + → 畫中畫 / → 全螢幕, header is the drag region');
   const live1 = await js(ow, '__test.state()');
   assert(live1 === live0 && ctl.currentBreak.sets === 0 && D.doneSets(ctl.data.days[TODAY]) === done0, `live switch keeps phase, timer, sets (${live1})`);
   await shot(ow, '10w-windowed', '視窗化(組間休息中切換)：標題列可拖、最小化與全螢幕鈕');
@@ -317,6 +320,27 @@ async function main() {
   await until(ow, "document.documentElement.dataset.view === 'full'");
   assert(await js(ow, "document.querySelector('#minBtn').hidden") && ctl.data.settings.breakView === 'full' && !ow.isResizable() && ow.bfView.regrab, 'F key returns to full screen and saves it');
   assert(await js(ow, '__test.state()') === live0, 'round trip: phase, timer, sets unchanged');
+  // → 畫中畫, then back through 視窗 to 全螢幕, mid-break (all by mouse)
+  await js(ow, "document.querySelector('#pipBtn').click()");
+  await until(ow, "document.documentElement.dataset.view === 'pip'");
+  assert(ctl.overlayView === 'pip' && ctl.data.settings.breakView === 'pip' && ow.bfView.focusable === false && ow.bfView.keepOnTop && ow.bfView.skipTaskbar && !ow.bfView.regrab && ow.isResizable() && ow.isMovable() && ctl.overlayWins.length === 1,
+    'button → PIP: saved, mouse-only (not focusable), re-asserted on top, resizable / movable, no covers');
+  const pipUi = await js(ow, `(() => { const v = (s) => !!document.querySelector(s).offsetParent;
+    return [!v('#pipBtn'), v('#winBtn'), v('#fullBtn'), !v('#minBtn'), [...document.querySelectorAll('kbd')].every((k) => !k.offsetParent),
+      getComputedStyle(document.querySelector('.vbox')).webkitAppRegion, getComputedStyle(document.querySelector('#pPri .btn')).webkitAppRegion,
+      getComputedStyle(document.body).webkitAppRegion, getComputedStyle(document.getElementById('grip')).display].join(); })()`);
+  assert(pipUi === 'true,true,true,true,true,drag,no-drag,none,block', `PIP: → 視窗 / → 全螢幕, no keycaps, drag anywhere but controls and the rim, resize grip (${pipUi})`);
+  for (const k of [' ', 'Enter', 'Escape', 'f']) await js(ow, `__test.key(${JSON.stringify(k)})`);
+  assert(await js(ow, '__test.state()') === live0 && await js(ow, "document.getElementById('modal').hidden && document.documentElement.dataset.view === 'pip'"), 'PIP: same phase, timer, sets; Space / Enter / Esc / F do nothing (the keyboard belongs to the app underneath)');
+  ow.setContentSize(400, 580);
+  await shot(ow, '10p-pip', '畫中畫(組間休息中切換)400×580');
+  ow.setContentSize(1280, 720);
+  await js(ow, "document.querySelector('#winBtn').click()");
+  await until(ow, "document.documentElement.dataset.view === 'window'");
+  assert(ctl.overlayView === 'window' && ow.bfView.focusable && await js(ow, '__test.state()') === live0, 'PIP → 視窗: focusable again, state unchanged');
+  await js(ow, "document.querySelector('#fullBtn').click()");
+  await until(ow, "document.documentElement.dataset.view === 'full'");
+  assert(ctl.overlayView === 'full' && ctl.data.settings.breakView === 'full' && ow.bfView.regrab && await js(ow, '__test.state()') === live0, '視窗 → 全螢幕: saved, state unchanged');
   await js(ow, "__test.show('demo', { remaining: 5.2 })");
   await shot(ow, '11-demo', '示範：循環示範片/佔位 + 要點 + 目標組數');
   await js(ow, "__test.show('work', { elapsed: 23 })");
@@ -372,6 +396,27 @@ async function main() {
   assert(JSON.stringify(onDisk.windowBounds) === JSON.stringify({ x: 80, y: 70, width: 900, height: 620 }) && onDisk.breakView === 'window', `moved / resized window saved to data.json (${JSON.stringify(onDisk.windowBounds)})`);
   ctl.endBreak('abort');
   assert(!ctl.currentBreak && ctl.overlayWins.length === 0, 'windowed preview break closed');
+
+  // ---------- a break that opens directly as PIP (the default) ----------
+  console.log('overlay (opens as PIP)');
+  ctl.data.settings.breakView = 'pip';
+  ctl.data.settings.pipBounds = null;
+  assert(ctl.openBreak('test'), '預覽休息畫面 opens as PIP');
+  const po = ctl.overlayWins[0];
+  await waitLoad(po);
+  await until(po, 'window.__test && window.__test.ready()');
+  const pb = W.defaultPipBounds(require('electron').screen.getPrimaryDisplay().workArea);
+  assert(ctl.overlayWins.length === 1 && ctl.overlayView === 'pip' && JSON.stringify(po.getBounds()) === JSON.stringify(pb), `PIP opens bottom-right of the work area, no covers (${JSON.stringify(po.getBounds())} vs ${JSON.stringify(pb)})`);
+  assert(!po.isFullScreen() && !po.isVisible() && po.bfView.focusable === false && po.bfView.keepOnTop && po.bfView.alwaysOnTop && po.isResizable() && po.isMovable(), 'PIP from the start: not focusable, kept on top, resizable, movable (hidden in selftest)');
+  assert(await js(po, "document.documentElement.dataset.view === 'pip'"), 'the page starts in PIP view');
+  await shot(po, '18-opens-pip', '直接以畫中畫開啟(右下角 400×580)');
+  // leaving is all mouse: 離開 → dialog → 離開
+  await js(po, "document.getElementById('leaveBtn').click(), true");
+  await until(po, "!document.getElementById('modal').hidden");
+  await shot(po, '18b-pip-leave', '畫中畫：離開確認(滑鼠)');
+  await js(po, "setTimeout(() => document.getElementById('mOk').click(), 0), true");
+  await delay(400);
+  assert(!ctl.currentBreak && ctl.overlayWins.length === 0, 'PIP: 離開 + confirm by mouse closes the break');
   ctl.data.settings.breakView = 'full';
 
   const press = (win, key, repeat = false) => js(win, `__test.key(${JSON.stringify(key)}, ${repeat})`);
@@ -691,6 +736,13 @@ async function main() {
   walkMenu(tm.template);
   const badTray = [tm.tip, ...labels].filter((l) => cjk.test(l));
   assert(labels.length >= 12 && !badTray.length, `English tray tooltip + menu + submenu (${labels.length} labels) ${JSON.stringify(badTray)}`);
+  // tray 休息顯示: three radio items, PIP first, the saved view checked; clicking one saves it
+  const viewMenu = tm.template.find((i) => i.label === 'Break Display');
+  const vm = viewMenu ? viewMenu.submenu.map((i) => `${i.label}:${i.type}:${i.checked}`).join(',') : '';
+  assert(vm === 'Picture-in-Picture:radio:false,Window:radio:false,Full Screen:radio:true', `tray Break Display submenu (${vm})`);
+  viewMenu.submenu[0].click();
+  assert(ctl.data.settings.breakView === 'pip' && ctl.trayModel().template.find((i) => i.label === 'Break Display').submenu[0].checked, 'tray → Picture-in-Picture saves breakView = pip');
+  ctl.setBreakView('full');
   const coverE2 = ctl.openCoverForTest();
   await waitLoad(coverE2);
   assert(await js(coverE2, "document.querySelector('.c div').textContent + '|' + document.title") === 'On a Break|On a Break', 'new cover opens in English');
@@ -853,6 +905,11 @@ async function fullWorkout(ctl, mw, settle, clock) {
   await js(owA, "__test.key('f')");
   await until(owA, "document.documentElement.dataset.view === 'full'");
   assert(ctl.currentBreak.sets === 5 && tday.units[0].doneSets === 5 && await js(owA, '__test.state()') === sess0 && ctl.data.settings.breakView === 'full', 'mid-session round trip back to full screen: unchanged');
+  for (const v of ['pip', 'window', 'full']) {
+    await js(owA, `window.bf.setView('${v}')`);
+    await until(owA, `document.documentElement.dataset.view === '${v}'`);
+    assert(ctl.overlayView === v && ctl.currentBreak.mode === 'session' && ctl.currentBreak.sets === 5 && ctl.overlayWins.length === 1 && await js(owA, '__test.state()') === sess0, `mid-session → ${v}: phase, timer, sets unchanged`);
+  }
   clock.set(new Date(2026, 8, 24, 12, 10, 0));
   ctl.check();
   assert(ctl.currentBreak && ctl.currentBreak.mode === 'session' && ctl.overlayWins.length === 1, 'breaks due during the session do not open');
@@ -910,6 +967,9 @@ const EN_OV_SIZES = [[1024, 768], [1366, 768], [1920, 1080]];
 const OV_SIZES = [[1024, 768], [1280, 720], [1280, 800], [1366, 768], [1440, 900], [1536, 864], [1920, 1080], [2560, 1440]];
 // windowed overlay (settings.breakView = 'window'): window content sizes, zoom = Windows display scaling
 const WIN_SIZES = [[1280, 800, 1], [1024, 640, 1], [960, 540, 1], [800, 450, 1], [640, 400, 1], [520, 640, 1], [400, 620, 1], [400, 480, 1], [800, 450, 1.25], [800, 450, 1.5]];
+// PIP (settings.breakView = 'pip'): 400×580 is the default
+const PIP_SIZES = [[320, 440, 1], [360, 520, 1], [400, 580, 1], [480, 800, 1], [560, 315, 1], [640, 360, 1], [720, 405, 1], [960, 540, 1],
+  [400, 580, 1.25], [400, 580, 1.5], [640, 360, 1.25], [640, 360, 1.5]];
 
 async function settleLayout(win) {
   await win.webContents.executeJavaScript(
@@ -1062,25 +1122,25 @@ async function matrix(ctl, mw) {
       await delay(150);
     }
 
-    // windowed overlay: every phase + both dialogs at every window size; the stage may scroll only
-    // when the window is too short, and the primary button must always be reachable
-    ctl.data.settings.breakView = 'window';
-    for (const [pd, states] of QUICK ? [] : WOV) {
+    // window + PIP overlay: every phase + both dialogs at every size; the stage may scroll only when
+    // the window is too short, and the primary button must always be reachable
+    for (const [view, SIZES, short] of [['window', WIN_SIZES, 'win'], ['pip', PIP_SIZES, 'pip']].filter(([v]) => !process.argv.includes('--pip') || v === 'pip')) for (const [pd, states] of QUICK ? [] : WOV) {
+      ctl.data.settings.breakView = view;
       const ow = await openFor(pd);
-      assert(ctl.overlayView === 'window' && await js(ow, "document.documentElement.dataset.view === 'window'"), `matrix ${pd}: break opens windowed`);
-      for (const [w, h, z] of WIN_SIZES) {
+      assert(ctl.overlayView === view && await js(ow, `document.documentElement.dataset.view === '${view}'`), `matrix ${pd}: break opens as ${view}`);
+      for (const [w, h, z] of SIZES) {
         await resize(ow, w, h, z);
         const tag = `${w}x${h}${z === 1 ? '' : `@${Math.round(z * 100)}`}`;
         for (const [screen, code] of states) {
           await js(ow, code);
-          await snap(ow, `${pre}${theme}-win-${screen}-${tag}`, { kind: 'overlay', scroller: '#stage' });
+          await snap(ow, `${pre}${theme}-${short}-${screen}-${tag}`, { kind: 'overlay', scroller: '#stage' });
           const r = JSON.parse(await js(ow, REACH_CHECK));
           const run = runs[runs.length - 1];
           if (!r.reach) run.issues.push({ rule: 'i-reach', sel: r.sel, text: '', size: '', msg: `primary button not reachable (${r.msg})` });
           if (r.scrolls) scrolled.push(`${run.name} (${r.over}px)`);
         }
       }
-      console.log(`  windowed ${pd}: ${runs.reduce((a, r) => a + r.issues.length, 0)} issues so far`);
+      console.log(`  ${view} ${pd}: ${runs.reduce((a, r) => a + r.issues.length, 0)} issues so far`);
       fs.writeFileSync(path.join(dir, 'lint-partial.json'), JSON.stringify(runs.filter((r) => r.issues.length).map((r) => ({ name: r.name, issues: r.issues })), null, 1));
       ctl.endBreak('abort');
       await delay(150);
@@ -1089,7 +1149,7 @@ async function matrix(ctl, mw) {
     // after every pass: the issues so far (a long run can be read while it goes on)
     fs.writeFileSync(path.join(dir, 'lint-partial.json'), JSON.stringify(runs.filter((r) => r.issues.length).map((r) => ({ name: r.name, issues: r.issues })), null, 1));
   }
-  console.log(`windowed screens that scroll: ${scrolled.length}${scrolled.length ? `\n  ${scrolled.join('\n  ')}` : ''}`);
+  console.log(`window / PIP screens that scroll: ${scrolled.length}${scrolled.length ? `\n  ${scrolled.join('\n  ')}` : ''}`);
 
   // summary: issue counts per size and rule, distinct type combos
   const bySize = {};

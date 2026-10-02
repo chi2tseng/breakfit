@@ -13,13 +13,20 @@ const LEFT = { id: 3, bounds: { x: -1366, y: 200, width: 1366, height: 768 }, wo
 const ALL = [PRIMARY, RIGHT150, LEFT];
 const inside = (b, wa) => b.x >= wa.x && b.y >= wa.y && b.x + b.width <= wa.x + wa.width && b.y + b.height <= wa.y + wa.height;
 
-test('settings: breakView defaults to full, only "window" switches it', () => {
-  assert.equal(normalizeSettings({}).breakView, 'full');
-  assert.equal(normalizeSettings({ breakView: undefined }).breakView, 'full');
-  assert.equal(normalizeSettings({ breakView: 'pip' }).breakView, 'full');
-  assert.equal(normalizeSettings({ breakView: 'window' }).breakView, 'window');
-  // an old data.json (no field) keeps working; a saved choice survives a later patch
-  assert.equal(normalizeSettings({ ...normalizeSettings({ breakView: 'window' }), theme: 'light' }).breakView, 'window');
+test('settings: breakView defaults to pip; pip | window | full, anything else → pip', () => {
+  assert.equal(normalizeSettings({}).breakView, 'pip'); // an old data.json without the field
+  assert.equal(normalizeSettings({ breakView: undefined }).breakView, 'pip');
+  assert.equal(normalizeSettings({ breakView: 'zoom' }).breakView, 'pip');
+  for (const v of ['pip', 'window', 'full']) assert.equal(normalizeSettings({ breakView: v }).breakView, v);
+  // a saved choice survives a later patch
+  assert.equal(normalizeSettings({ ...normalizeSettings({ breakView: 'full' }), theme: 'light' }).breakView, 'full');
+  assert.deepEqual(W.VIEWS, ['pip', 'window', 'full']); // UI order: PIP first
+});
+
+test('settings: pipBounds normalised like windowBounds', () => {
+  assert.equal(normalizeSettings({}).pipBounds, null);
+  assert.deepEqual(normalizeSettings({ pipBounds: { x: 1500.6, y: 400, width: 400, height: 580 } }).pipBounds, { x: 1501, y: 400, width: 400, height: 580 });
+  assert.equal(normalizeSettings({ pipBounds: { x: 1, y: 2, width: -5, height: 3 } }).pipBounds, null);
 });
 
 test('settings: windowBounds = four finite numbers with a positive size, else null', () => {
@@ -90,8 +97,8 @@ test('planOverlayWindows: full = main display full screen + a cover on every oth
   assert.equal(p.main.skipTaskbar, true);
   assert.deepEqual(p.covers.map((c) => c.displayId), [2, 3]);
   assert.deepEqual(p.covers[0].bounds, RIGHT150.bounds);
-  // unknown view → full; single display → no covers
-  assert.equal(W.planOverlayWindows([PRIMARY], 1, 'pip').view, 'full');
+  // unknown view → pip; single display → no covers
+  assert.equal(W.planOverlayWindows([PRIMARY], 1, 'zoom').view, 'pip');
   assert.deepEqual(W.planOverlayWindows([PRIMARY], 1, 'full').covers, []);
 });
 
@@ -109,4 +116,39 @@ test('planOverlayWindows: window = one normal window, saved bounds, no covers, n
   assert.deepEqual(W.planOverlayWindows([PRIMARY], 1, 'window', saved).main.bounds, W.defaultWindowBounds(PRIMARY.workArea));
   // no saved bounds: default on the main display, even when it is not the first one listed
   assert.deepEqual(W.planOverlayWindows(ALL, 2, 'window', null).main.bounds, W.defaultWindowBounds(RIGHT150.workArea));
+});
+
+test('defaultPipBounds: 400×580 in the bottom-right corner, 16 px in (DPI-scaled display too)', () => {
+  assert.deepEqual(W.defaultPipBounds(PRIMARY.workArea), { x: 1920 - 400 - 16, y: 1040 - 580 - 16, width: 400, height: 580 });
+  const r = W.defaultPipBounds(RIGHT150.workArea);
+  assert.deepEqual(r, { x: 1920 + 1707 - 400 - 16, y: 920 - 580 - 16, width: 400, height: 580 });
+  assert.ok(inside(r, RIGHT150.workArea));
+  // a short work area: shrinks to fit, never below the PIP minimum
+  const t = W.defaultPipBounds({ x: 0, y: 0, width: 800, height: 420 });
+  assert.deepEqual([t.width, t.height], [400, 420 - 32]);
+  const tiny = W.defaultPipBounds({ x: 0, y: 0, width: 300, height: 280 });
+  assert.deepEqual([tiny.width, tiny.height], [W.PIP_MIN.width, W.PIP_MIN.height]);
+});
+
+test('planOverlayWindows: pip = one small window on the given display, mouse-only, kept on top, no covers', () => {
+  const p = W.planOverlayWindows(ALL, 2, 'pip', null); // display 2 = the one under the cursor
+  assert.equal(p.view, 'pip');
+  assert.deepEqual(p.covers, []);
+  assert.deepEqual(p.main.bounds, W.defaultPipBounds(RIGHT150.workArea));
+  assert.deepEqual(p.main.min, W.PIP_MIN);
+  assert.deepEqual(
+    [p.main.fullscreen, p.main.resizable, p.main.movable, p.main.focusable, p.main.keepOnTop, p.main.alwaysOnTop, p.main.regrab, p.main.skipTaskbar],
+    [false, true, true, false, true, true, false, true],
+  );
+  // saved PIP rectangle kept (any display); smaller than the PIP minimum → grown; unplugged → default
+  const saved = { x: -1300, y: 600, width: 360, height: 520 };
+  assert.deepEqual(W.planOverlayWindows(ALL, 1, 'pip', saved).main.bounds, saved);
+  assert.deepEqual(W.planOverlayWindows(ALL, 1, 'pip', { ...saved, width: 200, height: 100 }).main.bounds, { ...saved, width: 320, height: 300 });
+  assert.deepEqual(W.planOverlayWindows([PRIMARY], 1, 'pip', saved).main.bounds, W.defaultPipBounds(PRIMARY.workArea));
+  // window and full stay focusable and are never re-asserted on top by the timer
+  for (const v of ['window', 'full']) {
+    const m = W.planOverlayWindows(ALL, 1, v).main;
+    assert.equal(m.focusable, true, v);
+    assert.equal(m.keepOnTop, false, v);
+  }
 });

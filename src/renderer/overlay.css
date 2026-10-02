@@ -199,26 +199,26 @@ kbd { font: var(--o-footnote-em); letter-spacing: var(--tr-13); padding: 0.125re
 
 /* ---------- full screen ⇄ normal window (data-view on <html>, set from overlay.js) ---------- */
 .top-r { justify-self: end; display: flex; align-items: center; gap: 0.75rem; }
-#viewBtn, #minBtn { height: 2.75rem; min-width: 2.75rem; padding: 0 1rem; gap: 0.5rem; font: var(--o-body); letter-spacing: var(--tr-17); }
-#viewBtn .ms, #minBtn .ms { font-size: 1.25rem; }
+.vbtn, #minBtn { height: 2.75rem; min-width: 2.75rem; padding: 0 1rem; gap: 0.5rem; font: var(--o-body); letter-spacing: var(--tr-17); }
+.vbtn .ms, #minBtn .ms { font-size: 1.25rem; }
 /* windowed: the header drags the window; its 6 px margin stays outside the drag region so the native
    resize handles on the top and side edges remain reachable */
 html[data-view="window"] #top { -webkit-app-region: drag; margin: 6px 6px 0; }
 html[data-view="window"] #top .btn { -webkit-app-region: no-drag; }
-/* ---------- windowed, smaller than the full-screen stage (DESIGN.md §4a) ----------
+/* ---------- window or PIP, smaller than the full-screen stage (DESIGN.md §4a) ----------
    Below 1024 wide, 560 tall or in portrait the stage stops being a fixed 16:9 + panel frame: the panel
    keeps its width (24rem), is at least as tall as the window (primary button at the bottom) and grows
    with its content instead of clipping it; only then does the stage scroll (the primary button stays
    reachable). Landscape: clip column | panel. Portrait or < 640 wide: clip above the panel, the clip
    only as tall as the panel leaves free (--clip-h). */
 @media (max-width: 1023px), (max-height: 559px), (max-aspect-ratio: 1/1) {
-  html[data-view="window"] {
+  html:not([data-view="full"]) {
     --pw: 24rem;
     --top-h: 3.5rem;
     --avail: calc(100vh - var(--top-h) - 6px - 1rem); /* below the header, above the stage's bottom padding */
   }
-  html[data-view="window"] #top { height: var(--top-h); grid-template-columns: minmax(0, 1fr) auto; column-gap: 1rem; padding: 0 0.625rem; }
-  html[data-view="window"] #stage {
+  html:not([data-view="full"]) #top { height: var(--top-h); grid-template-columns: minmax(0, 1fr) auto; column-gap: 1rem; padding: 0 0.625rem; }
+  html:not([data-view="full"]) #stage {
     grid-template-columns: minmax(0, 1fr) var(--pw);
     grid-template-rows: max-content; /* never capped by the stage height: content first, then the stage scrolls */
     grid-auto-rows: max-content;
@@ -229,33 +229,88 @@ html[data-view="window"] #top .btn { -webkit-app-region: no-drag; }
     padding: 0 1rem 1rem;
     overflow-y: auto;
   }
-  html[data-view="window"] .vbox { width: 100%; height: var(--avail); }
+  html:not([data-view="full"]) .vbox { width: 100%; height: var(--avail); }
   /* a column, not the fixed grid: the body is at least its content (never clipped) and takes the leftover height */
-  html[data-view="window"] #panel { height: auto; min-height: var(--avail); display: flex; flex-direction: column; gap: 1rem; }
-  html[data-view="window"] #panel > * { flex: none; }
-  html[data-view="window"] #panel > .p-body { flex: 1 0 auto; }
-  html[data-view="window"] .p-foot { row-gap: 0.75rem; grid-template-rows: 3.5rem 3.5rem; }
-  html[data-view="window"] #panel.menu .p-foot { grid-template-rows: 3.5rem; }
-  html[data-view="window"] .modal-card { width: auto; max-width: calc(100vw - 2rem); }
+  html:not([data-view="full"]) #panel { height: auto; min-height: var(--avail); display: flex; flex-direction: column; gap: 1rem; }
+  html:not([data-view="full"]) #panel > * { flex: none; }
+  html:not([data-view="full"]) #panel > .p-body { flex: 1 0 auto; }
+  html:not([data-view="full"]) .p-foot { row-gap: 0.75rem; grid-template-rows: 3.5rem 3.5rem; }
+  html:not([data-view="full"]) #panel.menu .p-foot { grid-template-rows: 3.5rem; }
+  html:not([data-view="full"]) .modal-card { width: auto; max-width: calc(100vw - 2rem); }
 }
 @media (max-width: 639px), (max-aspect-ratio: 1/1) {
-  html[data-view="window"] {
+  html:not([data-view="full"]) {
     --pw: calc(100vw - 2rem);
     /* what the panel needs at its smallest (head + body + two buttons + gaps), the rest is the clip's */
-    --clip-h: clamp(6rem, calc(var(--avail) - 1rem - 26rem), calc((100vw - 2rem) * 9 / 16));
+    --clip-h: clamp(6rem, calc(var(--avail) - 1rem - 26.75rem), calc((100vw - 2rem) * 9 / 16));
   }
-  html[data-view="window"] #stage { grid-template-columns: minmax(0, 1fr); }
-  html[data-view="window"] .vbox { height: var(--clip-h); justify-content: center; }
-  html[data-view="window"] .vbox .clip { width: auto; height: 100%; max-width: 100%; }
-  html[data-view="window"] .vcover { left: 50%; right: auto; height: 100%; translate: -50% -50%; }
-  html[data-view="window"] #panel { min-height: calc(var(--avail) - var(--clip-h) - 1rem); }
+  html:not([data-view="full"]) #stage { grid-template-columns: minmax(0, 1fr); }
+  html:not([data-view="full"]) .vbox { height: var(--clip-h); justify-content: center; }
+  html:not([data-view="full"]) .vbox .clip { width: auto; height: 100%; max-width: 100%; }
+  html:not([data-view="full"]) .vcover { left: 50%; right: auto; height: 100%; translate: -50% -50%; }
+  html:not([data-view="full"]) #panel { min-height: calc(var(--avail) - var(--clip-h) - 1rem); }
 }
 /* a narrow header: icon-only buttons (the label is the tooltip / accessible name), no keycaps */
 @media (max-width: 639px) {
-  html[data-view="window"] #top kbd, html[data-view="window"] #leaveBtn [data-i18n] { display: none; }
-  html[data-view="window"] .top-r { gap: 0.5rem; }
-  html[data-view="window"] #top .btn { padding: 0; width: 2.75rem; min-width: 2.75rem; }
+  html:not([data-view="full"]) #top kbd, html:not([data-view="full"]) #leaveBtn [data-i18n] { display: none; }
+  html:not([data-view="full"]) .top-r { gap: 0.5rem; }
+  html:not([data-view="full"]) #top .btn { padding: 0; width: 2.75rem; min-width: 2.75rem; }
 }
 @media (max-width: 479px) {
-  html[data-view="window"] .slot-badge { display: none; }
+  html:not([data-view="full"]) .slot-badge { display: none; }
+}
+
+/* ---------- PIP (DESIGN.md §4b): mouse-only, drag from anywhere that is not a control ----------
+   A 6 px no-drag rim keeps the native resize edges and corners reachable; the grip marks the corner.
+   Type grows with a big PIP (never below the 16 px base); no keycaps (the keyboard is not ours). */
+html[data-view="pip"] {
+  font-size: max(16px, min(calc(100vh / 40), calc(100vw / 25)));
+  --avail: calc(100vh - var(--top-h, 4rem) - 12px - 1rem);
+}
+html[data-view="pip"] body { padding: 6px; }
+html[data-view="pip"] #top, html[data-view="pip"] .vbox, html[data-view="pip"] .p-head, html[data-view="pip"] .p-body { -webkit-app-region: drag; }
+html[data-view="pip"] button, html[data-view="pip"] .stepper, html[data-view="pip"] #modal { -webkit-app-region: no-drag; }
+html[data-view="pip"] kbd { display: none; }
+#grip { display: none; }
+html[data-view="pip"] #grip {
+  display: block; position: fixed; right: 2px; bottom: 2px; width: 12px; height: 12px; pointer-events: none;
+  background: linear-gradient(135deg, transparent 0 52%, var(--muted) 52% 60%, transparent 60% 74%, var(--muted) 74% 82%, transparent 82%);
+}
+/* narrow window / PIP (zoomed PIPs get here too): the rest ring and the 上一組 stepper stack, plan rows
+   put the amount under the name, dialog titles step down to title3, the work target to the ring size */
+@media (max-width: 419px) {
+  html:not([data-view="full"]) .hrow { flex-wrap: wrap; row-gap: 0.75rem; }
+}
+@media (max-width: 379px) {
+  html:not([data-view="full"]) .modal-card { padding: 1.5rem; }
+  html:not([data-view="full"]) .modal-card h2 { font: var(--o-title3-em); }
+  html:not([data-view="full"]) .plan li, html:not([data-view="full"]) #panel.menu .plan li { height: auto; flex: none; grid-template-columns: minmax(0, 1fr); padding: 0.375rem 0; }
+  html:not([data-view="full"]) .plan .mt { justify-self: end; }
+}
+@media (max-width: 319px) {
+  html:not([data-view="full"]) .big { font: var(--o-ring); }
+  html:not([data-view="full"]) .modal-card { padding: 1rem; }
+}
+/* PIP: the secondary and the primary button share one row (primary on the right), so the default
+   400×580 PIP fits every phase without scrolling; an empty secondary slot leaves the primary full width */
+@media (min-width: 360px) {
+  html[data-view="pip"] .p-foot, html[data-view="pip"] #panel.menu .p-foot { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: 3.5rem; column-gap: 0.75rem; }
+  html[data-view="pip"] .p-foot:has(#pSec:empty) { grid-template-columns: minmax(0, 1fr); }
+  html[data-view="pip"] #pSec:empty { display: none; }
+  html[data-view="pip"] .p-foot .btn { padding: 0 1rem; }
+}
+@media (max-width: 639px), (max-aspect-ratio: 1/1) {
+  /* the one-row foot frees 4.25rem for the clip */
+  html[data-view="pip"] { --clip-h: clamp(6rem, calc(var(--avail) - 1rem - 23rem), calc((100vw - 2rem) * 9 / 16)); }
+}
+/* a title that does not fit a narrow window even at title3 wraps to two lines (fitTitle) */
+html:not([data-view="full"]) .p-head { grid-template-rows: 2rem minmax(3rem, auto) 1.625rem; }
+html:not([data-view="full"]) .p-title.wrap { white-space: normal; overflow: visible; text-overflow: clip; text-wrap: balance; }
+/* zoomed / very narrow PIP: stopwatch and tempo, ring and stretch tips, dialog buttons stack; the
+   mode tag gives way to the progress bar */
+@media (max-width: 319px) {
+  html:not([data-view="full"]) .sw-row { flex-wrap: wrap; row-gap: 0.5rem; }
+  html:not([data-view="full"]) .hold-row .tips { flex: 1 1 100%; }
+  html:not([data-view="full"]) .modal-btns { flex-direction: column; align-items: stretch; }
+  html:not([data-view="full"]) .mode-tag { display: none; }
 }

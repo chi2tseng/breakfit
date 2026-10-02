@@ -9,8 +9,9 @@ const DEFAULT_SETTINGS = Object.freeze({
   showDemo: true, // false: the break skips every demo countdown + circuit preview (video still loops)
   theme: 'dark', // 'dark' (green accent) | 'light' (orange accent)
   lang: 'zh', // 'zh' (繁中) | 'en' (English)
-  breakView: 'full', // how every break opens: 'full' (full screen) | 'window' (normal window); the web build ignores it
+  breakView: 'pip', // how every break opens: 'pip' (small, on top, mouse-only) | 'window' | 'full'; the web build ignores it
   windowBounds: null, // { x, y, width, height } (DIP) where the windowed break was last left
+  pipBounds: null, // same, for the PIP
   notifyEmptySlots: true,
   autoLaunch: true, // SPEC 2026-09-24: default ON (registered only in packaged builds)
   cycleAnchor: null, // { date: 'YYYY-MM-DD', index: 0..3 }
@@ -50,8 +51,9 @@ function normalizeSettings(raw = {}) {
   s.showDemo = s.showDemo == null ? DEFAULT_SETTINGS.showDemo : !!s.showDemo;
   s.theme = s.theme === 'light' ? 'light' : 'dark';
   s.lang = s.lang === 'en' ? 'en' : 'zh';
-  s.breakView = s.breakView === 'window' ? 'window' : 'full';
+  s.breakView = ['pip', 'window', 'full'].includes(s.breakView) ? s.breakView : 'pip';
   s.windowBounds = normalizeBounds(s.windowBounds);
+  s.pipBounds = normalizeBounds(s.pipBounds);
   s.overrides = s.overrides && typeof s.overrides === 'object' ? { ...s.overrides } : {};
   return s;
 }

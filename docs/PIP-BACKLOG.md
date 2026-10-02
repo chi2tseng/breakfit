@@ -1,4 +1,6 @@
-# PIP (畫中畫) — parked, spec collected 2026-09-30
+# PIP (畫中畫) — spec collected 2026-09-30, **implemented 2026-10-02** (SPEC §5a, DESIGN §4b)
+
+Status: built from the list below, except the web build (Document Picture-in-Picture: separate task).
 
 User: 「休息的時候讓我能夠選擇全螢幕以及 PIP 畫中畫模式」, then 「先不要管 pip 這個之後再用」. **Not implemented.** The first agent was stopped before it edited anything. Requirements the user has given so far:
 

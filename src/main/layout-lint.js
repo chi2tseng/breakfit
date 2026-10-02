@@ -135,7 +135,10 @@ function lint(opts) {
     let labelish = p.closest('button, .btn, .seg, .chip, .pill, label, h1, h2, h3, h4, .lbl, .k, .mode-tag, .nm, .eyebrow, [role="button"]');
     // a library card is a role=button tile: its caption is a name that may wrap (long English names), not a button label
     if (labelish && labelish.classList.contains('lib-card') && p.closest('.lib-card .n')) labelish = null;
-    if (tops.length > 1 && ([...t].length <= 8 || labelish)) {
+    // the one documented exception (DESIGN.md §10): a phase title that cannot fit a narrow window at
+    // title3 wraps (overlay.js fitTitle marks it) instead of ending in an ellipsis
+    if (p.closest('[data-lint-wrap]')) labelish = null;
+    if (tops.length > 1 && ([...t].length <= 8 || labelish) && !p.closest('[data-lint-wrap]')) {
       add('d-wrap', p, `"${t.slice(0, 20)}" on ${tops.length} lines`);
     }
   }
