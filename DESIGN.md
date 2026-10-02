@@ -662,3 +662,4 @@ PNGs identical to before outside the playing clip (only the header progress fill
 Intentional exceptions: one — in a window / PIP, a phase title that does not fit at title3 wraps to two lines
 (`fitTitle` adds `.wrap` + `data-lint-wrap`; rule (d) skips it) instead of an ellipsis. Below 320 px wide the
 mode tag in the header is hidden (the progress bar stays).
+Result 2026-10-02 (PIP redesign, clip = window + one bar): PIP grid **0** — 2970 linted PIP screens (dark / light / English 990 each: 56 grid sizes + 280×158, 300×169, 330×420, 480×270, 960×540, 400×290 + 4 zoomed, every phase + both dialogs; rules a–l, g at 28 px). Main + full-screen + windowed overlay: 645 screens (dark + English), 0. Review set: `selftest-out/pip-review/` (330×420, 400×580, 480×270, 640×360, 960×540 × work / rest / stretch hold / intro / finish × both themes).
