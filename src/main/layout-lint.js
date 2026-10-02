@@ -14,6 +14,11 @@
 //                  rendering with more than one size / line-height / weight / tracking combo
 //   opts.scroller  (windowed overlay) the one element allowed to scroll vertically: it is not
 //                  "clipped" (c), and what sits below its fold is reachable, not "outside" (b)
+//   opts.pip       (PIP, DESIGN.md §4b) nothing may scroll:
+//   j scroll       a scroll container (overflow auto / scroll), or html / body / #stage / #panel
+//                  content taller than its box (scrollHeight > clientHeight)
+//   j primary      the primary button (the dialog's OK while a dialog is open) not fully inside the viewport
+//   k drag         a button / stepper / dialog inside the window's drag region (would swallow the click)
 
 function lint(opts) {
   const kind = opts.kind; // 'main' | 'overlay'
@@ -210,6 +215,26 @@ function lint(opts) {
     let minH = 28;
     if (kind === 'overlay') { minW = 44; minH = 44; } else if (el.classList.contains('btn')) { minH = 44; }
     if (r.width + 0.5 < minW || r.height + 0.5 < minH) add('g-target', el, `${size(r)} < ${minW}×${minH}`);
+  }
+
+  if (opts.pip) {
+    for (const el of all) {
+      const cs = getComputedStyle(el);
+      if (cs.overflowY === 'auto' || cs.overflowY === 'scroll' || cs.overflowX === 'auto' || cs.overflowX === 'scroll') add('j-scroll', el, `scroll container (overflow ${cs.overflowX} ${cs.overflowY})`);
+    }
+    for (const s of ['html', 'body', '#stage', '#panel']) {
+      const el = document.querySelector(s);
+      if (el && el.scrollHeight > el.clientHeight + 1) add('j-scroll', el, `content ${el.scrollHeight}px > box ${el.clientHeight}px`);
+    }
+    const modal = !document.getElementById('modal').hidden;
+    const b = modal ? document.getElementById('mOk') : document.querySelector('#pPri .btn');
+    if (b) {
+      const r = b.getBoundingClientRect();
+      if (!(r.top >= -0.5 && r.left >= -0.5 && r.bottom <= vh + 0.5 && r.right <= vw + 0.5 && r.width > 0)) add('j-primary', b, `primary [${r1(r.left)}, ${r1(r.top)}, ${r1(r.right)}, ${r1(r.bottom)}] not inside ${vw}×${vh}`);
+    }
+    for (const el of all.filter((e) => e.matches('button, .stepper, #modal'))) {
+      if (getComputedStyle(el).webkitAppRegion !== 'no-drag') add('k-drag', el, `-webkit-app-region ${getComputedStyle(el).webkitAppRegion}`);
+    }
   }
 
   return { issues, combos, viewport: `${vw}×${vh}`, rem };

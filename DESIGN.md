@@ -225,21 +225,53 @@ the native resize edges free). Geometry (pure, unit-tested): `src/core/overlay-w
 
 The panel grows with its content instead of clipping it; only then does `#stage` scroll
 (`overflow-y: auto`), so the primary button is always reachable. The matrix checks that (rule i).
-The same small-window rules apply to PIP (`html:not([data-view="full"])`).
+PIP shares only the narrow-width type / wrap rules (`html:not([data-view="full"])`); its layout is §4b and never scrolls.
 
 ### 4b. PIP (`settings.breakView = 'pip'`, the default; SPEC §5a)
 
-Same page, `data-view="pip"`. Header: `picture_in_picture_alt` / `select_window` / `fullscreen` — the
-two views that are not current (F keycap only on full ⇄ window, never in PIP), 離開. Mouse-only:
-the window is not focusable, keys are ignored, every `kbd` hidden. Drag: `#top`, `.vbox`, `.p-head`,
-`.p-body` are `drag`, every button / stepper / dialog `no-drag`, `body` keeps a 6 px no-drag rim for
-the native resize edges; `#grip` (two diagonal `--muted` strokes, 12 px) marks the bottom-right
-corner. Root size `max(16px, min(100vh / 40, 100vw / 25))` (grows with a big PIP, never below the
-16 px base). From 360 px wide the secondary and primary buttons share one row (primary right; an
-empty secondary slot leaves the primary full width), so the default 400×580 fits every phase but
-the 9-row 完整訓練 intro without scrolling; below 360 the rest ring and stepper wrap. Geometry:
-`defaultPipBounds` (400×580, bottom-right of the work area of the display under the cursor, 16 px
-in), minimum 320×300, `pickSavedBounds` with `settings.pipBounds`.
+Same page, `data-view="pip"`. Header (56 px, fixed): `picture_in_picture_alt` / `select_window` /
+`fullscreen` — the two views that are not current (F keycap only on full ⇄ window, never in PIP), 離開;
+44 × 44 buttons. Mouse-only: the window is not focusable, keys are ignored, every `kbd` hidden. Drag:
+`#top`, `.vbox`, `.p-head`, `.p-body` are `drag`, every button / stepper / dialog `no-drag` (lint k),
+`body` keeps a 6 px no-drag rim for the native resize edges; `#grip` (two diagonal `--muted` strokes,
+12 px) marks the bottom-right corner.
+
+**Nothing in PIP scrolls, at any size** (user 2026-10-02: 「pip 不要有需要滾輪的內容」). **The clip is
+always the largest 16:9 its form allows and is never shrunk for the UI** (「寬度保持影片能夠有的最大寬度，
+若視窗比影片寬則維持最大高度」). `overlay.js pipFit()` runs on every render and resize and picks:
+
+| Form (`html[data-pip-form]`) | Clip | UI |
+|---|---|---|
+| `stack` — tried first (it always gives the bigger clip) | full content width (window − 44 px) × 9/16, under the header (y 62) | below the clip: a vertical panel, or at `pip-l5` one horizontal strip `[ring / target] title [secondary][primary]` |
+| `side` — when the stacked UI does not fit even as a strip | full height (window − 84 px) × 16/9 | a column beside it (≥ 176 px) |
+| neither | — | the page sends `pip:need` (CSS px); main grows the window the cheaper way (taller → stacked, wider → side), 150 ms debounce, kept on the work area |
+
+The clip's rectangle depends on the window only: rim 6, header 56, padding / gaps 16 are px. Type is
+`html` font-size set by `pipFit`: stacked `(room under the clip) / 20` capped by `width / 25`, side
+`min(column / 18, height / 26)`, clamped 12.25–22 px (body 17/16 rem ≥ 13 px; footnote / subheadline
+are not used in PIP: the mode tag is headline, 完整訓練 menu rows body). When the UI still does not fit,
+levels are added on `<html>` until it does (the selftest records form + level per size in
+`lint.json` → `pipForms`):
+
+| Level | Dropped / changed |
+|---|---|
+| `pip-l1` | tips; the intro's list → one summary line (`約 47 分鐘  9 個動作  25 組`) |
+| `pip-l2` | meta line, tempo, the stepper's 上一組 label |
+| `pip-l3` | 上一組 stepper (rest / finish); secondary button icon-only (label → tooltip / aria-label) |
+| `pip-l4` | compact: no chip, title at title3, ring 5.5rem (ring3 / title2 number), work target at ring size, no stopwatch |
+| `pip-l5` | stacked and content ≥ 360 px wide only: the strip (ring 3.25rem, headline number; target title2) |
+
+Always on screen: header buttons, phase title (wraps rather than ellipsis), the big number / countdown
+(work target, ring, today's count), the primary button. The secondary and primary buttons share one
+row (primary right; an empty secondary slot leaves the primary full width). Geometry: `defaultPipBounds`
+(400×580, bottom-right of the work area of the display under the cursor, 16 px in); static minimum
+320×300 (`PIP_MIN`, `setMinimumSize`); above it the real minimum depends on the aspect and the
+phase, and main enforces it by growing the window (`pip:need`). Measured (rest screen, 2026-10-02):
+stacked needs 320×405, 360×428, 400×450, 480×390 (strip), 560×435, 640×480, 720×525, 960×660; side by
+side works from 620×300, 727×360, 834×420, 960×480. Forms by size (`rest`, level in brackets):
+≥ 580 tall and ≤ 720 wide → stacked panel (l0 at ≥ 720 tall, l2–l5 below); 420–480 tall → stacked
+(l4 under 480 wide, the strip l5 from 480); wide and short (960×360–480, 640–720×300) → side (l0–l4).
+The 400×580 default: stacked, l2 (tips, meta line off; stepper on).
 
 ## 5. Main window
 
@@ -560,8 +592,17 @@ Hidden windows, temp profile, both themes:
   `#stage` is the one allowed scroller (lint `scroller`); (i) the primary button (or the dialog's OK)
   must scroll fully into view. Screens whose stage scrolls are listed in the run's output.
   `-- --matrix --window`: the windowed + PIP screens only.
-- PIP (§4b) 320×440, 360×520, 400×580, 480×800, 560×315, 640×360, 720×405, 960×540, plus 400×580 and
-  640×360 at 125 % / 150 % → the same screens as the windowed list (`<theme>-pip-<screen>-<size>.png`).
+- PIP (§4b) every width 320, 360, 400, 480, 560, 640, 720, 960 × height 300, 360, 420, 480, 580, 720, 800, plus
+  400×580 and 640×360 at 125 % / 150 % → the same screens as the windowed list. A size too small for the
+  largest clip + the UI is grown by main (`pip:need`) and linted at the size it settles on — the PNG is
+  named by that size (`<theme>-pip-<screen>-<W>x<H>[@zoom].png`); `lint.json` → `pipForms` lists form +
+  level per requested size (→ grown size). PIP-only rules: (j) no scroll container, html / body / `#stage` /
+  `#panel` content ≤ its box, primary button (dialog: OK) fully inside the viewport; (k) every button /
+  stepper / dialog `no-drag`; (l) the clip is the largest 16:9 of its form (stacked: window − 44 px wide at
+  y 62; side: window − 84 px tall) and at 800 tall never narrower in a wider window.
+  `-- --only=400x580,640x360@150` limits window / PIP sizes; `-- --pip` (with `--window`) the PIP only;
+  `-- --passes=dark|light|en-dark` one pass (the full matrix with the PIP grid takes ≈ 2.5 h; the three passes
+  can run in parallel from separate git worktrees).
 - PNGs: `selftest-out/matrix/<theme>-<screen>-<W>x<H>[@zoom].png`; lint: `selftest-out/matrix/lint.json`
   (`total`, `bySize`, `byRule`, distinct type combos with counts, every issue with selector +
   text + size). Lint source: `src/main/layout-lint.js`.
@@ -573,7 +614,7 @@ Rules: (a) horizontal overflow (scrollWidth > clientWidth + 1) unless `[data-lin
 (e) list/table column edges differing > 1 px (settings fields, menu rows + header, timeline,
 detail rows, overlay plan rows); (f) font-size / line-height / weight not a §3 token, or < 13 px
 rendered; (g) hit targets: main window ≥ 28×28 (macOS default control size), `.btn` ≥ 44 high;
-overlay ≥ 44×44; (i) windowed overlay: primary button reachable.
+overlay ≥ 44×44; (i) windowed overlay: primary button reachable; (j)–(l) PIP, see above.
 
 Phone widths (web build only; the desktop window's minimum is 800×600): `npm.cmd run test:web`
 runs the same lint (`TOKENS` / `GROUPS` / `ROLES` exported from `layout-lint.js`) at 390×844 and
@@ -587,6 +628,10 @@ Result 2026-10-02 (windowed overlay): matrix **0** (1043 screens incl. 480 windo
 Windowed screens that scroll at ≥ 520 px tall: only the 9-row 完整訓練 intro and (before the 26.75rem reserve) the work /
 leave screens by 11 px; everything else that scrolls is ≤ 480 tall or zoomed.
 Result 2026-10-02 (PIP): matrix **0** (1583 screens: main + full-screen overlay + 480 windowed + 576 PIP, both themes, 繁中 + English). At the default 400×580 only the 9-row 完整訓練 intro scrolls; 360×520 and every PIP ≤ 440 tall scroll a little (primary reachable, rule i).
+Result 2026-10-02 (PIP never scrolls, clip at its largest 16:9): PIP grid **0** — 2345 linted PIP screens (dark 781,
+light 785, English 779; 56 grid sizes + 4 zoomed, every phase + both dialogs; sizes too small were grown by main and
+linted where they settled), rules a–l incl. the new j / k / l. Window + full-screen overlay + main: 811 screens, lint 0,
+PNGs identical to before outside the playing clip (only the header progress fill's transition edge, ≤ 24 px).
 Intentional exceptions: one — in a window / PIP, a phase title that does not fit at title3 wraps to two lines
 (`fitTitle` adds `.wrap` + `data-lint-wrap`; rule (d) skips it) instead of an ellipsis. Below 320 px wide the
 mode tag in the header is hidden (the progress bar stays).

@@ -187,7 +187,7 @@ function renderTop() {
 // playing when the source is unchanged, e.g. demo → work). Right: chip / title / meta / body /
 // secondary / primary slots, always in the same place.
 const btn = (id, icon, label, { primary = false, fill = false, kbd = '', cd = false } = {}) =>
-  `<button class="btn ${primary ? 'primary' : 'ghost'}" id="${id}">${ICON(icon, fill ? 'fill' : '')}${esc(label)}${kbd ? `<kbd>${kbd}</kbd>` : ''}${cd ? '<span class="cd" id="cd"></span>' : ''}</button>`;
+  `<button class="btn ${primary ? 'primary' : 'ghost'}" id="${id}" aria-label="${esc(label)}">${ICON(icon, fill ? 'fill' : '')}<span class="lb">${esc(label)}</span>${kbd ? `<kbd>${kbd}</kbd>` : ''}${cd ? '<span class="cd" id="cd"></span>' : ''}</button>`;
 
 // A phase title wider than the panel (English day titles, long move names) steps down the type
 // scale — display → title2 → title3 — instead of ending in an ellipsis.
@@ -203,7 +203,95 @@ function fitTitle() {
     el.dataset.lintWrap = '';
   }
 }
-addEventListener('resize', fitTitle);
+
+// PIP (DESIGN.md §4b): the clip is always the largest 16:9 the form allows and NOTHING scrolls.
+// Stacked first (full-width clip, UI below: the bigger clip), else side by side (full-height clip, UI
+// column); in each form add levels (overlay.css pip-l1 … pip-l5) until the UI fits. Neither fits →
+// tell main how much bigger the window must be (pip:need, CSS px); main grows it.
+const PIP_LEVELS = ['pip-l1', 'pip-l2', 'pip-l3', 'pip-l4', 'pip-l5'];
+const PIP_CHROME = { side: 44, top: 62, bottom: 22, gap: 16 }; // rim + padding (px): header 56 + 6 px rim on top
+const SIDE_MIN = 176; // narrowest UI column beside the clip
+const REM = [12.25, 22]; // body text 17/16 rem ≥ 13 px
+const remFor = (r) => `${Math.max(REM[0], Math.min(REM[1], r))}px`;
+const spills = (e) => e.scrollHeight > e.clientHeight + 1 || e.scrollWidth > e.clientWidth + 1;
+function pipFits() {
+  if ([document.documentElement, document.body, $('#stage'), $('#panel')].some(spills)) return false;
+  // nothing in the panel cut (an ellipsis row name, a squeezed button label or countdown) or sticking out of
+  // it, also by the sub-pixel amounts the integer scroll sizes round away
+  const pr = $('#panel').getBoundingClientRect();
+  const bottom = Math.min(pr.bottom, innerHeight - PIP_CHROME.bottom) + 0.5;
+  for (const e of document.querySelectorAll('#panel *')) {
+    if (!e.getClientRects().length || e.closest('svg') || e.classList.contains('ms') || getComputedStyle(e).visibility === 'hidden') continue;
+    if (e.clientWidth > 0 && e.scrollWidth > e.clientWidth + 1) return false;
+    const r = e.getBoundingClientRect();
+    if (r.bottom > bottom || r.right > pr.right + 0.5 || r.left < pr.left - 0.5) return false;
+  }
+  return true;
+}
+// try one form: its type size, then levels until it fits; the number of levels, or -1
+function pipTry(form, rem, levels) {
+  const html = document.documentElement;
+  html.dataset.pipForm = form;
+  html.style.fontSize = remFor(rem);
+  html.classList.remove(...PIP_LEVELS);
+  let n = 0;
+  fitTitle();
+  while (!pipFits()) {
+    if (n >= levels.length) return -1;
+    html.classList.add(levels[n++]);
+    fitTitle();
+  }
+  return n;
+}
+let pipNeed = null;
+function pipFit() {
+  const html = document.documentElement;
+  if (html.dataset.view !== 'pip' || !P) {
+    html.classList.remove(...PIP_LEVELS, 'pip-h1', 'pip-h2');
+    delete html.dataset.pipForm;
+    delete html.dataset.fit;
+    html.style.fontSize = '';
+    fitTitle();
+    return;
+  }
+  const W = innerWidth;
+  const H = innerHeight;
+  const C = PIP_CHROME;
+  const cw = W - C.side; // content width
+  const stackLv = cw >= 360 ? PIP_LEVELS : PIP_LEVELS.slice(0, 4); // the strip needs room for a title beside the buttons
+  // stacked: the type grows with the room left under the clip (≈ 20 rem for a full panel) and the width
+  const below = H - C.top - (cw * 9) / 16 - C.gap - C.bottom;
+  let form = 'stack';
+  let n = pipTry('stack', Math.min(below / 20, W / 25), stackLv);
+  let need = null;
+  if (n < 0) {
+    const sh = H - C.top - C.bottom; // side by side: the clip's height
+    const col = cw - (sh * 16) / 9 - C.gap;
+    if (col >= SIDE_MIN) { form = 'side'; n = pipTry('side', Math.min(col / 18, sh / 26), PIP_LEVELS.slice(0, 4)); }
+    if (n < 0) {
+      // neither fits: how tall the stacked UI is at its most compact, or how wide a side column needs
+      form = 'stack';
+      pipTry('stack', 0, stackLv);
+      html.classList.add(...stackLv, 'pip-measure');
+      const h = Math.ceil($('#panel').getBoundingClientRect().bottom + C.bottom);
+      html.classList.remove('pip-measure');
+      need = { h: Math.max(h, H), w: Math.ceil(C.side + (sh * 16) / 9 + C.gap + SIDE_MIN) };
+      n = stackLv.length;
+    }
+  }
+  html.dataset.fit = String(n);
+  // the header (fixed 56 px) gives way on its own: slot time first, then the mode tag (the progress bar stays)
+  html.classList.remove('pip-h1', 'pip-h2');
+  for (const c of ['pip-h1', 'pip-h2']) if (spills($('#top .top-l'))) html.classList.add(c);
+  if (document.fonts.status !== 'loaded') return; // measured with fallback fonts: wait for fonts.ready
+  if (JSON.stringify(need) !== JSON.stringify(pipNeed)) {
+    pipNeed = need;
+    if (window.bf.pipNeed) window.bf.pipNeed(need);
+  }
+}
+addEventListener('resize', pipFit);
+document.fonts.ready.then(() => pipFit());
+document.fonts.addEventListener('loadingdone', () => pipFit()); // a weight / glyph loaded late: re-measure
 
 function frame({ clip, chip, title = '', meta = '', body = '', sec = '', pri = '', cover = null }) {
   $('#panel').classList.remove('menu');
@@ -257,7 +345,11 @@ function renderIntro() {
       : { icon: session ? 'fitness_center' : 'calendar_today', text: P.dayLabel || '' },
     title: P.dayTitle || '',
     meta: session ? metaHTML(esc(t('aboutMin', { n: Math.max(1, Math.ceil((P.estSec || 0) / 60)) })), sets ? esc(t(sets === 1 ? 'setsN1' : 'setsN', { n: sets })) : '') : '',
-    body: `<ul class="plan">${rows}</ul>`,
+    // PIP too short for the list (pip-l1): one line instead — minutes (完整訓練), moves, sets
+    body: `<ul class="plan">${rows}</ul><div class="p-sum">${metaHTML(
+      session ? esc(t('aboutMin', { n: Math.max(1, Math.ceil((P.estSec || 0) / 60)) })) : '',
+      esc(t(P.items.length === 1 ? 'movesN1' : 'movesN', { n: P.items.length })),
+      sets ? esc(t(sets === 1 ? 'setsN1' : 'setsN', { n: sets })) : '')}</div>`,
     sec: session ? '' : btn('skipBtn', 'skip_next', t('skipThis')),
     pri: btn('startBtn', 'play_arrow', t('start'), { primary: true, fill: true, kbd: 'Space', cd: true }),
   });
@@ -436,8 +528,10 @@ function render() {
   if (st.phase === 'intro') renderIntro();
   else if (st.phase === 'finish') renderFinish();
   else renderStep();
+  $('#panel').dataset.kind = st.phase === 'step' ? cur().kind : st.phase;
   renderTop();
   updateTick();
+  pipFit();
 }
 
 function updateTick() {
@@ -635,7 +729,7 @@ const VIEW_LABEL = { pip: 'viewPipMenu', window: 'viewWindow', full: 'viewFull' 
 function applyView(v) {
   const view = VIEW_LABEL[v] ? v : 'full';
   document.documentElement.dataset.view = view;
-  if (P) fitTitle();
+  if (P) pipFit();
   // the header offers the two other views; F (full ⇄ window) shows its keycap on the button it presses
   for (const b of document.querySelectorAll('.vbtn')) {
     b.hidden = b.dataset.v === view;
@@ -741,4 +835,5 @@ window.__test = {
     return st.phase === 'step' ? cur().kind : st.phase;
   },
   theme: () => document.documentElement.dataset.theme,
+  pipNeed: () => JSON.stringify(pipNeed), // PIP: null = this window fits (else main is growing it)
 };

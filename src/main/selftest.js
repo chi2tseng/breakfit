@@ -716,7 +716,7 @@ async function main() {
     await shot(owSE, `en-ov-${name}`, `English: ${name}`);
   }
   await js(owSE, "__test.show('hold', { nth: 1, remaining: 12.2 })");
-  const holdEn = await js(owSE, "document.getElementById('pTitle').textContent + '|' + [...document.querySelectorAll('#pMeta > span')].map((x) => x.textContent).join('/') + '|' + [...document.querySelector('#pPri .btn').childNodes].filter((x) => x.nodeType === 3).map((x) => x.textContent).join('')");
+  const holdEn = await js(owSE, "document.getElementById('pTitle').textContent + '|' + [...document.querySelectorAll('#pMeta > span')].map((x) => x.textContent).join('/') + '|' + document.querySelector('#pPri .btn .lb').textContent");
   assert(holdEn === 'Chest stretch|Left/Stretch 1/3|Next', `English hold: name, side, button (${holdEn})`);
   ctl.endBreak('abort');
   await settle(mw);
@@ -967,9 +967,19 @@ const EN_OV_SIZES = [[1024, 768], [1366, 768], [1920, 1080]];
 const OV_SIZES = [[1024, 768], [1280, 720], [1280, 800], [1366, 768], [1440, 900], [1536, 864], [1920, 1080], [2560, 1440]];
 // windowed overlay (settings.breakView = 'window'): window content sizes, zoom = Windows display scaling
 const WIN_SIZES = [[1280, 800, 1], [1024, 640, 1], [960, 540, 1], [800, 450, 1], [640, 400, 1], [520, 640, 1], [400, 620, 1], [400, 480, 1], [800, 450, 1.25], [800, 450, 1.5]];
-// PIP (settings.breakView = 'pip'): 400×580 is the default
-const PIP_SIZES = [[320, 440, 1], [360, 520, 1], [400, 580, 1], [480, 800, 1], [560, 315, 1], [640, 360, 1], [720, 405, 1], [960, 540, 1],
+// PIP (settings.breakView = 'pip'; 400×580 is the default): a dense grid from the minimum up, plus
+// display scaling. `-- --only=400x580,640x360@150` limits the window / PIP sizes while iterating.
+const PIP_W = [320, 360, 400, 480, 560, 640, 720, 960];
+const PIP_H = [300, 360, 420, 480, 580, 720, 800];
+const PIP_SIZES = [
+  ...PIP_H.flatMap((h) => PIP_W.map((w) => [w, h, 1])).filter(([w, h]) => w >= W.PIP_MIN.width && h >= W.PIP_MIN.height),
   [400, 580, 1.25], [400, 580, 1.5], [640, 360, 1.25], [640, 360, 1.5]];
+const ONLY = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7).split(',').filter(Boolean);
+const sizeTag = (w, h, z) => `${w}x${h}${z === 1 ? '' : `@${Math.round(z * 100)}`}`;
+// PIP: the form and fit level overlay.js pipFit chose, and where the clip renders (DESIGN.md §4b)
+const PIP_PROBE = `(() => { const r = document.querySelector('.vbox').getBoundingClientRect();
+  return JSON.stringify({ form: document.documentElement.dataset.pipForm, fit: document.documentElement.dataset.fit,
+    clip: [r.left, r.top, r.width, r.height].map((v) => Math.round(v * 10) / 10), vw: innerWidth, vh: innerHeight }); })()`;
 
 async function settleLayout(win) {
   await win.webContents.executeJavaScript(
@@ -978,7 +988,7 @@ async function settleLayout(win) {
   await delay(120);
 }
 
-async function resize(win, w, h, zoom = 1) {
+async function resize(win, w, h, zoom = 1, quiet = false) {
   win.setMinimumSize(100, 100);
   win.setContentSize(w, h);
   win.webContents.setZoomFactor(zoom);
@@ -986,7 +996,7 @@ async function resize(win, w, h, zoom = 1) {
   await settleLayout(win);
   const [cw, ch] = win.getContentSize();
   const inner = await js(win, '[innerWidth, innerHeight]');
-  if (cw !== w || ch !== h) console.log(`  WARN content size ${cw}x${ch} != ${w}x${h}`);
+  if ((cw !== w || ch !== h) && !quiet) console.log(`  WARN content size ${cw}x${ch} != ${w}x${h}`);
   return inner;
 }
 
@@ -1057,6 +1067,8 @@ async function matrix(ctl, mw) {
     return ow;
   };
   const scrolled = [];
+  const pipProbe = {}; // `${pre}${theme} ${screen}` -> { requested size: probe }
+  const pipDone = new Set();
   const OV = [
     ['d1', [['intro', "__test.show('intro', { remaining: 7.3 })"], ['demo', "__test.show('demo', { remaining: 5.2 })"],
       ['work', "__test.show('work', { elapsed: 23 })"], ['rest', "__test.show('rest', { remaining: 42, reps: 12 })"],
@@ -1080,7 +1092,10 @@ async function matrix(ctl, mw) {
   // 繁中 in both themes at every size; English (longer words) in dark at the sizes that bound the layouts.
   const ALL_PASSES = [['dark', 'zh', ''], ['light', 'zh', ''], ['dark', 'en', 'en-']];
   // `-- --matrix --en`: the English pass only (quick iteration on text length)
-  const PASSES = process.argv.includes('--en') ? ALL_PASSES.filter((p) => p[1] === 'en') : ALL_PASSES;
+  // `-- --passes=dark,light`: those passes only (pass name = file prefix + theme: dark, light, en-dark)
+  const only = (process.argv.find((a) => a.startsWith('--passes=')) || '').slice(9).split(',').filter(Boolean);
+  const PASSES = process.argv.includes('--en') ? ALL_PASSES.filter((p) => p[1] === 'en')
+    : only.length ? ALL_PASSES.filter(([theme, , pre]) => only.includes(pre + theme)) : ALL_PASSES;
   for (const [theme, lang, pre] of PASSES) {
     console.log(`matrix ${pre}${theme}`);
     await js(mw, `window.bf.saveSettings({ theme: '${theme}', lang: '${lang}' }).then(() => true)`);
@@ -1128,11 +1143,26 @@ async function matrix(ctl, mw) {
       ctl.data.settings.breakView = view;
       const ow = await openFor(pd);
       assert(ctl.overlayView === view && await js(ow, `document.documentElement.dataset.view === '${view}'`), `matrix ${pd}: break opens as ${view}`);
-      for (const [w, h, z] of SIZES) {
-        await resize(ow, w, h, z);
-        const tag = `${w}x${h}${z === 1 ? '' : `@${Math.round(z * 100)}`}`;
+      for (const [w, h, z] of SIZES.filter(([w, h, z]) => !ONLY.length || ONLY.includes(sizeTag(w, h, z)))) {
+        await resize(ow, w, h, z, view === 'pip'); // PIP: main may grow a too-small window (pip:need)
+        const tag = sizeTag(w, h, z);
         for (const [screen, code] of states) {
           await js(ow, code);
+          if (view === 'pip') {
+            // too small for the clip + UI → main grows the window (pip:need); lint at the size it settles on
+            await settleLayout(ow); // late font loads re-run pipFit
+            await until(ow, "document.fonts.status === 'loaded' && __test.pipNeed() === 'null'", 5000).catch(() => console.log(`  WARN ${screen} ${tag}: PIP never fit (${tag})`));
+            const [aw, ah] = ow.getContentSize();
+            const atag = sizeTag(aw, ah, z);
+            const name = `${pre}${theme}-${short}-${screen}-${atag}`;
+            const pr = { ...JSON.parse(await js(ow, PIP_PROBE)), at: atag };
+            (pipProbe[`${pre}${theme} ${screen}`] ||= {})[tag] = pr;
+            if (pipDone.has(name)) continue;
+            pipDone.add(name);
+            // PIP never scrolls: lint rules j (no scroller, content ≤ viewport, primary inside) and k (drag)
+            await snap(ow, name, { kind: 'overlay', pip: true });
+            continue;
+          }
           await snap(ow, `${pre}${theme}-${short}-${screen}-${tag}`, { kind: 'overlay', scroller: '#stage' });
           const r = JSON.parse(await js(ow, REACH_CHECK));
           const run = runs[runs.length - 1];
@@ -1149,7 +1179,32 @@ async function matrix(ctl, mw) {
     // after every pass: the issues so far (a long run can be read while it goes on)
     fs.writeFileSync(path.join(dir, 'lint-partial.json'), JSON.stringify(runs.filter((r) => r.issues.length).map((r) => ({ name: r.name, issues: r.issues })), null, 1));
   }
-  console.log(`window / PIP screens that scroll: ${scrolled.length}${scrolled.length ? `\n  ${scrolled.join('\n  ')}` : ''}`);
+  console.log(`window screens that scroll: ${scrolled.length}${scrolled.length ? `\n  ${scrolled.join('\n  ')}` : ''}`);
+  // PIP clip (rule l): the largest 16:9 of its form — stacked: the full content width (window − 44 px)
+  // under the 62 px header; side by side: the full height (window − 84 px) — and, at 800 tall, never
+  // narrower in a wider window. pipForms: form + level per requested size (→ the size main grew it to).
+  const pipForms = {};
+  const clipIssue = (name, msg) => runs.push({ name, viewport: '', combos: {}, issues: [{ rule: 'l-clip', sel: '.vbox', text: '', size: '', msg }] });
+  for (const [key, bySz] of Object.entries(pipProbe)) {
+    const [pass, screen] = key.split(' ');
+    for (const [tag, p] of Object.entries(bySz)) {
+      ((pipForms[pass] ||= {})[screen] ||= {})[tag] = `${p.form} ${p.fit}${p.at !== tag ? ` -> ${p.at}` : ''}`;
+      const [, top, cw, ch] = p.clip;
+      const want = p.form === 'side' ? [((p.vh - 84) * 16) / 9, p.vh - 84] : [p.vw - 44, ((p.vw - 44) * 9) / 16];
+      if (Math.abs(cw - want[0]) > 1.5 || Math.abs(ch - want[1]) > 1.5 || Math.abs(top - 62) > 1) {
+        clipIssue(`${pass}-pip-${screen}-${p.at}`, `${p.form} clip ${cw}×${ch} at y ${top}, want ${want.map(Math.round).join('×')} at y 62`);
+      }
+    }
+    const tall = PIP_W.map((w) => [w, bySz[`${w}x800`]]).filter(([, p]) => p);
+    for (let i = 1; i < tall.length; i++) {
+      if (tall[i][1].clip[2] + 1 < tall[i - 1][1].clip[2]) clipIssue(`${pass}-pip-${screen}-${tall[i][0]}x800`, `clip ${tall[i][1].clip[2]}px at ${tall[i][0]} wide < ${tall[i - 1][1].clip[2]}px at ${tall[i - 1][0]}`);
+    }
+  }
+  for (const [pass, f] of Object.entries(pipForms).slice(0, 1)) {
+    if (!f.rest) continue;
+    console.log(`PIP form / level per size (${pass} rest screen; > = the size main grew it to):`);
+    for (const h of PIP_H) console.log(`  ${h}: ${PIP_W.map((w) => `${w}=${(f.rest[`${w}x${h}`] || '-').replace(' -> ', '>')}`).join('  ')}`);
+  }
 
   // summary: issue counts per size and rule, distinct type combos
   const bySize = {};
@@ -1166,7 +1221,7 @@ async function matrix(ctl, mw) {
     }
   }
   const total = runs.reduce((a, r) => a + r.issues.length, 0);
-  fs.writeFileSync(path.join(dir, 'lint.json'), JSON.stringify({ total, bySize, byRule, combos, runs }, null, 1));
+  fs.writeFileSync(path.join(dir, 'lint.json'), JSON.stringify({ total, bySize, byRule, combos, pipForms, runs }, null, 1));
   console.log(`\nmatrix: ${runs.length} linted screens, ${total} issues -> ${path.join(dir, 'lint.json')}`);
   console.log(JSON.stringify(bySize));
   console.log(JSON.stringify(byRule));
@@ -1175,9 +1230,9 @@ async function matrix(ctl, mw) {
 
 function run() {
   const guard = setTimeout(() => {
-    console.error(`SELFTEST TIMEOUT (${MATRIX ? 5400 : 240} s)`);
+    console.error(`SELFTEST TIMEOUT (${MATRIX ? 14400 : 240} s)`);
     app.exit(2);
-  }, MATRIX ? 5400000 : 240000);
+  }, MATRIX ? 14400000 : 240000); // the full matrix (dense PIP grid) takes ≈ 2.5 h
   app.on('window-all-closed', () => {});
   app.whenReady()
     .then(main)

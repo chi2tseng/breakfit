@@ -262,11 +262,7 @@ html[data-view="window"] #top .btn { -webkit-app-region: no-drag; }
 
 /* ---------- PIP (DESIGN.md §4b): mouse-only, drag from anywhere that is not a control ----------
    A 6 px no-drag rim keeps the native resize edges and corners reachable; the grip marks the corner.
-   Type grows with a big PIP (never below the 16 px base); no keycaps (the keyboard is not ours). */
-html[data-view="pip"] {
-  font-size: max(16px, min(calc(100vh / 40), calc(100vw / 25)));
-  --avail: calc(100vh - var(--top-h, 4rem) - 12px - 1rem);
-}
+   No keycaps (the keyboard is not ours). Layout: the PIP block at the end of this file. */
 html[data-view="pip"] body { padding: 6px; }
 html[data-view="pip"] #top, html[data-view="pip"] .vbox, html[data-view="pip"] .p-head, html[data-view="pip"] .p-body { -webkit-app-region: drag; }
 html[data-view="pip"] button, html[data-view="pip"] .stepper, html[data-view="pip"] #modal { -webkit-app-region: no-drag; }
@@ -291,18 +287,6 @@ html[data-view="pip"] #grip {
   html:not([data-view="full"]) .big { font: var(--o-ring); }
   html:not([data-view="full"]) .modal-card { padding: 1rem; }
 }
-/* PIP: the secondary and the primary button share one row (primary on the right), so the default
-   400×580 PIP fits every phase without scrolling; an empty secondary slot leaves the primary full width */
-@media (min-width: 360px) {
-  html[data-view="pip"] .p-foot, html[data-view="pip"] #panel.menu .p-foot { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: 3.5rem; column-gap: 0.75rem; }
-  html[data-view="pip"] .p-foot:has(#pSec:empty) { grid-template-columns: minmax(0, 1fr); }
-  html[data-view="pip"] #pSec:empty { display: none; }
-  html[data-view="pip"] .p-foot .btn { padding: 0 1rem; }
-}
-@media (max-width: 639px), (max-aspect-ratio: 1/1) {
-  /* the one-row foot frees 4.25rem for the clip */
-  html[data-view="pip"] { --clip-h: clamp(6rem, calc(var(--avail) - 1rem - 23rem), calc((100vw - 2rem) * 9 / 16)); }
-}
 /* a title that does not fit a narrow window even at title3 wraps to two lines (fitTitle) */
 html:not([data-view="full"]) .p-head { grid-template-rows: 2rem minmax(3rem, auto) 1.625rem; }
 html:not([data-view="full"]) .p-title.wrap { white-space: normal; overflow: visible; text-overflow: clip; text-wrap: balance; }
@@ -314,3 +298,82 @@ html:not([data-view="full"]) .p-title.wrap { white-space: normal; overflow: visi
   html:not([data-view="full"]) .modal-btns { flex-direction: column; align-items: stretch; }
   html:not([data-view="full"]) .mode-tag { display: none; }
 }
+
+/* ---------- PIP layout (DESIGN.md §4b): the clip as large as the window allows, NOTHING scrolls ----------
+   overlay.js pipFit() picks the form and the type size (html style font-size, 12.25–22 px: body text
+   never below 13 px; footnote / subheadline text is not used in PIP):
+     stacked (data-pip-form="stack")  the clip spans the content width at 16:9, the UI below it
+     side    (data-pip-form="side")   the clip takes the full height at 16:9, the UI in a column beside it
+   The clip's rectangle depends on the window only (header, rim, padding and gaps are px, never rem).
+   When the UI does not fit, levels are added on <html> until it does:
+     pip-l1  tips; the intro's list → a one-line summary     pip-l2  meta line, tempo, stepper label
+     pip-l3  上一組 stepper; secondary button icon-only      pip-l4  compact: no chip, title3, ring 5.5rem,
+     pip-l5  (stacked, content ≥ 360 wide) one horizontal strip under the clip   target at ring size, no stopwatch
+   If no form fits, main grows the window (pip:need). */
+html[data-view="pip"] { --hit: max(2.75rem, 44px); --btn-h: max(3.5rem, 44px); }
+html[data-view="pip"] #top { height: 56px; margin: 0; grid-template-columns: minmax(0, 1fr) auto; column-gap: 0.75rem; padding: 0 10px; }
+html[data-view="pip"] #top .btn { height: 44px; min-width: 44px; }
+html[data-view="pip"] .mode-tag { height: 1.75rem; font: var(--o-headline); letter-spacing: var(--tr-17); }
+html[data-view="pip"] #stage { display: flex; flex-direction: column; gap: 16px; padding: 0 16px 16px; overflow: hidden; }
+html[data-view="pip"] .vbox { flex: none; width: 100%; height: calc((100vw - 44px) * 9 / 16); min-height: 0; }
+html[data-view="pip"] .vbox .clip { width: 100%; height: 100%; max-width: none; aspect-ratio: auto; }
+html[data-view="pip"] .vcover { inset: 0; width: auto; height: auto; translate: none; aspect-ratio: auto; }
+html[data-pip-form="side"] #stage { display: grid; grid-template-columns: calc((100vh - 84px) * 16 / 9) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); column-gap: 16px; }
+html[data-pip-form="side"] .vbox { width: auto; height: auto; }
+html[data-view="pip"] #panel { flex: 1 0 auto; height: auto; min-height: 0; min-width: 0; display: flex; flex-direction: column; gap: 1rem; }
+html[data-view="pip"] #panel > * { flex: none; }
+html[data-view="pip"] #panel > .p-body { flex: 1 0 auto; overflow: visible; }
+html[data-view="pip"] .p-head { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
+/* stretched, never centred: a centred nowrap title would size to its text and never be seen to overflow */
+html[data-view="pip"] .p-title, html[data-view="pip"] .p-title.fit2, html[data-view="pip"] .p-title.fit3 { align-self: stretch; }
+html[data-view="pip"] .p-chip { display: flex; height: 2rem; align-items: center; }
+html[data-view="pip"] .p-chip:empty, html[data-view="pip"] .p-meta:empty { display: none; }
+html[data-view="pip"] .hrow { flex-wrap: wrap; row-gap: 0.75rem; }
+html[data-view="pip"] .plan, html[data-view="pip"] #panel.menu .plan { overflow: visible; }
+html[data-view="pip"] #panel.menu .plan li { flex: none; height: 2.375rem; font: var(--o-body); letter-spacing: var(--tr-17); }
+html[data-view="pip"] .p-foot, html[data-view="pip"] #panel.menu .p-foot {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: var(--btn-h); column-gap: 0.75rem; row-gap: 0;
+}
+html[data-view="pip"] .p-foot:has(#pSec:empty) { grid-template-columns: minmax(0, 1fr); }
+html[data-view="pip"] #pSec:empty { display: none; }
+html[data-view="pip"] .p-foot .btn { height: var(--btn-h); padding: 0 1rem; }
+html[data-view="pip"] .p-foot .btn > * { flex: none; } /* a too-narrow button shows as overflow, never squeezes its label */
+html[data-view="pip"] .p-foot .btn .cd { position: static; transform: none; min-width: 0; margin-left: 0.25rem; }
+html[data-view="pip"] .stepper .btn { width: var(--hit); height: var(--hit); }
+html[data-view="pip"] .modal-btns .btn { height: var(--hit); }
+html[data-view="pip"] .modal-card { width: auto; max-width: calc(100vw - 2rem); }
+/* the intro's one-line summary (minutes, moves, sets) instead of the list: PIP only, from pip-l1 */
+.p-sum { display: none; }
+html.pip-l1 #panel[data-kind="intro"] .p-sum {
+  display: flex; flex-wrap: wrap; column-gap: 1rem; row-gap: 0.25rem;
+  font: var(--o-title3); letter-spacing: var(--tr-display); color: var(--muted); white-space: nowrap;
+}
+html.pip-l1 .tips, html.pip-l1 #panel[data-kind="intro"] .plan, html.pip-l1 #panel[data-kind="intro"] .p-meta { display: none; }
+html.pip-l2 .p-meta, html.pip-l2 .tempo, html.pip-l2 .adjust .lbl { display: none; }
+html.pip-l3 .adjust { display: none; }
+html.pip-l3 .p-foot { grid-template-columns: var(--btn-h) minmax(0, 1fr); }
+html.pip-l3 .p-foot:has(#pSec:empty) { grid-template-columns: minmax(0, 1fr); }
+html.pip-l3 .p-sec .btn { width: var(--btn-h); padding: 0; }
+html.pip-l3 .p-sec .btn .lb { display: none; }
+html.pip-l4 #panel { gap: 0.75rem; }
+html.pip-l4 .p-chip { display: none; }
+html.pip-l4 .p-title, html.pip-l4 .p-title.fit2, html.pip-l4 .p-title.fit3 { font: var(--o-title3-em); }
+html.pip-l4 .big { font: var(--o-ring); }
+html.pip-l4 .sw-row { display: none; }
+html.pip-l4 .ring { width: 5.5rem; height: 5.5rem; }
+html.pip-l4 .ring .num { font: var(--o-ring3); }
+html.pip-l4 .ring.wide .num { font: var(--o-title2); }
+/* the strip: [ring | target | progress]  title  [secondary][primary] in one row under the clip */
+html.pip-l5 #panel { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; align-content: center; gap: 0; }
+html.pip-l5 #panel > .p-body { grid-area: 1 / 1; }
+html.pip-l5 .p-body:has(.ring, .big, .today) { margin-right: 0.75rem; }
+html.pip-l5 .p-head { grid-area: 1 / 2; }
+html.pip-l5 .p-foot { grid-area: 1 / 3; margin-left: 0.75rem; grid-template-columns: auto; }
+html.pip-l5 .p-foot:has(.p-sec .btn) { grid-template-columns: var(--btn-h) auto; }
+html.pip-l5 .p-sum, html.pip-l5 .move-dots, html.pip-l5 .today .bar { display: none; }
+html.pip-l5 .ring { width: 3.25rem; height: 3.25rem; }
+html.pip-l5 .ring .num, html.pip-l5 .ring.wide .num { font: var(--o-headline); letter-spacing: var(--tr-17); }
+html.pip-l5 .big { font: var(--o-title2); gap: 0.25rem; }
+html.pip-h1 .slot-badge, html.pip-h2 .mode-tag { display: none; }
+/* pipFit measuring how tall the UI is at its most compact (what main must grow the window to) */
+html.pip-measure #panel, html.pip-measure #panel > .p-body { flex-grow: 0; }

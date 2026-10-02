@@ -933,6 +933,30 @@ function createController({ clock, selftest = false, fast = false }) {
     ipcMain.handle('break:payload', () => (currentBreak ? currentBreak.payload : null));
     // no argument = the F key: full screen ⇄ window
     ipcMain.handle('break:view', (_e, v) => setOverlayView(v || (overlayView === 'window' ? 'full' : 'window')));
+    // PIP: the clip keeps its largest 16:9 size; when the UI cannot fit beside / below it the page asks for
+    // a bigger window (CSS px). Grow the cheaper way (taller for stacked, wider for side by side), on screen.
+    ipcMain.on('pip:need', (e, need) => {
+      const win = BrowserWindow.fromWebContents(e.sender);
+      if (!win || win.isDestroyed()) return;
+      clearTimeout(win.pipNeedTimer);
+      if (!need || overlayView !== 'pip') return;
+      win.pipNeedTimer = setTimeout(() => {
+        if (win.isDestroyed() || overlayView !== 'pip') return;
+        const z = win.webContents.getZoomFactor();
+        const b = win.getContentBounds();
+        const h = Math.max(b.height, Math.ceil(need.h * z));
+        const w = Math.max(b.width, Math.ceil(need.w * z));
+        const grow = [h > b.height && { ...b, height: h }, w > b.width && { ...b, width: w }].filter(Boolean);
+        if (!grow.length) return;
+        const next = grow.reduce((a, c) => (c.width * c.height < a.width * a.height ? c : a));
+        const wa = screen.getDisplayMatching(b).workArea;
+        next.width = Math.min(next.width, Math.max(b.width, wa.width));
+        next.height = Math.min(next.height, Math.max(b.height, wa.height));
+        next.x = Math.max(wa.x, Math.min(next.x, wa.x + wa.width - next.width));
+        next.y = Math.max(wa.y, Math.min(next.y, wa.y + wa.height - next.height));
+        win.setContentBounds(next);
+      }, 150);
+    });
     ipcMain.handle('break:minimize', () => {
       const w = mainOverlay();
       if (w && overlayView === 'window' && !selftest) w.minimize();

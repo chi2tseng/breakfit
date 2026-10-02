@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('bf', {
   toggleView: () => ipcRenderer.invoke('break:view'), // F: full screen ⇄ window
   setView: (view) => ipcRenderer.invoke('break:view', view), // 'pip' | 'window' | 'full'
   minimize: () => ipcRenderer.invoke('break:minimize'),
+  pipNeed: (need) => ipcRenderer.send('pip:need', need), // PIP too small for the clip + UI: { w, h } CSS px, or null
   onView: (cb) => ipcRenderer.on('view', (_e, v) => cb(v)),
   onAskLeave: (cb) => ipcRenderer.on('ask-leave', () => cb()), // windowed overlay closed by Alt+F4 / the taskbar
 });
