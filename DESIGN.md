@@ -348,12 +348,18 @@ follow Windows display scaling too; 965×940 at 150 % = 643×627 CSS px):
   one accent button; hidden when nothing is owed, 完整訓練 stays). Disabled while a break or session
   runs. Content 480–679 px: 完整訓練 is icon-only (square, name kept as aria-label + tooltip) so
 the title keeps its room. Phone: they drop under the title, left-aligned, labels back. The chooser is a small sheet, not a page:
-  backdrop `--backdrop`, card `min(400px, 100%)`, `--surface`, hairline, `--r-lg`, 24 px padding,
-  20 px gaps: title3 `完整訓練` → full-width segmented `第 1 天 / 第 2 天 / 第 3 天` (default =
-  today's plan day; rest / off → next training day) → headline plan title + one muted meta row
-  (`6 個動作`  `約 47 分鐘`, or `2 輪`; a neutral `加練` pill when it won't count toward today) →
-  `取消` / `play_arrow 開始` (primary) right-aligned. 開始 has focus on open; Esc / backdrop click
-  closes. The tray's `完整訓練…` opens the main window on 今天 with the sheet open.
+  backdrop `--backdrop`, card `min(480px, 100%)` capped to the window height, `--surface`, hairline,
+  `--r-lg`, 24 px padding, 16 px gaps: title3 `完整訓練` → full-width segmented preset
+  `第 1 天 / 第 2 天 / 第 3 天 / 拉伸` (lit only while the ticks equal that preset; default = today's
+  plan day, rest / off → next training day; today's remembered custom pick wins) → the checklist,
+  the only part that scrolls: per day a subheadline header (`第 1 天` 600 + muted title + an
+  accent-soft `今天` pill on today's day), then one 44 px row per move (`check_circle` filled accent /
+  `radio_button_unchecked` faint, body name, muted subheadline `5 組 × 8–15 下` / `8 × 30 秒` /
+  `每邊 30 秒`; hairline between rows; a core round and a stretch are one row each) → 休息顯示 →
+  footer: muted live `9 個動作  約 47 分鐘` (+ accent-soft `加練` pill when nothing ticked counts
+  toward today) left, `取消` / `play_arrow 開始` (primary; disabled when nothing is ticked) right.
+  開始 has focus on open; Esc / backdrop click closes. The tray's `完整訓練…` opens the main window
+  on 今天 with the sheet open.
 - **History day detail, 加練:** one `.urow` per extra session after the move rows:
   `加練　第 2 天` · `18 組` (accent) · `42 分鐘` (muted second line).
 - **History:** the streak is the hero: `連續 4 天` / `4 days in a row` with the numeral in

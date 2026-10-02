@@ -12,6 +12,7 @@ const T = require('../core/time');
 const D = require('../core/day');
 const C = require('../core/cycle');
 const S = require('../core/stats');
+const PK = require('../core/pick');
 const { normalizeSettings } = require('../core/settings');
 const { computeSlots } = require('../core/slots');
 const W = require('../core/overlay-window');
@@ -300,46 +301,108 @@ function createController({ clock, selftest = false, fast = false }) {
     return nt ? nt.planDay : 'd1';
   }
 
-  // Full workout of plan day `pd`. Today's plan day while it still owes anything: its remaining units
-  // (sets count toward today); any other day, or nothing owed: the whole day as an extra session (加練).
-  function buildSessionPayload(key, day, pd) {
-    const lp = planIn(lang());
-    const own = pd === day.planDay ? D.sessionUnits(day) : null;
-    const units = own || D.buildUnits(plan, pd, data.settings.overrides);
-    const items = units.map((u) => toItem(u, false, lang()));
-    const trainSets = units.reduce((a, u) => a + (D.isStretch(u) ? 0 : u.targetSets - u.doneSets), 0);
+  // 完整訓練 chooser: every move as a row (name, sets × reps, its own length), the day presets, the
+  // default and today's remembered custom pick; the footer sums rows + rests (PK.estimatePick).
+  function sessionChooser(day, key, lp) {
+    const s = data.settings;
+    const rows = PK.catalog(plan).map((r) => {
+      const one = PK.buildSession(plan, day, [r.key], s);
+      const u = one.units[0];
+      let name;
+      let meta;
+      if (r.type === 'stretch') {
+        const st = lp.stretches[r.id];
+        name = st.name;
+        meta = tr(st.sides ? 'perSideSecs' : 'secs', { n: plan.stretchHoldSec || 30 });
+      } else if (r.type === 'circuit') {
+        name = nameIn(lang(), r.id, u.name);
+        meta = tr('timedMeta', { n: plan.circuits[u.moves].length, s: plan.circuits[u.moves][0].sec });
+      } else {
+        const left = u.targetSets - u.doneSets;
+        name = nameIn(lang(), r.id, u.name);
+        meta = `${tr(left === 1 ? 'setsN1' : 'setsN', { n: left })} × ${tr('repsN', { r: `${u.target[0]}–${u.target[1]}` })}`;
+      }
+      return { key: r.key, day: r.day, type: r.type, name, meta, sec: D.estimateSec(plan, one.units, s) };
+    });
+    const last = day.pick ? PK.ordered(plan, day.pick).map((r) => r.key) : [];
+    const mine = day.units.find(D.isStretch);
     return {
+      // keys that would count toward today (the stretch only as a whole)
+      own: {
+        units: day.units.filter((u) => !D.isStretch(u) && u.doneSets < u.targetSets).map((u) => u.id),
+        stretches: mine && mine.doneSets < mine.targetSets ? mine.stretches.map(PK.stretchKey) : [],
+      },
+      def: sessionDefault(day, key),
+      today: plan.days[day.planDay] ? day.planDay : null,
+      presets: Object.fromEntries([...PK.DAYS, 'stretch'].map((pd) => [pd, PK.presetKeys(plan, day, pd)])),
+      last: last.length ? last : null,
+      titles: Object.fromEntries(PK.DAYS.map((pd) => [pd, lp.days[pd].title])),
+      rows,
+      restSec: plan.setRestSec,
+      roundRestSec: plan.days.d3.roundRestSec || 180,
+    };
+  }
+
+  // Full workout of a selection (src/core/pick.js): a plan day ('d1'…'d3', 'stretch' = a preset) or
+  // a list of picked keys. Moves today still owes count toward today (remaining sets only); the rest
+  // is 加練. A whole day's preset keeps that day's name; any other pick is 自選.
+  function makeSession(day, sel) {
+    const keys = Array.isArray(sel) ? sel.map(String) : PK.presetKeys(plan, day, String(sel));
+    const sess = PK.buildSession(plan, day, keys, data.settings);
+    if (!sess) return null;
+    const lp = planIn(lang());
+    const pd = PK.DAYS.find((d) => PK.sameKeys(sess.keys, PK.presetKeys(plan, day, d)));
+    const days = PK.DAYS.filter((d) => PK.ordered(plan, sess.keys).some((r) => r.day === d));
+    const units = sess.units;
+    const own = !sess.extra;
+    const trainSets = units.reduce((a, u) => a + (D.isStretch(u) ? 0 : u.targetSets - u.doneSets), 0);
+    const onlyStretch = units.every(D.isStretch);
+    const payload = {
       mode: 'session',
-      extra: !own,
+      extra: sess.extra,
+      // a mixed pick: units whose sets are 加練, not today's (the finish screen counts only today's)
+      ...(own && sess.extraIds.length ? { extraUnits: sess.extraIds } : {}),
       lang: lang(),
-      planDay: pd,
+      planDay: pd || days[0] || day.planDay,
       isLast: false,
       slotTime: T.fmtHM(Math.floor(T.minutesOf(clock.now()))),
-      dayLabel: lp.days[pd].label,
-      dayTitle: lp.days[pd].title,
-      items,
+      dayLabel: pd ? lp.days[pd].label : days.map((d) => lp.days[d].label).join(lang() === 'en' ? ', ' : '、'),
+      dayTitle: pd ? lp.days[pd].title : tr(onlyStretch ? 'stretch' : 'customWorkout'),
+      items: units.map((u) => toItem(u, false, lang())),
       demoSec: data.settings.demoSec,
       showDemo: data.settings.showDemo,
       setRestSec: plan.setRestSec,
       roundRestSec: plan.days.d3.roundRestSec || 180,
-      // today's progress for today's session; the session's own sets for an extra one
+      // today's progress when the session counts toward today; the session's own sets for an extra one
       todayDone: own ? D.doneSets(day) : 0,
       todayTotal: own ? D.totalSets(day) : trainSets,
-      stretchOwed: units.some(D.isStretch),
+      stretchOwed: own ? D.stretchDone(day) === false : units.some(D.isStretch),
       estSec: D.estimateSec(plan, units, data.settings),
       nextBreak: null,
       selftest,
     };
+    return { sess, payload, planDay: payload.planDay, preset: !!pd || PK.sameKeys(sess.keys, PK.presetKeys(plan, day, 'stretch')) };
+  }
+  function buildSessionPayload(key, day, sel) {
+    const m = makeSession(day, sel);
+    return m ? m.payload : null;
   }
 
-  function openSession(pd) {
-    if (!plan.days[pd]) return false;
+  function openSession(sel) {
     if (currentBreak) { focusOverlay(); return false; }
     const { key } = nowInfo();
     const day = ensureToday();
-    const payload = buildSessionPayload(key, day, pd);
-    currentBreak = { mode: 'session', key, slot: null, sets: 0, payload, extra: payload.extra, planDay: pd, startedAt: clock.now().getTime(), stretch: false };
-    log(day, 'session_start', { planDay: pd, extra: payload.extra, units: payload.items.map((i) => i.unitId) });
+    const m = makeSession(day, sel);
+    if (!m) return false;
+    const { sess, payload } = m;
+    // remember a custom pick for the rest of the day (the chooser opens on it)
+    if (m.preset) delete day.pick;
+    else day.pick = sess.keys;
+    currentBreak = {
+      mode: 'session', key, slot: null, sets: 0, payload, extra: sess.extra, planDay: m.planDay, startedAt: clock.now().getTime(), stretch: false,
+      sess, tally: { sets: 0, xsets: 0, stretch: false },
+    };
+    log(day, 'session_start', { planDay: m.planDay, extra: sess.extra, units: payload.items.map((i) => i.unitId), keys: sess.keys });
     save();
     showOverlay();
     changed();
@@ -402,11 +465,8 @@ function createController({ clock, selftest = false, fast = false }) {
         const day = data.days[b.key];
         const { min } = nowInfo();
         const sec = (clock.now().getTime() - b.startedAt) / 1000;
-        if (b.extra) {
-          D.recordExtra(day, clock.now().toISOString(), { planDay: b.planDay, sets: b.sets, sec, stretch: b.stretch });
-        } else {
-          D.endBreak(day, null, outcome, b.sets);
-        }
+        PK.logExtra(day, b.sess, b.tally, clock.now().toISOString(), sec); // the 加練 part (if any)
+        if (!b.extra) D.endBreak(day, null, outcome, b.sets);
         log(day, 'session_end', { planDay: b.planDay, extra: b.extra, outcome, sets: b.sets, sec: Math.round(sec) });
         // stops that came due during the session were never opened: handle them (the last one still opens)
         if (b.key === nowInfo().key) D.absorbDueSlots(day, min);
@@ -752,17 +812,7 @@ function createController({ clock, selftest = false, fast = false }) {
       done: D.doneSets(day),
       total: D.totalSets(day),
       canBreakNow: canBreakNow(day),
-      // 完整訓練 chooser: the default day, and per day its title, move count, length, whether it is 加練
-      session: {
-        def: sessionDefault(day, key),
-        days: Object.fromEntries(['d1', 'd2', 'd3'].map((pd) => {
-          const own = pd === day.planDay ? D.sessionUnits(day) : null;
-          const units = own || D.buildUnits(plan, pd, data.settings.overrides);
-          const moves = units.filter((u) => u.type === 'reps').length;
-          const rounds = units.filter((u) => u.type === 'circuit').length;
-          return [pd, { title: lp.days[pd].title, moves, rounds, min: Math.ceil(D.estimateSec(plan, units, data.settings) / 60), extra: !own }];
-        })),
-      },
+      session: sessionChooser(day, key, lp),
       breakActive: !!currentBreak,
       history,
       stats: S.computeStats(history, key.slice(0, 7)),
@@ -929,7 +979,8 @@ function createController({ clock, selftest = false, fast = false }) {
     });
     ipcMain.handle('break:now', () => openBreak('manual'));
     ipcMain.handle('break:test', () => openBreak('test'));
-    ipcMain.handle('session:start', (_e, pd) => openSession(String(pd)));
+    // a plan day (preset) or the chooser's picked keys
+    ipcMain.handle('session:start', (_e, sel) => openSession(Array.isArray(sel) ? sel : String(sel)));
     ipcMain.handle('break:payload', () => (currentBreak ? currentBreak.payload : null));
     // no argument = the F key: full screen ⇄ window
     ipcMain.handle('break:view', (_e, v) => setOverlayView(v || (overlayView === 'window' ? 'full' : 'window')));
@@ -964,13 +1015,20 @@ function createController({ clock, selftest = false, fast = false }) {
     });
     ipcMain.handle('break:set', (_e, { unitId, reps }) => {
       if (!currentBreak) return -1;
-      if (currentBreak.extra) {
-        // 加練: counted for the log only; the stretch is not a set
-        if (unitId === D.STRETCH_ID) currentBreak.stretch = true;
-        else currentBreak.sets += 1;
-        return -1;
+      const b = currentBreak;
+      if (b.mode === 'session') {
+        // today's moves are recorded into the day; 加練 ones only counted for the log (pick.js)
+        const day = data.days[b.key];
+        const idx = PK.recordPicked(day, b.sess, b.tally, unitId, reps);
+        b.sets = b.tally.sets;
+        if (!b.sess.ownIds.includes(unitId)) return -1;
+        log(day, 'set_done', { unitId, reps });
+        regrade(b.key);
+        save();
+        changed();
+        return idx;
       }
-      if (currentBreak.mode !== 'session' || unitId !== D.STRETCH_ID) currentBreak.sets += 1;
+      currentBreak.sets += 1;
       if (currentBreak.mode === 'test') return currentBreak.sets - 1;
       const day = data.days[currentBreak.key];
       const idx = D.recordSet(day, unitId, reps);
@@ -981,7 +1039,7 @@ function createController({ clock, selftest = false, fast = false }) {
       return idx;
     });
     ipcMain.handle('break:reps', (_e, { unitId, index, reps }) => {
-      if (!currentBreak || currentBreak.mode === 'test' || currentBreak.extra) return false;
+      if (!currentBreak || currentBreak.mode === 'test' || (currentBreak.sess && !currentBreak.sess.ownIds.includes(unitId))) return false;
       const ok = D.setReps(data.days[currentBreak.key], unitId, index, reps);
       if (ok) save();
       return ok;

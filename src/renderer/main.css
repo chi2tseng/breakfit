@@ -233,18 +233,36 @@ body { display: flex; overflow: hidden; }
   #workoutBtn { width: var(--btn); padding: 0; }
   #workoutBtn .lbl { display: none; }
 }
+/* The sheet never scrolls the page: it is capped to the window and only the move list scrolls. */
 #workout { position: fixed; inset: 0; background: var(--backdrop); display: flex; z-index: 20; padding: 16px; overflow-y: auto; overscroll-behavior: contain; }
 #workout[hidden] { display: none; }
 .wo-card {
-  margin: auto; width: min(400px, 100%); display: flex; flex-direction: column; gap: 20px;
+  margin: auto; width: min(480px, 100%); max-height: 100%; display: flex; flex-direction: column; gap: 16px;
   background: var(--surface); border: 1px solid var(--hairline); border-radius: var(--r-lg); padding: 24px;
 }
+.wo-card > * { flex: none; }
 .wo-card h2 { font: var(--t-title3); letter-spacing: var(--tr-display); }
 .wo-card .seg { width: 100%; }
-.wo-info { display: flex; flex-direction: column; gap: 4px; min-height: 52px; }
-.wo-name { font: var(--t-headline); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.wo-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; color: var(--muted); }
-.wo-btns { display: flex; justify-content: flex-end; gap: 12px; }
+/* the checklist: grouped by day, one 44 px row per move (a core round = one row, a stretch = one row) */
+.wo-list { flex: 1 1 auto; min-height: 132px; overflow-y: auto; overscroll-behavior: contain; margin: 0 -8px; }
+.wo-group + .wo-group { margin-top: 12px; }
+.wo-gh { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 8px; color: var(--muted); font: var(--t-subhead); letter-spacing: var(--tr-15); white-space: nowrap; }
+.wo-gd { color: var(--text); font: var(--t-subhead-em); letter-spacing: var(--tr-15); }
+.wo-gh .pill, .wo-sum .pill { background: var(--accent-soft); color: var(--accent-on-soft); }
+.wo-row {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: var(--btn); padding: 0 8px; box-sizing: border-box;
+  border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text); cursor: pointer; text-align: left;
+}
+.wo-row + .wo-row { box-shadow: 0 -1px 0 var(--line-soft); }
+.wo-row:hover { background: var(--surface-2); }
+.wo-row .ms { font-size: 22px; color: var(--faint); flex: none; }
+.wo-row.on .ms { color: var(--accent-text); }
+.wo-row .nm { flex: 1 1 auto; min-width: 0; white-space: nowrap; }
+.wo-row .mt { flex: none; color: var(--muted); font: var(--t-subhead); letter-spacing: var(--tr-15); white-space: nowrap; }
+.wo-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; }
+.wo-sum { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; color: var(--muted); }
+.wo-sum > span { white-space: nowrap; }
+.wo-btns { display: flex; justify-content: flex-end; gap: 12px; margin-left: auto; }
 .wo-card .field { min-height: 0; padding: 16px 0 0; border-top: 1px solid var(--line-soft); }
 .wo-card .wo-view .seg { width: auto; }
 

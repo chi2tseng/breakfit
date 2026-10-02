@@ -385,7 +385,9 @@ async function loadDetail() {
     html += `<div class="sec">${extras.map((e) => {
       const x = e.detail || {};
       const sets = x.sets ? t(x.sets === 1 ? 'setsN1' : 'setsN', { n: x.sets }) : t('stretch');
-      return `<div class="urow"><span>${esc(`${t('extraSession')}${sep}${t(x.planDay) || ''}`)}</span><span class="c ok">${esc(sets)}</span><span class="r">${esc(t('minN', { n: Math.max(1, Math.round((x.sec || 0) / 60)) }))}</span></div>`;
+      // a 自選 pick may span days: 加練　第 1 天、第 2 天
+      const days = (x.days || [x.planDay]).filter(Boolean).map((d) => t(d)).join(window.LANG === 'en' ? ', ' : '、');
+      return `<div class="urow"><span>${esc(`${t('extraSession')}${sep}${days}`)}</span><span class="c ok">${esc(sets)}</span><span class="r">${esc(t('minN', { n: Math.max(1, Math.round((x.sec || 0) / 60)) }))}</span></div>`;
     }).join('')}</div>`;
   }
   if (det.day) {
@@ -546,39 +548,84 @@ function viewSeg(sel) {
 }
 
 // ---------- 完整訓練 chooser ----------
-// Segments 第1天/第2天/第3天 (default = today's plan day, rest / off → next training day), then what
-// that day is: title, moves (or rounds), about how long, and 加練 when it won't count toward today.
-let woDay = null;
+// Presets 第1天/第2天/第3天/拉伸 tick exactly that day's moves (default = today's plan day, rest / off
+// → next training day; today's remembered custom pick wins); then any move can be ticked across
+// days. Footer: count + about how long, live; 開始 needs at least one move.
+let woSel = new Set();
 let pendingWorkout = false; // tray 完整訓練… before the first state arrived
+const woSame = (keys) => keys.length === woSel.size && keys.every((k) => woSel.has(k));
+// = src/core/pick.js estimatePick: each row's own length + the rests between training moves
+function woEstimate(ss) {
+  let sec = 0;
+  let prev = null;
+  for (const r of ss.rows) {
+    if (!woSel.has(r.key)) continue;
+    if (r.type !== 'stretch') {
+      if (prev) sec += prev.type === 'circuit' && r.type === 'circuit' ? ss.roundRestSec : ss.restSec;
+      prev = r;
+    }
+    sec += r.sec;
+  }
+  return sec;
+}
+function renderWorkoutList() {
+  const ss = S.session;
+  let html = '';
+  for (const pd of ['d1', 'd2', 'd3']) {
+    const rows = ss.rows.filter((r) => r.day === pd);
+    html += `<div class="wo-group"><div class="wo-gh"><span class="wo-gd">${esc(t(pd))}</span><span class="wo-gt">${esc(ss.titles[pd])}</span>${pd === ss.today ? `<span class="pill">${esc(t('navToday'))}</span>` : ''}</div>`;
+    html += rows.map((r) => `<button class="wo-row" role="checkbox" data-k="${esc(r.key)}"><span aria-hidden="true" class="ms"></span><span class="nm">${esc(r.name)}</span><span class="mt">${esc(r.meta)}</span></button>`).join('');
+    html += '</div>';
+  }
+  $('#woList').innerHTML = html;
+}
 function renderWorkout() {
-  const days = S.session.days;
-  if (!days[woDay]) woDay = S.session.def;
+  const ss = S.session;
+  const sig = `${window.LANG}|${ss.today}|${ss.rows.map((r) => `${r.key}:${r.name}:${r.meta}`).join()}`;
+  if ($('#woList').dataset.sig !== sig) { // rebuilt only when the rows change (keeps focus while ticking)
+    renderWorkoutList();
+    $('#woList').dataset.sig = sig;
+  }
   $$('#woDay button').forEach((b) => {
-    const on = b.dataset.d === woDay;
+    const on = woSame(ss.presets[b.dataset.d] || []);
     b.classList.toggle('on', on);
     b.setAttribute('aria-pressed', String(on));
   });
-  const d = days[woDay];
-  const count = d.rounds ? t(d.rounds === 1 ? 'roundsN1' : 'roundsN', { n: d.rounds })
-    : d.moves ? t(d.moves === 1 ? 'movesN1' : 'movesN', { n: d.moves }) : t('stretch'); // only the stretch left
-  $('#woName').textContent = d.title;
-  $('#woMeta').innerHTML = `<span>${esc(count)}</span><span>${esc(t('aboutMin', { n: d.min }))}</span>${d.extra ? `<span class="pill">${esc(t('extraSession'))}</span>` : ''}`;
+  $$('#woList .wo-row').forEach((b) => {
+    const on = woSel.has(b.dataset.k);
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-checked', String(on));
+    b.firstChild.textContent = on ? 'check_circle' : 'radio_button_unchecked';
+    b.firstChild.classList.toggle('fill', on);
+  });
+  const n = woSel.size;
+  // 加練 = nothing picked counts toward today (today's stretch counts only when all of it is picked)
+  const allExtra = n > 0 && !ss.own.units.some((k) => woSel.has(k)) && !(ss.own.stretches.length && ss.own.stretches.every((k) => woSel.has(k)));
+  $('#woSum').innerHTML = n
+    ? `<span>${esc(t(n === 1 ? 'movesN1' : 'movesN', { n }))}</span><span>${esc(t('aboutMin', { n: Math.max(1, Math.ceil(woEstimate(ss) / 60)) }))}</span>${allExtra ? `<span class="pill">${esc(t('extraSession'))}</span>` : ''}`
+    : `<span>${esc(t(n === 1 ? 'movesN1' : 'movesN', { n }))}</span>`;
   viewSeg('#woView');
-  $('#woStart').disabled = S.breakActive;
+  $('#woStart').disabled = S.breakActive || !n;
+}
+function woPreset(pd) {
+  woSel = new Set(S.session.presets[pd] || []);
+  renderWorkout();
 }
 function openWorkout() {
   if (!S || S.breakActive) return;
   showTab('today');
-  woDay = S.session.def;
+  woSel = new Set(S.session.last || S.session.presets[S.session.def] || []);
   $('#workout').hidden = false;
   renderWorkout();
+  $('#woList').scrollTop = 0;
   $('#woStart').focus();
 }
 function closeWorkout() { $('#workout').hidden = true; }
 async function startWorkout() {
   if ($('#woStart').disabled) return;
   closeWorkout();
-  await window.bf.startSession(woDay);
+  // plan order is the session's business (src/core/pick.js)
+  await window.bf.startSession([...woSel]);
 }
 
 // ---------- tabs / chrome ----------
@@ -609,7 +656,14 @@ $$('.nav-item').forEach((b) => b.addEventListener('click', () => showTab(b.datas
 $$('#libFilter button').forEach((b) => b.addEventListener('click', () => { libFilter = b.dataset.f; libPickedDay = S.today; syncUrl(); renderLibrary(); }));
 $('#breakNowBtn').addEventListener('click', () => window.bf.breakNow());
 $('#workoutBtn').addEventListener('click', openWorkout);
-$$('#woDay button').forEach((b) => b.addEventListener('click', () => { woDay = b.dataset.d; renderWorkout(); }));
+$$('#woDay button').forEach((b) => b.addEventListener('click', () => woPreset(b.dataset.d)));
+$('#woList').addEventListener('click', (e) => {
+  const b = e.target.closest('.wo-row');
+  if (!b) return;
+  if (woSel.has(b.dataset.k)) woSel.delete(b.dataset.k);
+  else woSel.add(b.dataset.k);
+  renderWorkout();
+});
 $('#woCancel').addEventListener('click', closeWorkout);
 $('#woStart').addEventListener('click', startWorkout);
 $('#workout').addEventListener('click', (e) => { if (e.target.id === 'workout') closeWorkout(); });
@@ -664,7 +718,9 @@ window.__test = {
   libDefault: () => defaultLibFilter(),
   open: (id) => { openPlayer(id); return true; },
   close: () => { closePlayer(); closeWorkout(); return true; },
-  workout: (pd) => { openWorkout(); if (pd) { woDay = pd; renderWorkout(); } return !$('#workout').hidden; },
+  // pd: a preset ('d1'…'d3' | 'stretch') or a list of keys (a custom pick)
+  workout: (pd) => { openWorkout(); if (Array.isArray(pd)) { woSel = new Set(pd); renderWorkout(); } else if (pd) woPreset(pd); return !$('#workout').hidden; },
+  workoutSel: () => [...woSel],
   scroll: (y) => { $('#content').scrollTop = y; return $('#content').scrollTop; },
   // Directive hero states without touching the data: 'done' | 'over' | 'rest'; null = back to the real state.
   hero: (kind) => {
