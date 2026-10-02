@@ -8,7 +8,7 @@
 //   d wrap         a short label (≤ 8 chars), button, segment, chip, pill or heading on > 1 line
 //   e align        rows of one list / table whose control columns differ by > 1 px
 //   f type         font-size / line-height / weight not a DESIGN.md token, or < 13 px
-//   g target       interactive element smaller than the HIG minimum (DESIGN.md §8)
+//   g target       interactive element smaller than the HIG minimum (DESIGN.md §8; PIP is mouse-only: 28 × 28)
 //   f also checks tracking: letter-spacing must match the size's DESIGN.md §1.1 value
 //   h role         comparable elements (opts.roles: row labels, table headers, card titles …)
 //                  rendering with more than one size / line-height / weight / tracking combo
@@ -213,7 +213,7 @@ function lint(opts) {
     const r = el.getBoundingClientRect();
     let minW = 28;
     let minH = 28;
-    if (kind === 'overlay') { minW = 44; minH = 44; } else if (el.classList.contains('btn')) { minH = 44; }
+    if (kind === 'overlay' && !opts.pip) { minW = 44; minH = 44; } else if (el.classList.contains('btn') && !opts.pip) { minH = 44; }
     if (r.width + 0.5 < minW || r.height + 0.5 < minH) add('g-target', el, `${size(r)} < ${minW}×${minH}`);
   }
 
@@ -222,7 +222,7 @@ function lint(opts) {
       const cs = getComputedStyle(el);
       if (cs.overflowY === 'auto' || cs.overflowY === 'scroll' || cs.overflowX === 'auto' || cs.overflowX === 'scroll') add('j-scroll', el, `scroll container (overflow ${cs.overflowX} ${cs.overflowY})`);
     }
-    for (const s of ['html', 'body', '#stage', '#panel']) {
+    for (const s of ['html', 'body', '#stage', '#panel', '#pipBar']) {
       const el = document.querySelector(s);
       if (el && el.scrollHeight > el.clientHeight + 1) add('j-scroll', el, `content ${el.scrollHeight}px > box ${el.clientHeight}px`);
     }

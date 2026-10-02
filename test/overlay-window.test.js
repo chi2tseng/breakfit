@@ -118,15 +118,15 @@ test('planOverlayWindows: window = one normal window, saved bounds, no covers, n
   assert.deepEqual(W.planOverlayWindows(ALL, 2, 'window', null).main.bounds, W.defaultWindowBounds(RIGHT150.workArea));
 });
 
-test('defaultPipBounds: 400×580 in the bottom-right corner, 16 px in (DPI-scaled display too)', () => {
-  assert.deepEqual(W.defaultPipBounds(PRIMARY.workArea), { x: 1920 - 400 - 16, y: 1040 - 580 - 16, width: 400, height: 580 });
+test('defaultPipBounds: 400×290 in the bottom-right corner, 16 px in (DPI-scaled display too)', () => {
+  assert.deepEqual(W.defaultPipBounds(PRIMARY.workArea), { x: 1920 - 400 - 16, y: 1040 - 290 - 16, width: 400, height: 290 });
   const r = W.defaultPipBounds(RIGHT150.workArea);
-  assert.deepEqual(r, { x: 1920 + 1707 - 400 - 16, y: 920 - 580 - 16, width: 400, height: 580 });
+  assert.deepEqual(r, { x: 1920 + 1707 - 400 - 16, y: 920 - 290 - 16, width: 400, height: 290 });
   assert.ok(inside(r, RIGHT150.workArea));
   // a short work area: shrinks to fit, never below the PIP minimum
-  const t = W.defaultPipBounds({ x: 0, y: 0, width: 800, height: 420 });
-  assert.deepEqual([t.width, t.height], [400, 420 - 32]);
-  const tiny = W.defaultPipBounds({ x: 0, y: 0, width: 300, height: 280 });
+  const t = W.defaultPipBounds({ x: 0, y: 0, width: 800, height: 260 });
+  assert.deepEqual([t.width, t.height], [400, 260 - 32]);
+  const tiny = W.defaultPipBounds({ x: 0, y: 0, width: 250, height: 150 });
   assert.deepEqual([tiny.width, tiny.height], [W.PIP_MIN.width, W.PIP_MIN.height]);
 });
 
@@ -143,7 +143,7 @@ test('planOverlayWindows: pip = one small window on the given display, mouse-onl
   // saved PIP rectangle kept (any display); smaller than the PIP minimum → grown; unplugged → default
   const saved = { x: -1300, y: 600, width: 360, height: 520 };
   assert.deepEqual(W.planOverlayWindows(ALL, 1, 'pip', saved).main.bounds, saved);
-  assert.deepEqual(W.planOverlayWindows(ALL, 1, 'pip', { ...saved, width: 200, height: 100 }).main.bounds, { ...saved, width: 320, height: 300 });
+  assert.deepEqual(W.planOverlayWindows(ALL, 1, 'pip', { ...saved, width: 200, height: 100 }).main.bounds, { ...saved, width: 280, height: 158 });
   assert.deepEqual(W.planOverlayWindows([PRIMARY], 1, 'pip', saved).main.bounds, W.defaultPipBounds(PRIMARY.workArea));
   // window and full stay focusable and are never re-asserted on top by the timer
   for (const v of ['window', 'full']) {

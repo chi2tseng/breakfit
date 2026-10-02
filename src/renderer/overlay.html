@@ -17,6 +17,7 @@
 <link rel="stylesheet" href="overlay.css">
 </head>
 <body>
+  <div id="pipDrag"></div>
   <header id="top">
     <div class="top-l">
       <span class="slot-badge"><span aria-hidden="true" class="ms">schedule</span><span id="slotText"></span></span>
@@ -51,6 +52,14 @@
       </div>
     </aside>
   </main>
+
+  <!-- PIP only (DESIGN.md §4b): the one dense row on / under / beside the clip; #pSec / #pPri move in here -->
+  <section id="pipBar" aria-live="off">
+    <div class="pb-info"><div class="pb-name" id="pbName"></div><div class="pb-ctx" id="pbCtx"></div></div>
+    <div class="pb-tips" id="pbTips"></div>
+    <div class="pb-num" id="pbNum"></div>
+    <div class="pb-acts" id="pbActs"></div>
+  </section>
 
   <div id="modal" hidden>
     <div class="modal-card">

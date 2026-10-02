@@ -206,96 +206,149 @@ function fitTitle() {
   }
 }
 
-// PIP (DESIGN.md §4b): the clip is always the largest 16:9 the form allows and NOTHING scrolls.
-// Stacked first (full-width clip, UI below: the bigger clip), else side by side (full-height clip, UI
-// column); in each form add levels (overlay.css pip-l1 … pip-l5) until the UI fits. Neither fits →
-// tell main how much bigger the window must be (pip:need, CSS px); main grows it.
-const PIP_LEVELS = ['pip-l1', 'pip-l2', 'pip-l3', 'pip-l4', 'pip-l5'];
-const PIP_CHROME = { side: 44, top: 62, bottom: 22, gap: 16 }; // rim + padding (px): header 56 + 6 px rim on top
-const SIDE_MIN = 176; // narrowest UI column beside the clip
-const REM = [12.25, 22]; // body text 17/16 rem ≥ 13 px
-const remFor = (r) => `${Math.max(REM[0], Math.min(REM[1], r))}px`;
-const spills = (e) => e.scrollHeight > e.clientHeight + 1 || e.scrollWidth > e.clientWidth + 1;
-function pipFits() {
-  if ([document.documentElement, document.body, $('#stage'), $('#panel')].some(spills)) return false;
-  // nothing in the panel cut (an ellipsis row name, a squeezed button label or countdown) or sticking out of
-  // it, also by the sub-pixel amounts the integer scroll sizes round away
-  const pr = $('#panel').getBoundingClientRect();
-  const bottom = Math.min(pr.bottom, innerHeight - PIP_CHROME.bottom) + 0.5;
-  for (const e of document.querySelectorAll('#panel *')) {
-    if (!e.getClientRects().length || e.closest('svg') || e.classList.contains('ms') || getComputedStyle(e).visibility === 'hidden') continue;
+// PIP (DESIGN.md §4b): the clip IS the window — the largest 16:9 it holds, never shrunk for the UI — and
+// NOTHING scrolls. All UI is one dense bar (#pipBar): in the strip under the clip when the window is
+// taller than 16:9 (form "below"), in a column beside it when wider ("side"), else on a scrim over the
+// clip's bottom ("over"). A tall strip / column puts the name above the number (rows 2) with the
+// number as big as fits (hero → ring → title2) and the tips when they fit. Each try adds levels
+// (overlay.css pb-l1 … pb-l4: context, secondary, name, primary label) until the bar fits.
+const PB_LEVELS = ['pb-l1', 'pb-l2', 'pb-l3', 'pb-l4'];
+const SIDE_MIN = 168; // narrowest column beside a full-height clip (px)
+const PEEK_MS = 2000; // the window buttons + mode chip show this long after a phase change
+let pipData = null; // what the bar shows for the current phase (pipSet)
+function pipMoveActs(on) {
+  const to = on ? $('#pbActs') : $('.p-foot');
+  for (const id of ['pSec', 'pPri']) { const e = document.getElementById(id); if (e.parentElement !== to) to.appendChild(e); }
+}
+function barFits(bar) {
+  const br = bar.getBoundingClientRect();
+  if (bar.scrollWidth > bar.clientWidth + 1 || bar.scrollHeight > bar.clientHeight + 1) return false;
+  if (br.top < -0.5 || br.bottom > innerHeight + 0.5 || br.right > innerWidth + 0.5) return false;
+  for (const e of bar.querySelectorAll('*')) {
+    if (!e.getClientRects().length || e.closest('svg') || e.classList.contains('ms')) continue;
     if (e.clientWidth > 0 && e.scrollWidth > e.clientWidth + 1) return false;
     const r = e.getBoundingClientRect();
-    if (r.bottom > bottom || r.right > pr.right + 0.5 || r.left < pr.left - 0.5) return false;
+    if (r.right > br.right + 0.5 || r.left < br.left - 0.5 || r.bottom > br.bottom + 0.5 || r.top < br.top - 0.5) return false;
   }
-  return true;
+  // over the clip: the bar keeps clear of the window buttons (top 8 + 28 px)
+  return $('html').dataset.pipForm !== 'over' || br.top >= 40;
 }
-// try one form: its type size, then levels until it fits; the number of levels, or -1
-function pipTry(form, rem, levels) {
+function pipPlace(form, vw, vh) {
   const html = document.documentElement;
-  html.dataset.pipForm = form;
-  html.style.fontSize = remFor(rem);
-  html.classList.remove(...PIP_LEVELS);
-  let n = 0;
-  fitTitle();
-  while (!pipFits()) {
-    if (n >= levels.length) return -1;
-    html.classList.add(levels[n++]);
-    fitTitle();
-  }
-  return n;
+  const bar = $('#pipBar');
+  const W = innerWidth;
+  const H = innerHeight;
+  const vx = form === 'over' ? (W - vw) / 2 : 0;
+  html.style.setProperty('--px', `${vx}px`);
+  html.style.setProperty('--pvw', `${vw}px`);
+  html.style.setProperty('--pvh', `${vh}px`);
+  const box = form === 'below' ? [0, vh, W, H - vh] : form === 'side' ? [vw, 0, W - vw, H] : null;
+  bar.style.cssText = box ? `left:${box[0]}px;top:${box[1]}px;width:${box[2]}px;height:${box[3]}px`
+    : `left:${vx}px;width:${vw}px;bottom:0`;
 }
-let pipNeed = null;
+function pipTry(form, rows, tips, vw, vh) {
+  const html = document.documentElement;
+  const bar = $('#pipBar');
+  html.dataset.pipForm = form;
+  bar.dataset.rows = rows;
+  bar.dataset.tips = tips ? '1' : '0';
+  pipPlace(form, vw, vh);
+  // type: roomier in a bigger window, sized by the column beside the clip in a side form; 13 px text minimum
+  html.style.fontSize = `${Math.max(16, Math.min(20, (form === 'side' ? (innerWidth - vw) * 2 : innerWidth) / 36))}px`;
+  // a stacked strip drops nothing (else one row is better); a side column may drop the context and the
+  // secondary button before the bar goes over the clip; one row drops down to number + primary icon
+  const maxLv = rows === 1 ? PB_LEVELS.length : form === 'side' ? 2 : 0;
+  for (const size of rows > 1 ? ['hero', 'ring', 'title2'] : ['title2']) {
+    bar.dataset.size = size;
+    for (let n = 0; n <= maxLv; n++) {
+      html.classList.remove(...PB_LEVELS);
+      html.classList.add(...PB_LEVELS.slice(0, n));
+      if (barFits(bar)) { html.dataset.fit = `${form}${rows > 1 ? ` ${rows}-row` : ''}${tips ? ' tips' : ''} ${size} ${n}`; return true; }
+    }
+  }
+  return false;
+}
 function pipFit() {
   const html = document.documentElement;
   if (html.dataset.view !== 'pip' || !P) {
-    html.classList.remove(...PIP_LEVELS, 'pip-h1', 'pip-h2');
+    pipMoveActs(false);
+    html.classList.remove(...PB_LEVELS, 'pip-show');
     delete html.dataset.pipForm;
     delete html.dataset.fit;
     html.style.fontSize = '';
     fitTitle();
     return;
   }
+  pipMoveActs(true);
   const W = innerWidth;
   const H = innerHeight;
-  const C = PIP_CHROME;
-  const cw = W - C.side; // content width
-  const stackLv = cw >= 360 ? PIP_LEVELS : PIP_LEVELS.slice(0, 4); // the strip needs room for a title beside the buttons
-  // stacked: the type grows with the room left under the clip (≈ 20 rem for a full panel) and the width
-  const below = H - C.top - (cw * 9) / 16 - C.gap - C.bottom;
-  let form = 'stack';
-  let n = pipTry('stack', Math.min(below / 20, W / 25), stackLv);
-  let need = null;
-  if (n < 0) {
-    const sh = H - C.top - C.bottom; // side by side: the clip's height
-    const col = cw - (sh * 16) / 9 - C.gap;
-    if (col >= SIDE_MIN) { form = 'side'; n = pipTry('side', Math.min(col / 18, sh / 26), PIP_LEVELS.slice(0, 4)); }
-    if (n < 0) {
-      // neither fits: how tall the stacked UI is at its most compact, or how wide a side column needs
-      form = 'stack';
-      pipTry('stack', 0, stackLv);
-      html.classList.add(...stackLv, 'pip-measure');
-      const h = Math.ceil($('#panel').getBoundingClientRect().bottom + C.bottom);
-      html.classList.remove('pip-measure');
-      need = { h: Math.max(h, H), w: Math.ceil(C.side + (sh * 16) / 9 + C.gap + SIDE_MIN) };
-      n = stackLv.length;
-    }
-  }
-  html.dataset.fit = String(n);
-  // the header (fixed 56 px) gives way on its own: slot time first, then the mode tag (the progress bar stays)
-  html.classList.remove('pip-h1', 'pip-h2');
-  for (const c of ['pip-h1', 'pip-h2']) if (spills($('#top .top-l'))) html.classList.add(c);
-  if (document.fonts.status !== 'loaded') return; // measured with fallback fonts: wait for fonts.ready
-  if (JSON.stringify(need) !== JSON.stringify(pipNeed)) {
-    pipNeed = need;
-    if (window.bf.pipNeed) window.bf.pipNeed(need);
+  const vw = Math.min(W, (H * 16) / 9);
+  const vh = (vw * 9) / 16;
+  const tips = !!(pipData && pipData.tips && pipData.tips.length);
+  const tries = [];
+  // a tall strip / a column: stacked (name / tips / number / actions) when it fits, then number + actions
+  // side by side, then (strip) one row
+  const t = (form, rows) => [...(tips ? [[form, rows, true]] : []), [form, rows, false]];
+  if (H - vh >= 40) tries.push(...t('below', 3), ...t('below', 2), ['below', 1, false]);
+  else if (W - vw >= SIDE_MIN) tries.push(...t('side', 3), ...t('side', 2));
+  if (!tries.some(([f, r, tp]) => pipTry(f, r, tp, vw, vh)) && !pipTry('over', 1, false, vw, vh)) {
+    html.dataset.fit = 'over (does not fit)';
   }
 }
 addEventListener('resize', pipFit);
 document.fonts.ready.then(() => pipFit());
 document.fonts.addEventListener('loadingdone', () => pipFit()); // a weight / glyph loaded late: re-measure
 
-function frame({ clip, chip, title = '', meta = '', body = '', sec = '', pri = '', cover = null }) {
+// The window buttons and the mode chip: on hover (main polls the cursor: a drag region gets no mouse
+// events), for PEEK_MS after a phase change, and while a dialog is open.
+let pipHover = false;
+let peekUntil = 0;
+let peekTimer = 0;
+function pipChrome() {
+  const on = pipHover || !!st.modal || performance.now() < peekUntil || !!(P && P.selftest); // selftest: shown, so it is linted
+  document.documentElement.classList.toggle('pip-show', on);
+}
+function pipPeek() {
+  peekUntil = performance.now() + PEEK_MS;
+  clearTimeout(peekTimer);
+  peekTimer = setTimeout(pipChrome, PEEK_MS + 20);
+  pipChrome();
+}
+if (window.bf.onPipHover) window.bf.onPipHover((on) => { pipHover = !!on; pipChrome(); });
+
+// The bar's content for one phase: name, context parts (metaHTML), the live number —
+// num 'cd' (countdown + mini ring), { v, u } (a fixed value: the work target, the sets done) or null,
+// icon (finish ✓ / ✗) — and the tips a tall strip may show.
+function pipSet(d) {
+  pipData = d;
+  const bar = $('#pipBar');
+  $('#pbName').textContent = d.name || '';
+  $('#pbCtx').innerHTML = metaHTML(...(d.ctx || []));
+  const r = 45;
+  const c = 2 * Math.PI * r;
+  const ring = `<svg class="pb-ring" viewBox="0 0 100 100" aria-hidden="true"><circle class="track" cx="50" cy="50" r="${r}" fill="none" stroke-width="12"/><circle class="bar" id="pbBar" cx="50" cy="50" r="${r}" fill="none" stroke-width="12" stroke-dasharray="${c}" stroke-dashoffset="0"/></svg>`;
+  const n = d.num;
+  bar.dataset.num = n === 'cd' ? 'cd' : n ? 'v' : '';
+  $('#pbNum').innerHTML = (d.icon ? ICON(d.icon.name, `fill pb-icon ${d.icon.fail ? 'fail' : ''}`) : '')
+    + (n === 'cd' ? `${ring}<span class="pb-v" id="pbVal"></span>` : '')
+    + (n && n !== 'cd' ? `<span class="pb-v">${esc(n.v)}</span>${n.u ? `<span class="pb-u">${esc(n.u)}</span>` : ''}` : '');
+  $('#pbTips').innerHTML = d.tips && d.tips.length ? tipsHTML(d.tips) : '';
+}
+function pipTick() {
+  if (!pipData) return;
+  if (pipData.num === 'cd') {
+    const v = $('#pbVal');
+    if (v) v.textContent = String(Math.max(0, Math.ceil(st.remaining - 1e-6)));
+    const b = $('#pbBar');
+    const c = 2 * Math.PI * 45;
+    const frac = st.duration > 0 ? Math.max(0, Math.min(1, st.remaining / st.duration)) : 0;
+    if (b) b.setAttribute('stroke-dashoffset', String(c * (1 - frac)));
+  }
+  const sw = $('#pbSw');
+  if (sw) sw.textContent = mmss(st.elapsed);
+}
+
+function frame({ clip, chip, title = '', meta = '', body = '', sec = '', pri = '', cover = null, pip = null }) {
   $('#panel').classList.remove('menu');
   const box = $('#clipMain');
   if (clip) mountClip(box, clip.url, clip.name, { poster: clip.poster });
@@ -319,6 +372,7 @@ function frame({ clip, chip, title = '', meta = '', body = '', sec = '', pri = '
   b.innerHTML = body;
   $('#pSec').innerHTML = sec;
   $('#pPri').innerHTML = pri;
+  pipSet(pip || { name: title });
 }
 
 const clipOf = (x) => ({ url: x.clipUrl, name: x.name, poster: x.posterUrl });
@@ -347,13 +401,17 @@ function renderIntro() {
       : { icon: session ? 'fitness_center' : 'calendar_today', text: P.dayLabel || '' },
     title: P.dayTitle || '',
     meta: session ? metaHTML(esc(t('aboutMin', { n: Math.max(1, Math.ceil((P.estSec || 0) / 60)) })), sets ? esc(t(sets === 1 ? 'setsN1' : 'setsN', { n: sets })) : '') : '',
-    // PIP too short for the list (pip-l1): one line instead — minutes (完整訓練), moves, sets
-    body: `<ul class="plan">${rows}</ul><div class="p-sum">${metaHTML(
-      session ? esc(t('aboutMin', { n: Math.max(1, Math.ceil((P.estSec || 0) / 60)) })) : '',
-      esc(t(P.items.length === 1 ? 'movesN1' : 'movesN', { n: P.items.length })),
-      sets ? esc(t(sets === 1 ? 'setsN1' : 'setsN', { n: sets })) : '')}</div>`,
+    body: `<ul class="plan">${rows}</ul>`,
     sec: session ? '' : btn('skipBtn', 'skip_next', t('skipThis')),
     pri: btn('startBtn', 'play_arrow', t('start'), { primary: true, fill: true, kbd: 'Space', cd: true }),
+    // PIP: one summary line instead of the list — the last-break warning, minutes, moves, sets
+    pip: {
+      name: P.dayTitle || '',
+      ctx: [last ? `<span class="warn">${ICON('warning', 'fill')}${esc(t('lastBreak'))}</span>` : '',
+        P.estSec ? esc(t('aboutMin', { n: Math.max(1, Math.ceil(P.estSec / 60)) })) : '',
+        esc(t(P.items.length === 1 ? 'movesN1' : 'movesN', { n: P.items.length })),
+        sets ? esc(t(sets === 1 ? 'setsN1' : 'setsN', { n: sets })) : ''],
+    },
   });
   $('#startBtn').onclick = startSteps;
   if (!session) $('#skipBtn').onclick = askSkip;
@@ -370,6 +428,7 @@ function renderDemo(s) {
     meta: metaHTML(setText(it, s.setNo), esc(repsText(it))),
     body: tipsHTML(it.tips),
     pri: btn('goBtn', 'play_arrow', t('start'), { primary: true, fill: true, kbd: 'Space', cd: true }),
+    pip: { name: it.name, ctx: [setText(it, s.setNo), esc(repsText(it))], num: 'cd', tips: it.tips },
   });
   $('#goBtn').onclick = next;
 }
@@ -384,6 +443,11 @@ function renderWork(s) {
     body: `<div class="big">${repRange(it)}<span class="u">${t('repUnit')}</span></div>
       <div class="sw-row"><span class="stopwatch" id="sw">00:00</span><span class="tempo">${ICON('slow_motion_video')}${t('tempo')}</span></div>`,
     pri: btn('doneBtn', 'check', t('doneSet'), { primary: true, kbd: 'Space' }),
+    pip: {
+      name: it.name,
+      ctx: [setText(it, s.setNo), it.perSide ? t('perSide') : '', `${ICON('timer')}<span id="pbSw">00:00</span>`],
+      num: { v: repRange(it), u: t('repUnit') },
+    },
   });
   $('#doneBtn').onclick = completeSet;
 }
@@ -396,6 +460,7 @@ function renderPreview(s) {
     meta: t('secs', { n: s.move.sec }),
     body: moveDots(s.item, s.j) + tipsHTML(s.move.tips),
     pri: btn('goBtn', 'play_arrow', t('start'), { primary: true, fill: true, kbd: 'Space', cd: true }),
+    pip: { name: s.move.name, ctx: [esc(t('upNext')), t('secs', { n: s.move.sec })], num: 'cd', tips: s.move.tips },
   });
   $('#goBtn').onclick = next;
 }
@@ -407,6 +472,7 @@ function renderTimed(s) {
     title: s.move.name,
     meta: esc(s.item.name),
     body: `<div class="hrow">${ringHTML()}${moveDots(s.item, s.j)}</div>`,
+    pip: { name: s.move.name, ctx: [esc(s.item.name), `${s.j + 1}/${s.item.moves.length}`], num: 'cd' },
   });
 }
 
@@ -419,6 +485,7 @@ function renderStretchPreview(s) {
     meta: metaHTML(sideText(s.side), t('secs', { n: s.item.holdSec })),
     body: moveDots(s.item, s.j) + tipsHTML(s.move.tips),
     pri: btn('goBtn', 'play_arrow', t('start'), { primary: true, fill: true, kbd: 'Space', cd: true }),
+    pip: { name: s.move.name, ctx: [esc(t('upNext')), sideText(s.side), t('secs', { n: s.item.holdSec })], num: 'cd', tips: s.move.tips },
   });
   $('#goBtn').onclick = next;
 }
@@ -431,6 +498,7 @@ function renderHold(s) {
     meta: metaHTML(sideText(s.side), t('stretchNo', { n: s.j + 1, t: s.item.moves.length })),
     body: `<div class="hrow hold-row">${ringHTML()}${tipsHTML(s.move.tips)}</div>`, // n/t is in the meta line
     pri: btn('holdNext', 'skip_next', t('nextHold'), { primary: true, kbd: 'Space' }),
+    pip: { name: s.move.name, ctx: [sideText(s.side), t('stretchNo', { n: s.j + 1, t: s.item.moves.length })], num: 'cd', tips: s.move.tips },
   });
   $('#holdNext').onclick = next;
 }
@@ -439,17 +507,18 @@ function renderRest(s) {
   const n = s.next;
   const nIt = n.item;
   let chip;
-  let meta;
+  let parts;
   let clip;
   if (nIt.type === 'reps') {
     chip = nIt === s.item ? t('nextSet') : t('nextMove');
-    meta = metaHTML(setText(nIt, n.setNo), esc(repsText(nIt)));
+    parts = [setText(nIt, n.setNo), esc(repsText(nIt))];
     clip = clipOf(nIt);
   } else {
     chip = t('nextRound');
-    meta = metaHTML(esc(n.move.name), t('secs', { n: n.move.sec }));
+    parts = [esc(n.move.name), t('secs', { n: n.move.sec })];
     clip = clipOf(n.move);
   }
+  const meta = metaHTML(...parts);
   const adjust = s.kind === 'rest' ? adjustHTML() : '';
   frame({
     clip,
@@ -459,9 +528,11 @@ function renderRest(s) {
     body: `<div class="hrow">${ringHTML()}${adjust}</div>`,
     sec: btn('plus30', 'more_time', t('plus30')),
     pri: btn('skipRest', 'skip_next', t('skipRest'), { primary: true, kbd: 'Space' }),
+    pip: { name: nIt.name, ctx: [esc(chip), ...parts], num: 'cd' },
   });
   $('#skipRest').onclick = next;
-  $('#plus30').onclick = () => { st.remaining += 30; st.duration = Math.max(st.duration, st.remaining); updateTick(); };
+  // (+30 s can add a digit: the PIP bar re-fits)
+  $('#plus30').onclick = () => { st.remaining += 30; st.duration = Math.max(st.duration, st.remaining); updateTick(); pipFit(); };
   bindAdjust(adjust);
 }
 
@@ -513,6 +584,15 @@ function renderFinish() {
     body: prog + adjust,
     pri: btn('closeBtn', 'close', t('close'), { primary: true, kbd: 'Space', cd: true }),
     cover: { icon: failed ? 'cancel' : 'check_circle', failed },
+    // PIP: ✓ / ✗ + the sets of this break, today's count and what comes next
+    pip: {
+      name: chip.text,
+      ctx: [total > 0 && !test ? esc(t('progressOf', { a: done, b: total })) : '',
+        failed && stretchOwed ? esc(t('stretchNotDone'))
+          : !test && !allDone && P.nextBreak && !P.isLast ? esc(later ? t('stretchLater') : t('nextAt', { t: P.nextBreak })) : ''],
+      num: { v: String(st.sessionSets), u: t('setsUnit') },
+      icon: { name: failed ? 'cancel' : 'check_circle', fail: failed },
+    },
   });
   $('#closeBtn').onclick = () => end('done');
   bindAdjust(adjust);
@@ -535,6 +615,7 @@ function render() {
   renderTop();
   updateTick();
   pipFit();
+  pipPeek();
 }
 
 function updateTick() {
@@ -546,6 +627,7 @@ function updateTick() {
     const cd = $('#cd');
     if (cd) cd.textContent = String(Math.max(0, Math.ceil(st.remaining - 1e-6)));
   }
+  pipTick();
 }
 
 // ---------- flow ----------
@@ -640,11 +722,13 @@ function openModal({ kind, title, body, ok, cancel = t('continue'), warn = false
   $('#mCancel').textContent = cancel;
   $('#modal').hidden = false;
   $('#mCancel').focus();
+  pipChrome();
 }
 function closeModal() {
   st.modal = null;
   $('#modal').hidden = true;
   if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  pipChrome();
 }
 
 function askLeave() {
@@ -840,5 +924,5 @@ window.__test = {
     return st.phase === 'step' ? cur().kind : st.phase;
   },
   theme: () => document.documentElement.dataset.theme,
-  pipNeed: () => JSON.stringify(pipNeed), // PIP: null = this window fits (else main is growing it)
+  pipFit: () => document.documentElement.dataset.fit || '', // PIP: form, rows, number size, level
 };

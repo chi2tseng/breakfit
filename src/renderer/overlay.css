@@ -260,18 +260,6 @@ html[data-view="window"] #top .btn { -webkit-app-region: no-drag; }
   html:not([data-view="full"]) .slot-badge { display: none; }
 }
 
-/* ---------- PIP (DESIGN.md §4b): mouse-only, drag from anywhere that is not a control ----------
-   A 6 px no-drag rim keeps the native resize edges and corners reachable; the grip marks the corner.
-   No keycaps (the keyboard is not ours). Layout: the PIP block at the end of this file. */
-html[data-view="pip"] body { padding: 6px; }
-html[data-view="pip"] #top, html[data-view="pip"] .vbox, html[data-view="pip"] .p-head, html[data-view="pip"] .p-body { -webkit-app-region: drag; }
-html[data-view="pip"] button, html[data-view="pip"] .stepper, html[data-view="pip"] #modal { -webkit-app-region: no-drag; }
-html[data-view="pip"] kbd { display: none; }
-#grip { display: none; }
-html[data-view="pip"] #grip {
-  display: block; position: fixed; right: 2px; bottom: 2px; width: 12px; height: 12px; pointer-events: none;
-  background: linear-gradient(135deg, transparent 0 52%, var(--muted) 52% 60%, transparent 60% 74%, var(--muted) 74% 82%, transparent 82%);
-}
 /* narrow window / PIP (zoomed PIPs get here too): the rest ring and the 上一組 stepper stack, plan rows
    put the amount under the name, dialog titles step down to title3, the work target to the ring size */
 @media (max-width: 419px) {
@@ -299,81 +287,149 @@ html:not([data-view="full"]) .p-title.wrap { white-space: normal; overflow: visi
   html:not([data-view="full"]) .mode-tag { display: none; }
 }
 
-/* ---------- PIP layout (DESIGN.md §4b): the clip as large as the window allows, NOTHING scrolls ----------
-   overlay.js pipFit() picks the form and the type size (html style font-size, 12.25–22 px: body text
-   never below 13 px; footnote / subheadline text is not used in PIP):
-     stacked (data-pip-form="stack")  the clip spans the content width at 16:9, the UI below it
-     side    (data-pip-form="side")   the clip takes the full height at 16:9, the UI in a column beside it
-   The clip's rectangle depends on the window only (header, rim, padding and gaps are px, never rem).
-   When the UI does not fit, levels are added on <html> until it does:
-     pip-l1  tips; the intro's list → a one-line summary     pip-l2  meta line, tempo, stepper label
-     pip-l3  上一組 stepper; secondary button icon-only      pip-l4  compact: no chip, title3, ring 5.5rem,
-     pip-l5  (stacked, content ≥ 360 wide) one horizontal strip under the clip   target at ring size, no stopwatch
-   If no form fits, main grows the window (pip:need). */
-html[data-view="pip"] { --hit: max(2.75rem, 44px); --btn-h: max(3.5rem, 44px); }
-html[data-view="pip"] #top { height: 56px; margin: 0; grid-template-columns: minmax(0, 1fr) auto; column-gap: 0.75rem; padding: 0 10px; }
-html[data-view="pip"] #top .btn { height: 44px; min-width: 44px; }
-html[data-view="pip"] .mode-tag { height: 1.75rem; font: var(--o-headline); letter-spacing: var(--tr-17); }
-html[data-view="pip"] #stage { display: flex; flex-direction: column; gap: 16px; padding: 0 16px 16px; overflow: hidden; }
-html[data-view="pip"] .vbox { flex: none; width: 100%; height: calc((100vw - 44px) * 9 / 16); min-height: 0; }
-html[data-view="pip"] .vbox .clip { width: 100%; height: 100%; max-width: none; aspect-ratio: auto; }
-html[data-view="pip"] .vcover { inset: 0; width: auto; height: auto; translate: none; aspect-ratio: auto; }
-html[data-pip-form="side"] #stage { display: grid; grid-template-columns: calc((100vh - 84px) * 16 / 9) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); column-gap: 16px; }
-html[data-pip-form="side"] .vbox { width: auto; height: auto; }
-html[data-view="pip"] #panel { flex: 1 0 auto; height: auto; min-height: 0; min-width: 0; display: flex; flex-direction: column; gap: 1rem; }
-html[data-view="pip"] #panel > * { flex: none; }
-html[data-view="pip"] #panel > .p-body { flex: 1 0 auto; overflow: visible; }
-html[data-view="pip"] .p-head { display: flex; flex-direction: column; gap: 0.5rem; min-width: 0; }
-/* stretched, never centred: a centred nowrap title would size to its text and never be seen to overflow */
-html[data-view="pip"] .p-title, html[data-view="pip"] .p-title.fit2, html[data-view="pip"] .p-title.fit3 { align-self: stretch; }
-html[data-view="pip"] .p-chip { display: flex; height: 2rem; align-items: center; }
-html[data-view="pip"] .p-chip:empty, html[data-view="pip"] .p-meta:empty { display: none; }
-html[data-view="pip"] .hrow { flex-wrap: wrap; row-gap: 0.75rem; }
-html[data-view="pip"] .plan, html[data-view="pip"] #panel.menu .plan { overflow: visible; }
-html[data-view="pip"] #panel.menu .plan li { flex: none; height: 2.375rem; font: var(--o-body); letter-spacing: var(--tr-17); }
-html[data-view="pip"] .p-foot, html[data-view="pip"] #panel.menu .p-foot {
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: var(--btn-h); column-gap: 0.75rem; row-gap: 0;
+/* ---------- PIP (DESIGN.md §4b): the clip IS the window, like a video PiP ----------
+   overlay.js pipFit() places everything (px, from the window size only):
+     the clip   the largest 16:9 the window holds, top-left (centred between pillars when wider)
+     #pipBar    ONE dense row — name + context | live number | [secondary][primary] — either on a scrim
+                over the clip's bottom (data-pip-form="over"), in the strip under it (a taller window,
+                "below") or in a column beside it (a wider window, "side"); a tall strip / column puts
+                the name above the number + actions (data-rows 2 / 3) and may show the tips.
+     #top       floats on the clip: a 3 px progress line on its top edge, the mode chip top-left and the
+                window buttons top-right (28 px), the last two only on hover, for 2 s after a phase
+                change and while a dialog is open (html.pip-show).
+   Mouse-only: no keycaps. #pipDrag (inset 6 px: the rim stays for the native resize edges) is the drag
+   region under everything; buttons / stepper / dialog are no-drag (lint k). Nothing scrolls (lint j). */
+#grip, #pipDrag, #pipBar { display: none; }
+:root { --o-subhead-em: 600 0.9375rem/1.25rem var(--font); }   /* 15/20 dialog buttons in PIP */
+html[data-view="pip"] body { padding: 0; background: var(--stage); }
+html[data-pip-form="over"] body { background: #000; }
+html[data-view="pip"] kbd { display: none; }
+html[data-view="pip"] button, html[data-view="pip"] .stepper, html[data-view="pip"] #modal { -webkit-app-region: no-drag; }
+html[data-view="pip"] #pipDrag { display: block; position: fixed; inset: 6px; z-index: 1; -webkit-app-region: drag; }
+html[data-view="pip"] #grip {
+  display: block; position: fixed; right: 2px; bottom: 2px; width: 12px; height: 12px; pointer-events: none; z-index: 4;
+  background: linear-gradient(135deg, transparent 0 52%, var(--muted) 52% 60%, transparent 60% 74%, var(--muted) 74% 82%, transparent 82%);
 }
-html[data-view="pip"] .p-foot:has(#pSec:empty) { grid-template-columns: minmax(0, 1fr); }
-html[data-view="pip"] #pSec:empty { display: none; }
-html[data-view="pip"] .p-foot .btn { height: var(--btn-h); padding: 0 1rem; }
-html[data-view="pip"] .p-foot .btn > * { flex: none; } /* a too-narrow button shows as overflow, never squeezes its label */
-html[data-view="pip"] .p-foot .btn .cd { position: static; transform: none; min-width: 0; margin-left: 0.25rem; }
-html[data-view="pip"] .stepper .btn { width: var(--hit); height: var(--hit); }
-html[data-view="pip"] .modal-btns .btn { height: var(--hit); }
-html[data-view="pip"] .modal-card { width: auto; max-width: calc(100vw - 2rem); }
-/* the intro's one-line summary (minutes, moves, sets) instead of the list: PIP only, from pip-l1 */
-.p-sum { display: none; }
-html.pip-l1 #panel[data-kind="intro"] .p-sum {
-  display: flex; flex-wrap: wrap; column-gap: 1rem; row-gap: 0.25rem;
-  font: var(--o-title3); letter-spacing: var(--tr-display); color: var(--muted); white-space: nowrap;
+html[data-pip-form="over"] #grip { background: linear-gradient(135deg, transparent 0 52%, rgba(255, 255, 255, 0.5) 52% 60%, transparent 60% 74%, rgba(255, 255, 255, 0.5) 74% 82%, transparent 82%); }
+
+/* the clip */
+html[data-view="pip"] #panel { display: none; }
+html[data-view="pip"] #stage { display: block; padding: 0; overflow: hidden; }
+html[data-view="pip"] .vbox {
+  position: fixed; left: var(--px); top: 0; width: var(--pvw); height: var(--pvh); display: block; z-index: 0;
 }
-html.pip-l1 .tips, html.pip-l1 #panel[data-kind="intro"] .plan, html.pip-l1 #panel[data-kind="intro"] .p-meta { display: none; }
-html.pip-l2 .p-meta, html.pip-l2 .tempo, html.pip-l2 .adjust .lbl { display: none; }
-html.pip-l3 .adjust { display: none; }
-html.pip-l3 .p-foot { grid-template-columns: var(--btn-h) minmax(0, 1fr); }
-html.pip-l3 .p-foot:has(#pSec:empty) { grid-template-columns: minmax(0, 1fr); }
-html.pip-l3 .p-sec .btn { width: var(--btn-h); padding: 0; }
-html.pip-l3 .p-sec .btn .lb { display: none; }
-html.pip-l4 #panel { gap: 0.75rem; }
-html.pip-l4 .p-chip { display: none; }
-html.pip-l4 .p-title, html.pip-l4 .p-title.fit2, html.pip-l4 .p-title.fit3 { font: var(--o-title3-em); }
-html.pip-l4 .big { font: var(--o-ring); }
-html.pip-l4 .sw-row { display: none; }
-html.pip-l4 .ring { width: 5.5rem; height: 5.5rem; }
-html.pip-l4 .ring .num { font: var(--o-ring3); }
-html.pip-l4 .ring.wide .num { font: var(--o-title2); }
-/* the strip: [ring | target | progress]  title  [secondary][primary] in one row under the clip */
-html.pip-l5 #panel { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; align-content: center; gap: 0; }
-html.pip-l5 #panel > .p-body { grid-area: 1 / 1; }
-html.pip-l5 .p-body:has(.ring, .big, .today) { margin-right: 0.75rem; }
-html.pip-l5 .p-head { grid-area: 1 / 2; }
-html.pip-l5 .p-foot { grid-area: 1 / 3; margin-left: 0.75rem; grid-template-columns: auto; }
-html.pip-l5 .p-foot:has(.p-sec .btn) { grid-template-columns: var(--btn-h) auto; }
-html.pip-l5 .p-sum, html.pip-l5 .move-dots, html.pip-l5 .today .bar { display: none; }
-html.pip-l5 .ring { width: 3.25rem; height: 3.25rem; }
-html.pip-l5 .ring .num, html.pip-l5 .ring.wide .num { font: var(--o-headline); letter-spacing: var(--tr-17); }
-html.pip-l5 .big { font: var(--o-title2); gap: 0.25rem; }
-html.pip-h1 .slot-badge, html.pip-h2 .mode-tag { display: none; }
-/* pipFit measuring how tall the UI is at its most compact (what main must grow the window to) */
-html.pip-measure #panel, html.pip-measure #panel > .p-body { flex-grow: 0; }
+html[data-view="pip"] .vbox .clip { width: 100%; height: 100%; max-width: none; aspect-ratio: auto; border-radius: 0; }
+html[data-view="pip"] .vcover { inset: 0; left: 0; right: 0; top: 0; width: auto; height: auto; translate: none; aspect-ratio: auto; border-radius: 0; }
+html[data-view="pip"] .vcover .ms { display: none; } /* finish: the clip dims, the bar says ✓ / ✗ */
+
+/* floating chrome on the clip */
+html[data-view="pip"] #top {
+  position: fixed; left: var(--px); top: 0; width: var(--pvw); height: var(--pvh); margin: 0; padding: 0;
+  display: block; z-index: 3; pointer-events: none; -webkit-app-region: none;
+}
+html[data-view="pip"] .top-l { position: absolute; inset: 0; display: block; }
+html[data-view="pip"] .slot-badge { display: none; }
+html[data-view="pip"] .top-prog { position: absolute; left: 0; right: 0; top: 0; height: 3px; border-radius: 0; background: rgba(255, 255, 255, 0.2); }
+html[data-view="pip"] #progFill { background: var(--accent); }
+html[data-view="pip"] .mode-tag {
+  position: absolute; left: 8px; top: 10px; height: 1.375rem; padding: 0 0.5rem; display: inline-flex;
+  font: var(--o-footnote-em); letter-spacing: var(--tr-13); color: #fff; background: rgba(0, 0, 0, 0.55);
+  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+}
+html[data-view="pip"] .top-r { position: absolute; right: 8px; top: 8px; display: flex; gap: 6px; pointer-events: auto; }
+html[data-view="pip"] #top .btn {
+  width: 28px; min-width: 28px; height: 28px; padding: 0; gap: 0; border-radius: 50%;
+  color: #fff; background: rgba(0, 0, 0, 0.5); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+}
+html[data-view="pip"] #top .btn:hover { background: rgba(0, 0, 0, 0.75); }
+html[data-view="pip"] #top .btn .ms { font-size: 18px; }
+html[data-view="pip"] #leaveBtn [data-i18n] { display: none; }
+html[data-view="pip"] .mode-tag, html[data-view="pip"] .top-r { opacity: 0; transition: opacity 0.2s; }
+html[data-view="pip"].pip-show .mode-tag, html[data-view="pip"].pip-show .top-r { opacity: 1; }
+
+/* the bar */
+html[data-view="pip"] #pipBar {
+  display: flex; position: fixed; z-index: 2; align-items: center; column-gap: 0.75rem; min-width: 0;
+  padding: 0.625rem 0.75rem; color: var(--text); background: var(--stage);
+}
+html[data-pip-form="over"] #pipBar {
+  padding-top: 1.75rem; color: #fff;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.62) 1.75rem, rgba(0, 0, 0, 0.8));
+}
+.pb-info { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
+.pb-name { font: var(--o-headline); letter-spacing: var(--tr-17); white-space: nowrap; }
+.pb-ctx { display: flex; flex-wrap: wrap; column-gap: 0.625rem; font: var(--o-subhead); letter-spacing: var(--tr-15); color: var(--muted); }
+.pb-ctx > span { display: inline-flex; align-items: center; gap: 0.25rem; white-space: nowrap; }
+.pb-ctx .ms { font-size: 1rem; }
+.pb-ctx .warn { color: var(--fail-text); }
+.pb-ctx:empty { display: none; }
+.pb-num { flex: none; display: flex; align-items: center; gap: 0.375rem; white-space: nowrap; }
+.pb-num:empty, .pb-num[hidden] { display: none; }
+.pb-ring { flex: none; width: 1.375rem; height: 1.375rem; display: block; transform: rotate(-90deg); }
+.pb-ring .track { stroke: var(--track); }
+.pb-ring .bar { stroke: var(--accent); stroke-linecap: round; transition: stroke-dashoffset 0.12s linear; }
+.pb-icon { flex: none; font-size: 1.75rem; color: var(--accent-text); }
+.pb-icon.fail { color: var(--fail-text); }
+.pb-v { font: var(--o-title2); letter-spacing: var(--tr-display); font-variant-numeric: tabular-nums; }
+.pb-u { font: var(--o-subhead); letter-spacing: var(--tr-15); color: var(--muted); align-self: flex-end; margin-bottom: 0.25rem; }
+.pb-acts { flex: none; display: flex; align-items: center; gap: 0.5rem; }
+.pb-acts .p-sec:empty, .pb-acts .p-pri:empty { display: none; }
+.pb-acts .btn { height: 2.25rem; }
+.pb-acts .p-pri .btn { padding: 0 1rem; gap: 0.375rem; font: var(--o-headline); letter-spacing: var(--tr-17); }
+.pb-acts .p-pri .btn .ms { font-size: 1.25rem; margin-left: -0.125rem; }
+.pb-acts .p-pri .btn .cd { font-variant-numeric: tabular-nums; margin-left: 0.125rem; }
+.pb-acts .p-sec .btn { width: 2.25rem; padding: 0; background: var(--surface-2); }
+.pb-acts .p-sec .btn .lb { display: none; }
+.pb-acts .p-sec .btn .ms { font-size: 1.25rem; }
+#pipBar[data-num="cd"] .p-pri .cd { display: none; } /* the bar's number already counts down */
+.pb-tips { display: none; min-height: 0; }
+.pb-tips .tips { gap: 0.25rem; }
+html[data-pip-form="over"] .pb-ctx, html[data-pip-form="over"] .pb-u { color: rgba(255, 255, 255, 0.78); }
+html[data-pip-form="over"] .pb-ring .track { stroke: rgba(255, 255, 255, 0.3); }
+html[data-pip-form="over"] .pb-acts .p-sec .btn { color: #fff; background: rgba(255, 255, 255, 0.2); }
+html[data-pip-form="over"] .pb-acts .p-sec .btn:hover { background: rgba(255, 255, 255, 0.3); }
+
+/* a tall strip / a column: name on top, the tips when they fit, then the number (as big as fits) and the
+   actions — stacked (data-rows 3, the primary full width) or side by side (2) */
+html[data-view="pip"] #pipBar:is([data-rows="2"], [data-rows="3"]) {
+  display: grid; align-items: end; row-gap: 0.5rem; padding: 0.75rem 1rem 1rem;
+  grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-areas: "info info" "tips tips" "num acts";
+}
+html[data-view="pip"] #pipBar[data-rows="3"] {
+  grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-areas: "info" "tips" "num" "acts"; row-gap: 0.625rem;
+}
+#pipBar:is([data-rows="2"], [data-rows="3"]) .pb-info { grid-area: info; align-self: start; }
+#pipBar:is([data-rows="2"], [data-rows="3"]) .pb-name { font: var(--o-title3-em); letter-spacing: var(--tr-display); white-space: normal; text-wrap: balance; }
+#pipBar:is([data-rows="2"], [data-rows="3"]) .pb-tips { grid-area: tips; align-self: start; }
+#pipBar:is([data-rows="2"], [data-rows="3"])[data-tips="1"] .pb-tips { display: block; }
+#pipBar:is([data-rows="2"], [data-rows="3"]) .pb-num { grid-area: num; }
+#pipBar:is([data-rows="2"], [data-rows="3"]) .pb-acts { grid-area: acts; }
+#pipBar[data-rows="3"] .pb-acts .p-pri { flex: 1; }
+#pipBar[data-rows="3"] .pb-acts .p-pri .btn { width: 100%; }
+#pipBar[data-rows="1"] .pb-ctx { flex-wrap: nowrap; } /* one dense row: the context fits on its line or goes (pb-l1) */
+#pipBar[data-size="ring"] .pb-v { font: var(--o-ring); letter-spacing: var(--tr-display); }
+#pipBar[data-size="ring"] .pb-ring { width: 2.25rem; height: 2.25rem; }
+#pipBar[data-size="ring"] .pb-icon { font-size: 2.5rem; }
+#pipBar[data-size="ring"] .pb-u { margin-bottom: 0.375rem; }
+#pipBar[data-size="hero"] .pb-v { font: var(--o-hero); letter-spacing: var(--tr-display); }
+#pipBar[data-size="hero"] .pb-ring { width: 3.25rem; height: 3.25rem; align-self: center; }
+#pipBar[data-size="hero"] .pb-icon { font-size: 4rem; }
+#pipBar[data-size="hero"] .pb-u { font: var(--o-title3); letter-spacing: var(--tr-display); margin-bottom: 0.875rem; }
+
+/* fit levels, added until the bar fits: context, secondary button, name, primary label */
+html.pb-l1 .pb-ctx { display: none; }
+html.pb-l2 .pb-acts .p-sec { display: none; }
+html.pb-l3 .pb-info { display: none; }
+html.pb-l3 .pb-num { margin-right: auto; }
+html.pb-l4 .pb-acts .p-pri .btn { padding: 0 0.75rem; }
+html.pb-l4 .pb-acts .p-pri .btn .lb { display: none; }
+
+/* dialogs: a compact card over the dimmed clip */
+html[data-view="pip"] #modal { z-index: 10; }
+html[data-view="pip"] .modal-card { width: min(20rem, calc(100vw - 24px)); max-width: none; padding: 0.875rem 1rem; border-radius: 14px; }
+html[data-view="pip"] .modal-card h2 { font: var(--o-headline); letter-spacing: var(--tr-17); }
+html[data-view="pip"] .modal-card p { margin-top: 0.125rem; font: var(--o-subhead); letter-spacing: var(--tr-15); }
+html[data-view="pip"] .modal-btns { flex-direction: row; align-items: center; gap: 0.5rem; margin-top: 0.75rem; }
+html[data-view="pip"] .modal-btns .btn { height: 2rem; padding: 0 0.875rem; font: var(--o-subhead-em); letter-spacing: var(--tr-15); }

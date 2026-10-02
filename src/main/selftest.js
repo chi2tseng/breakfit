@@ -188,7 +188,7 @@ const CJK_SCAN = `(() => {
 
 async function main() {
   if (MATRIX) fs.rmSync(path.join(OUT, 'matrix'), { recursive: true, force: true });
-  else if (fs.existsSync(OUT)) for (const f of fs.readdirSync(OUT)) if (f !== 'matrix') fs.rmSync(path.join(OUT, f), { recursive: true, force: true });
+  else if (fs.existsSync(OUT)) for (const f of fs.readdirSync(OUT)) if (f !== 'matrix' && f !== 'pip-review' && !f.startsWith('m-')) fs.rmSync(path.join(OUT, f), { recursive: true, force: true });
   fs.mkdirSync(OUT, { recursive: true });
 
   const clock = createClock({ base: new Date(2026, 8, 24, 13, 59, 30), rate: 0 });
@@ -327,7 +327,7 @@ async function main() {
     'button → PIP: saved, mouse-only (not focusable), re-asserted on top, resizable / movable, no covers');
   const pipUi = await js(ow, `(() => { const v = (s) => !!document.querySelector(s).offsetParent;
     return [!v('#pipBtn'), v('#winBtn'), v('#fullBtn'), !v('#minBtn'), [...document.querySelectorAll('kbd')].every((k) => !k.offsetParent),
-      getComputedStyle(document.querySelector('.vbox')).webkitAppRegion, getComputedStyle(document.querySelector('#pPri .btn')).webkitAppRegion,
+      getComputedStyle(document.querySelector('#pipDrag')).webkitAppRegion, getComputedStyle(document.querySelector('#pPri .btn')).webkitAppRegion,
       getComputedStyle(document.body).webkitAppRegion, getComputedStyle(document.getElementById('grip')).display].join(); })()`);
   assert(pipUi === 'true,true,true,true,true,drag,no-drag,none,block', `PIP: → 視窗 / → 全螢幕, no keycaps, drag anywhere but controls and the rim, resize grip (${pipUi})`);
   for (const k of [' ', 'Enter', 'Escape', 'f']) await js(ow, `__test.key(${JSON.stringify(k)})`);
@@ -1018,10 +1018,11 @@ const PIP_W = [320, 360, 400, 480, 560, 640, 720, 960];
 const PIP_H = [300, 360, 420, 480, 580, 720, 800];
 const PIP_SIZES = [
   ...PIP_H.flatMap((h) => PIP_W.map((w) => [w, h, 1])).filter(([w, h]) => w >= W.PIP_MIN.width && h >= W.PIP_MIN.height),
+  [W.PIP_MIN.width, W.PIP_MIN.height, 1], [300, 169, 1], [330, 420, 1], [480, 270, 1], [960, 540, 1], [W.PIP_SIZE.width, W.PIP_SIZE.height, 1],
   [400, 580, 1.25], [400, 580, 1.5], [640, 360, 1.25], [640, 360, 1.5]];
 const ONLY = (process.argv.find((a) => a.startsWith('--only=')) || '').slice(7).split(',').filter(Boolean);
 const sizeTag = (w, h, z) => `${w}x${h}${z === 1 ? '' : `@${Math.round(z * 100)}`}`;
-// PIP: the form and fit level overlay.js pipFit chose, and where the clip renders (DESIGN.md §4b)
+// PIP: the form and fit overlay.js pipFit chose, and where the clip renders (DESIGN.md §4b)
 const PIP_PROBE = `(() => { const r = document.querySelector('.vbox').getBoundingClientRect();
   return JSON.stringify({ form: document.documentElement.dataset.pipForm, fit: document.documentElement.dataset.fit,
     clip: [r.left, r.top, r.width, r.height].map((v) => Math.round(v * 10) / 10), vw: innerWidth, vh: innerHeight }); })()`;
@@ -1035,6 +1036,7 @@ async function settleLayout(win) {
 
 async function resize(win, w, h, zoom = 1, quiet = false) {
   win.setMinimumSize(100, 100);
+  win.setPosition(0, 0); // stay on the primary display: a size that reaches a second display at another scale comes back garbled
   win.setContentSize(w, h);
   win.webContents.setZoomFactor(zoom);
   await delay(200);
@@ -1064,7 +1066,8 @@ const REACH_CHECK = `(() => {
 })()`;
 
 async function matrix(ctl, mw) {
-  const dir = path.join(OUT, 'matrix');
+  // `-- --mdir=<name>`: write to selftest-out/<name> (several matrix runs side by side)
+  const dir = path.join(OUT, (process.argv.find((a) => a.startsWith('--mdir=')) || '--mdir=matrix').slice(7));
   fs.mkdirSync(dir, { recursive: true });
   const runs = [];
   const snap = async (win, name, lintOpts) => {
@@ -1184,19 +1187,18 @@ async function matrix(ctl, mw) {
 
     // window + PIP overlay: every phase + both dialogs at every size; the stage may scroll only when
     // the window is too short, and the primary button must always be reachable
-    for (const [view, SIZES, short] of [['window', WIN_SIZES, 'win'], ['pip', PIP_SIZES, 'pip']].filter(([v]) => !process.argv.includes('--pip') || v === 'pip')) for (const [pd, states] of QUICK ? [] : WOV) {
+    for (const [view, SIZES, short] of [['window', WIN_SIZES, 'win'], ['pip', PIP_SIZES, 'pip']].filter(([v]) => (!process.argv.includes('--pip') || v === 'pip') && (!process.argv.includes('--nopip') || v !== 'pip'))) for (const [pd, states] of QUICK ? [] : WOV) {
       ctl.data.settings.breakView = view;
       const ow = await openFor(pd);
       assert(ctl.overlayView === view && await js(ow, `document.documentElement.dataset.view === '${view}'`), `matrix ${pd}: break opens as ${view}`);
       for (const [w, h, z] of SIZES.filter(([w, h, z]) => !ONLY.length || ONLY.includes(sizeTag(w, h, z)))) {
-        await resize(ow, w, h, z, view === 'pip'); // PIP: main may grow a too-small window (pip:need)
+        await resize(ow, w, h, z);
         const tag = sizeTag(w, h, z);
         for (const [screen, code] of states) {
           await js(ow, code);
           if (view === 'pip') {
-            // too small for the clip + UI → main grows the window (pip:need); lint at the size it settles on
             await settleLayout(ow); // late font loads re-run pipFit
-            await until(ow, "document.fonts.status === 'loaded' && __test.pipNeed() === 'null'", 5000).catch(() => console.log(`  WARN ${screen} ${tag}: PIP never fit (${tag})`));
+            if (/does not fit/.test(await js(ow, '__test.pipFit()'))) console.log(`  WARN ${screen} ${tag}: the PIP bar does not fit`);
             const [aw, ah] = ow.getContentSize();
             const atag = sizeTag(aw, ah, z);
             const name = `${pre}${theme}-${short}-${screen}-${atag}`;
@@ -1225,9 +1227,8 @@ async function matrix(ctl, mw) {
     fs.writeFileSync(path.join(dir, 'lint-partial.json'), JSON.stringify(runs.filter((r) => r.issues.length).map((r) => ({ name: r.name, issues: r.issues })), null, 1));
   }
   console.log(`window screens that scroll: ${scrolled.length}${scrolled.length ? `\n  ${scrolled.join('\n  ')}` : ''}`);
-  // PIP clip (rule l): the largest 16:9 of its form — stacked: the full content width (window − 44 px)
-  // under the 62 px header; side by side: the full height (window − 84 px) — and, at 800 tall, never
-  // narrower in a wider window. pipForms: form + level per requested size (→ the size main grew it to).
+  // PIP clip (rule l): the largest 16:9 the window holds (width min(W, H × 16/9)), at the top edge —
+  // whatever the form. pipForms: form / rows / number size / level per size.
   const pipForms = {};
   const clipIssue = (name, msg) => runs.push({ name, viewport: '', combos: {}, issues: [{ rule: 'l-clip', sel: '.vbox', text: '', size: '', msg }] });
   for (const [key, bySz] of Object.entries(pipProbe)) {
@@ -1235,9 +1236,10 @@ async function matrix(ctl, mw) {
     for (const [tag, p] of Object.entries(bySz)) {
       ((pipForms[pass] ||= {})[screen] ||= {})[tag] = `${p.form} ${p.fit}${p.at !== tag ? ` -> ${p.at}` : ''}`;
       const [, top, cw, ch] = p.clip;
-      const want = p.form === 'side' ? [((p.vh - 84) * 16) / 9, p.vh - 84] : [p.vw - 44, ((p.vw - 44) * 9) / 16];
-      if (Math.abs(cw - want[0]) > 1.5 || Math.abs(ch - want[1]) > 1.5 || Math.abs(top - 62) > 1) {
-        clipIssue(`${pass}-pip-${screen}-${p.at}`, `${p.form} clip ${cw}×${ch} at y ${top}, want ${want.map(Math.round).join('×')} at y 62`);
+      const ww = Math.min(p.vw, (p.vh * 16) / 9);
+      const want = [ww, (ww * 9) / 16];
+      if (Math.abs(cw - want[0]) > 1.5 || Math.abs(ch - want[1]) > 1.5 || Math.abs(top) > 1) {
+        clipIssue(`${pass}-pip-${screen}-${p.at}`, `${p.form} clip ${cw}×${ch} at y ${top}, want ${want.map(Math.round).join('×')} at y 0`);
       }
     }
     const tall = PIP_W.map((w) => [w, bySz[`${w}x800`]]).filter(([, p]) => p);
@@ -1247,7 +1249,7 @@ async function matrix(ctl, mw) {
   }
   for (const [pass, f] of Object.entries(pipForms).slice(0, 1)) {
     if (!f.rest) continue;
-    console.log(`PIP form / level per size (${pass} rest screen; > = the size main grew it to):`);
+    console.log(`PIP form per size (${pass} rest screen):`);
     for (const h of PIP_H) console.log(`  ${h}: ${PIP_W.map((w) => `${w}=${(f.rest[`${w}x${h}`] || '-').replace(' -> ', '>')}`).join('  ')}`);
   }
 

@@ -229,49 +229,69 @@ PIP shares only the narrow-width type / wrap rules (`html:not([data-view="full"]
 
 ### 4b. PIP (`settings.breakView = 'pip'`, the default; SPEC §5a)
 
-Same page, `data-view="pip"`. Header (56 px, fixed): `picture_in_picture_alt` / `select_window` /
-`fullscreen` — the two views that are not current (F keycap only on full ⇄ window, never in PIP), 離開;
-44 × 44 buttons. Mouse-only: the window is not focusable, keys are ignored, every `kbd` hidden. Drag:
-`#top`, `.vbox`, `.p-head`, `.p-body` are `drag`, every button / stepper / dialog `no-drag` (lint k),
-`body` keeps a 6 px no-drag rim for the native resize edges; `#grip` (two diagonal `--muted` strokes,
-12 px) marks the bottom-right corner.
+Same page, `data-view="pip"`, redesigned 2026-10-02 as a real video Picture-in-Picture (user on the
+old one, header + clip + title + ring + two pills stacked: 「這甚麼鬼 UI，也太浪費空間了吧，全部給我重作」).
+**The clip is the window**: always the largest 16:9 the window holds (`min(W, H × 16/9)` wide, at the
+top edge), never shrunk for the UI. **Nothing scrolls, at any size** (「pip 不要有需要滾輪的內容」).
+All UI is one dense bar (`#pipBar`) plus floating chrome; `#panel` is hidden and the phase's
+`#pSec` / `#pPri` buttons move into the bar (same ids and handlers; they move back outside PIP).
 
-**Nothing in PIP scrolls, at any size** (user 2026-10-02: 「pip 不要有需要滾輪的內容」). **The clip is
-always the largest 16:9 its form allows and is never shrunk for the UI** (「寬度保持影片能夠有的最大寬度，
-若視窗比影片寬則維持最大高度」). `overlay.js pipFit()` runs on every render and resize and picks:
+```
+ ┌───────────────────────────────── 3 px progress line (accent) ─┐
+ │ 加練                                           (⧉) (⛶) (⇥)   │  ← hover / first 2 s / dialog
+ │                                                               │
+ │                       the clip, 16:9                          │
+ │▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒ scrim ▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒│
+ │ 深蹲                            ◔ 42        (⟲)  [⏭ 跳過休息]   │  ← the bar, "over"
+ │ 下一組  第 2/4 組  8–15 下                                      │
+ └───────────────────────────────────────────────────────────────┘
+```
 
-| Form (`html[data-pip-form]`) | Clip | UI |
+**The bar** = name (headline) over its context (subheadline, muted: `第 2/4 組  8–15 下`, the side,
+the stopwatch …) | the live number (title2, tabular; a 22 px circular progress for a countdown, a unit
+for the work target / sets) | the secondary action as a 36 px icon circle (+30 s, 跳過這次; label =
+tooltip / aria-label) and the primary action as a 36 px pill. `overlay.js pipFit()` picks the form
+on every render / resize (`html[data-pip-form]`, px from the window size only):
+
+| Form | When | Bar |
 |---|---|---|
-| `stack` — tried first (it always gives the bigger clip) | full content width (window − 44 px) × 9/16, under the header (y 62) | below the clip: a vertical panel, or at `pip-l5` one horizontal strip `[ring / target] title [secondary][primary]` |
-| `side` — when the stacked UI does not fit even as a strip | full height (window − 84 px) × 16/9 | a column beside it (≥ 176 px) |
-| neither | — | the page sends `pip:need` (CSS px); main grows the window the cheaper way (taller → stacked, wider → side), 150 ms debounce, kept on the work area |
+| `below` | taller than 16:9 by ≥ 40 px | the strip under the clip (theme colours). Tall enough → `data-rows="3"`: name (title3) on top, the clip's 1–2 tips (demo / preview / hold) when they fit, the number as big as fits (`data-size` hero 96 → ring 48 → title2), the actions at the bottom (primary full width); a bit shorter → `data-rows="2"` (number and actions side by side); else one row. A stacked strip drops nothing — when it would have to, the next, flatter form is used |
+| `side` | wider than 16:9 by ≥ 168 px | a column beside the clip, the same 3 / 2-row stacks (may drop the context and the secondary button) |
+| `over` | otherwise (and whenever the strip / column cannot hold the bar) | on a black scrim over the clip's bottom (white text in both themes), clip top-aligned (centred between pillars when wider) |
 
-The clip's rectangle depends on the window only: rim 6, header 56, padding / gaps 16 are px. Type is
-`html` font-size set by `pipFit`: stacked `(room under the clip) / 20` capped by `width / 25`, side
-`min(column / 18, height / 26)`, clamped 12.25–22 px (body 17/16 rem ≥ 13 px; footnote / subheadline
-are not used in PIP: the mode tag is headline, 完整訓練 menu rows body). When the UI still does not fit,
-levels are added on `<html>` until it does (the selftest records form + level per size in
-`lint.json` → `pipForms`):
+When the one-row bar does not fit, levels are added on `<html>` until it does: `pb-l1` no context,
+`pb-l2` no secondary button, `pb-l3` no name, `pb-l4` primary icon-only (label → tooltip) — the
+smallest PIP shows the number + the primary. `html[data-fit]` records the choice
+(`below 3-row tips hero 0`); the selftest prints it per size (`lint.json` → `pipForms`).
 
-| Level | Dropped / changed |
-|---|---|
-| `pip-l1` | tips; the intro's list → one summary line (`約 47 分鐘  9 個動作  25 組`) |
-| `pip-l2` | meta line, tempo, the stepper's 上一組 label |
-| `pip-l3` | 上一組 stepper (rest / finish); secondary button icon-only (label → tooltip / aria-label) |
-| `pip-l4` | compact: no chip, title at title3, ring 5.5rem (ring3 / title2 number), work target at ring size, no stopwatch |
-| `pip-l5` | stacked and content ≥ 360 px wide only: the strip (ring 3.25rem, headline number; target title2) |
+Phases: intro = day title + one summary line (last-break warning, minutes, moves, sets) + 開始 (its
+auto-start countdown in the pill) + 跳過這次 icon; demo / preview / stretch preview = name + countdown +
+開始; work = name, set + stopwatch in the context, target `8–15 下` as the number, 完成這組; rest /
+round rest = the next move, `下一組 第 2/4 組 8–15 下`, countdown, +30 s icon, 跳過休息; timed = move +
+round position + countdown (no button); hold = stretch + side + countdown + 下一個; finish = the clip
+dims, `✓ 6 組` (✗ on a failed last break), today's `13 / 25 組` and the next break, 關閉 + its countdown.
+Not in PIP (window / full screen only): the 上一組 −/+ stepper, the intro's menu list, move dots.
 
-Always on screen: header buttons, phase title (wraps rather than ellipsis), the big number / countdown
-(work target, ring, today's count), the primary button. The secondary and primary buttons share one
-row (primary right; an empty secondary slot leaves the primary full width). Geometry: `defaultPipBounds`
-(400×580, bottom-right of the work area of the display under the cursor, 16 px in); static minimum
-320×300 (`PIP_MIN`, `setMinimumSize`); above it the real minimum depends on the aspect and the
-phase, and main enforces it by growing the window (`pip:need`). Measured (rest screen, 2026-10-02):
-stacked needs 320×405, 360×428, 400×450, 480×390 (strip), 560×435, 640×480, 720×525, 960×660; side by
-side works from 620×300, 727×360, 834×420, 960×480. Forms by size (`rest`, level in brackets):
-≥ 580 tall and ≤ 720 wide → stacked panel (l0 at ≥ 720 tall, l2–l5 below); 420–480 tall → stacked
-(l4 under 480 wide, the strip l5 from 480); wide and short (960×360–480, 640–720×300) → side (l0–l4).
-The 400×580 default: stacked, l2 (tips, meta line off; stepper on).
+**Chrome on the clip**: a 3 px `--accent` progress line along the top edge (track white 20 %), always;
+the mode chip (提早休息 / 測試 / 完整訓練 / 加練, footnote on black 55 % + blur) top-left and the
+window buttons top-right — → 視窗, → 全螢幕, 離開: 28 px circles, 18 px glyph, black 50 % + blur, white
+— shown on hover, for 2 s after every phase change and while a dialog is open (`html.pip-show`,
+0.2 s fade). Almost the whole window is a drag region, which gets no mouse events, so main polls the
+cursor (200 ms) and sends `pip-hover` on enter / leave.
+
+**Dialogs** (離開 / 跳過): a compact card (≤ 20rem, headline title, subheadline body, 32 px buttons)
+over the dimmed clip. Mouse-only: the window is not focusable, keys are ignored, every `kbd` hidden.
+Drag: `#pipDrag` (fixed, inset 6 px: the rim stays for the native resize edges) is `drag` under
+everything; every button / stepper / dialog `no-drag` (lint k); `#grip` marks the bottom-right corner.
+Type: `html` font-size = `clamp(16, W / 36, 20)` px (side: the column width × 2 instead of W), so text
+never drops below 13 px (footnote).
+Contrast over the brightest clip: the scrim is black 62 % at the name's top, 80 % at the bottom —
+white text ≥ 5.7 : 1, the context (white 78 %) ≥ 4.6 : 1.
+
+Geometry: `defaultPipBounds` = 400×290 (a 400×225 clip + the one-row strip), bottom-right of the work
+area of the display under the cursor, 16 px in. Minimum `PIP_MIN` = **280×158** (a 280×158 clip, the
+bar over it showing the number + primary; `setMinimumSize`). Any larger size fits without help from
+main (the old `pip:need` grow-the-window path is gone).
 
 ## 5. Main window
 
@@ -452,7 +472,8 @@ The video box is always visible, so the footage itself must be clean. Every clip
 ## 8. HIG pass (`docs/hig/*.txt`)
 
 - **Hit regions** (buttons.txt: 44×44 pt): overlay pills 3.5rem (56 px at 720p), `#leaveBtn`
-  2.75rem (44 px), dialog pills 3rem (48 px), stepper circles 3rem (48 px). Main window buttons
+  2.75rem (44 px), dialog pills 3rem (48 px), stepper circles 3rem (48 px); PIP (mouse-only, like a
+  macOS PiP): window buttons 28 px, bar buttons 36 px, dialog buttons 32 px. Main window buttons
   44 px (`--btn`), form controls 36 px (mouse-driven, macOS level).
 - **Contrast** (accessibility.txt: 4.5:1 up to 17 pt, 3:1 at 18 pt or bold): every text/background
   pair in §9 is computed with the WCAG luminance formula; all text pairs are ≥4.5:1, so no pair
@@ -599,13 +620,13 @@ Hidden windows, temp profile, both themes:
   must scroll fully into view. Screens whose stage scrolls are listed in the run's output.
   `-- --matrix --window`: the windowed + PIP screens only.
 - PIP (§4b) every width 320, 360, 400, 480, 560, 640, 720, 960 × height 300, 360, 420, 480, 580, 720, 800, plus
-  400×580 and 640×360 at 125 % / 150 % → the same screens as the windowed list. A size too small for the
-  largest clip + the UI is grown by main (`pip:need`) and linted at the size it settles on — the PNG is
-  named by that size (`<theme>-pip-<screen>-<W>x<H>[@zoom].png`); `lint.json` → `pipForms` lists form +
-  level per requested size (→ grown size). PIP-only rules: (j) no scroll container, html / body / `#stage` /
-  `#panel` content ≤ its box, primary button (dialog: OK) fully inside the viewport; (k) every button /
-  stepper / dialog `no-drag`; (l) the clip is the largest 16:9 of its form (stacked: window − 44 px wide at
-  y 62; side: window − 84 px tall) and at 800 tall never narrower in a wider window.
+  280×158 (the minimum), 300×169, 330×420, 480×270, 960×540, 400×290 (the default), and 400×580 / 640×360 at
+  125 % / 150 % → the same screens as the windowed list (`<theme>-pip-<screen>-<W>x<H>[@zoom].png`);
+  `lint.json` → `pipForms` lists the form / rows / number size / level per size. The window buttons stay
+  shown in the selftest so they are linted. PIP-only rules: (g) targets ≥ 28 × 28 (mouse-only); (j) no
+  scroll container, html / body / `#stage` / `#panel` / `#pipBar` content ≤ its box, primary button
+  (dialog: OK) fully inside the viewport; (k) every button / stepper / dialog `no-drag`; (l) the clip is
+  the largest 16:9 the window holds (`min(W, H × 16/9)` wide) at y 0.
   `-- --only=400x580,640x360@150` limits window / PIP sizes; `-- --pip` (with `--window`) the PIP only;
   `-- --passes=dark|light|en-dark` one pass (the full matrix with the PIP grid takes ≈ 2.5 h; the three passes
   can run in parallel from separate git worktrees).
@@ -620,7 +641,7 @@ Rules: (a) horizontal overflow (scrollWidth > clientWidth + 1) unless `[data-lin
 (e) list/table column edges differing > 1 px (settings fields, menu rows + header, timeline,
 detail rows, overlay plan rows); (f) font-size / line-height / weight not a §3 token, or < 13 px
 rendered; (g) hit targets: main window ≥ 28×28 (macOS default control size), `.btn` ≥ 44 high;
-overlay ≥ 44×44; (i) windowed overlay: primary button reachable; (j)–(l) PIP, see above.
+overlay ≥ 44×44, PIP ≥ 28×28 (mouse-only); (i) windowed overlay: primary button reachable; (j)–(l) PIP, see above.
 
 Phone widths (web build only; the desktop window's minimum is 800×600): `npm.cmd run test:web`
 runs the same lint (`TOKENS` / `GROUPS` / `ROLES` exported from `layout-lint.js`) at 390×844 and

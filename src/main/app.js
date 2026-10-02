@@ -581,15 +581,27 @@ function createController({ clock, selftest = false, fast = false }) {
   }
 
   // PIP stays above a video playing underneath: re-assert always-on-top every ~1.7 s, never focusing.
+  // It also shows its window buttons while the cursor is over it: almost all of it is a drag region,
+  // which gets no mouse events, so the cursor is polled here (5×/s) and the page told on enter / leave.
   function keepOnTop(win) {
     clearInterval(win.bfTopTimer);
+    clearInterval(win.bfHoverTimer);
     win.bfTopTimer = null;
+    win.bfHoverTimer = null;
     if (selftest || !win.bfView.keepOnTop) return;
     win.bfTopTimer = setInterval(() => {
       if (win.isDestroyed()) return;
       win.setAlwaysOnTop(true, 'screen-saver');
       win.moveTop();
     }, 1700);
+    let inside = null;
+    win.bfHoverTimer = setInterval(() => {
+      if (win.isDestroyed()) return;
+      const c = screen.getCursorScreenPoint();
+      const r = win.getBounds();
+      const now = c.x >= r.x && c.x < r.x + r.width && c.y >= r.y && c.y < r.y + r.height;
+      if (now !== inside) { inside = now; win.webContents.send('pip-hover', now); }
+    }, 200);
   }
   // PIP opens on the display under the cursor (the screen the user is working on).
   const pipDisplay = () => screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
@@ -627,7 +639,7 @@ function createController({ clock, selftest = false, fast = false }) {
     };
     win.on('resize', remember);
     win.on('move', remember);
-    win.on('closed', () => clearInterval(win.bfTopTimer));
+    win.on('closed', () => { clearInterval(win.bfTopTimer); clearInterval(win.bfHoverTimer); });
     if (!selftest) {
       win.setAlwaysOnTop(true, 'screen-saver');
       win.setVisibleOnAllWorkspaces(true);
@@ -984,30 +996,6 @@ function createController({ clock, selftest = false, fast = false }) {
     ipcMain.handle('break:payload', () => (currentBreak ? currentBreak.payload : null));
     // no argument = the F key: full screen ⇄ window
     ipcMain.handle('break:view', (_e, v) => setOverlayView(v || (overlayView === 'window' ? 'full' : 'window')));
-    // PIP: the clip keeps its largest 16:9 size; when the UI cannot fit beside / below it the page asks for
-    // a bigger window (CSS px). Grow the cheaper way (taller for stacked, wider for side by side), on screen.
-    ipcMain.on('pip:need', (e, need) => {
-      const win = BrowserWindow.fromWebContents(e.sender);
-      if (!win || win.isDestroyed()) return;
-      clearTimeout(win.pipNeedTimer);
-      if (!need || overlayView !== 'pip') return;
-      win.pipNeedTimer = setTimeout(() => {
-        if (win.isDestroyed() || overlayView !== 'pip') return;
-        const z = win.webContents.getZoomFactor();
-        const b = win.getContentBounds();
-        const h = Math.max(b.height, Math.ceil(need.h * z));
-        const w = Math.max(b.width, Math.ceil(need.w * z));
-        const grow = [h > b.height && { ...b, height: h }, w > b.width && { ...b, width: w }].filter(Boolean);
-        if (!grow.length) return;
-        const next = grow.reduce((a, c) => (c.width * c.height < a.width * a.height ? c : a));
-        const wa = screen.getDisplayMatching(b).workArea;
-        next.width = Math.min(next.width, Math.max(b.width, wa.width));
-        next.height = Math.min(next.height, Math.max(b.height, wa.height));
-        next.x = Math.max(wa.x, Math.min(next.x, wa.x + wa.width - next.width));
-        next.y = Math.max(wa.y, Math.min(next.y, wa.y + wa.height - next.height));
-        win.setContentBounds(next);
-      }, 150);
-    });
     ipcMain.handle('break:minimize', () => {
       const w = mainOverlay();
       if (w && overlayView === 'window' && !selftest) w.minimize();

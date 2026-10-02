@@ -5,8 +5,8 @@
 
 const VIEWS = Object.freeze(['pip', 'window', 'full']); // UI order: 畫中畫 first (SPEC §5a)
 const OVERLAY_MIN = Object.freeze({ width: 400, height: 400 }); // smallest windowed overlay (layout lint floor)
-const PIP_MIN = Object.freeze({ width: 320, height: 300 }); // smallest PIP (layout lint floor)
-const PIP_SIZE = Object.freeze({ width: 400, height: 580 }); // default PIP
+const PIP_MIN = Object.freeze({ width: 280, height: 158 }); // smallest PIP: a 280×158 clip, the bar on it (layout lint floor)
+const PIP_SIZE = Object.freeze({ width: 400, height: 290 }); // default PIP: a 400×225 clip + the bar's strip under it
 const MARGIN = 16; // a default window keeps this much of the work area free on each side
 const REACH = Object.freeze({ x: 96, y: 64 }); // a saved window must overlap a work area by this much to be grabbable
 
@@ -30,7 +30,7 @@ function defaultWindowBounds(wa) {
   return { x: Math.round(wa.x + (wa.width - width) / 2), y: Math.round(wa.y + (wa.height - height) / 2), width, height };
 }
 
-// PIP: 400×580 in the bottom-right corner of the work area, 16 px from its edges.
+// PIP: 400×290 in the bottom-right corner of the work area, 16 px from its edges.
 function defaultPipBounds(wa) {
   const width = Math.max(PIP_MIN.width, Math.min(wa.width - 2 * MARGIN, PIP_SIZE.width));
   const height = Math.max(PIP_MIN.height, Math.min(wa.height - 2 * MARGIN, PIP_SIZE.height));
