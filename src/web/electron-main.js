@@ -104,6 +104,12 @@ class BrowserWindow {
     if (this.frame) { try { this.frame.focus(); this.frame.contentWindow.focus(); } catch (_) { /* not loaded */ } } else window.focus();
   }
   moveTop() {}
+  // window-state queries used by the desktop break-display code (an in-page layer is never minimized/fullscreen)
+  isMinimized() { return false; }
+  isMaximized() { return false; }
+  isFullScreen() { return false; }
+  restore() {}
+  showInactive() { this.show(); }
   removeMenu() {}
   setAlwaysOnTop() {}
   setVisibleOnAllWorkspaces() {}
