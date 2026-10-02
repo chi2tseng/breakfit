@@ -204,7 +204,7 @@ function endBreak(day, slotIndex, outcome, setsThisBreak) {
   closeRemainingIfDone(day);
 }
 
-// ---------- full workout (「完整訓練」) ----------
+// ---------- full workout (「完整訓練」; a picked selection of moves: ./pick.js) ----------
 // A session of today's plan day = every unit still owing sets, in plan order (the stretch unit is
 // built last, so it is only reached once all training is done). Nothing owed → null (the session
 // is then an extra one that records nothing into the day).
@@ -256,9 +256,10 @@ function absorbDueSlots(day, nowMin) {
 
 // A workout of another plan day (or on a rest / off / finished day): logged as 加練 on today's
 // record, never touching its units or its grade.
-function recordExtra(day, t, { planDay, sets = 0, sec = 0, stretch = false }) {
+// `days`: every plan day a picked (自選) session's 加練 part came from.
+function recordExtra(day, t, { planDay, days, sets = 0, sec = 0, stretch = false }) {
   if (!(sets > 0 || stretch)) return null;
-  const e = { t, type: 'extra_session', detail: { planDay, sets, sec: Math.max(0, Math.round(sec)), stretch: !!stretch } };
+  const e = { t, type: 'extra_session', detail: { planDay, ...(days ? { days } : {}), sets, sec: Math.max(0, Math.round(sec)), stretch: !!stretch } };
   day.events.push(e);
   return e;
 }

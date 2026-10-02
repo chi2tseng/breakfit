@@ -21,10 +21,12 @@ const st = {
   frozen: false,
   modal: null,
   sessionSets: 0,
+  extraSets: 0, // of those, sets of 加練 moves in a mixed 自選 session (P.extraUnits)
   lastRec: null, // { unitId, index, reps } of the set just finished
   ended: false,
   shownAt: 0, // performance.now() when the current phase was rendered
 };
+const isExtra = (item) => !!(P && P.extraUnits && P.extraUnits.includes(item.unitId));
 
 // ---------- text helpers (src/i18n.js, language = window.LANG from theme.js / the payload) ----------
 const t = (key, vars) => I18N.t(window.LANG, key, vars);
@@ -388,9 +390,10 @@ function bindAdjust(html) {
 
 function renderFinish() {
   const test = P.mode === 'test'; // test runs record nothing: never show them as today's progress
-  const done = P.todayDone + (test ? 0 : st.sessionSets);
+  // a mixed 自選 session: its 加練 sets / stretch are not today's progress
+  const done = P.todayDone + (test ? 0 : st.sessionSets - (st.extraSets || 0));
   const total = P.todayTotal;
-  const stretchOwed = !!P.stretchOwed && !st.stretchDone;
+  const stretchOwed = !!P.stretchOwed && !(st.stretchDone && !isExtra({ unitId: 'stretch' }));
   const allDone = total > 0 && done >= total && !stretchOwed;
   const failed = P.isLast && !allDone && P.mode === 'slot';
   let chip = { icon: 'check_circle', text: t('done') };
@@ -473,7 +476,7 @@ function next() {
   while (st.i < steps.length && RECORD_KINDS.has(steps[st.i].kind)) {
     // a full circuit round / every stretch hold just finished: record it (the stretch is not a set)
     const s = steps[st.i];
-    if (s.kind === 'round') st.sessionSets += 1;
+    if (s.kind === 'round') { st.sessionSets += 1; if (isExtra(s.item)) st.extraSets += 1; }
     else st.stretchDone = true;
     window.bf.setDone(s.item.unitId, 0);
     st.i += 1;
@@ -499,6 +502,7 @@ async function completeSet() {
   st.busy = true;
   const reps = s.item.target[0];
   st.sessionSets += 1;
+  if (isExtra(s.item)) st.extraSets += 1;
   let index = -1;
   try { index = await window.bf.setDone(s.item.unitId, reps); } catch (_) { /* keep going */ }
   st.lastRec = { unitId: s.item.unitId, index, reps };
@@ -707,6 +711,7 @@ window.__test = {
       setPhase('intro', INTRO_SEC);
     } else if (kind === 'finish') {
       st.sessionSets = opts.sets || 0;
+      st.extraSets = opts.extraSets || 0;
       st.lastRec = null;
       if (opts.afterWork) {
         st.i = steps.length;

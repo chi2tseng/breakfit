@@ -804,6 +804,8 @@ async function main() {
 }
 
 // ---------- 完整訓練 (full workout): chooser, overlay screens, real recording paths ----------
+// a custom 完整訓練 pick across days: two of today's (第 1 天) moves + 第 2 / 3 天 moves + two stretches
+const PICK = ['pushup', 'incline_pushup', 'squat', 'core_round_1', 'stretch:chest', 'stretch:quad'];
 async function fullWorkout(ctl, mw, settle, clock) {
   console.log('full workout');
   const openOv = async (payload) => {
@@ -833,10 +835,23 @@ async function fullWorkout(ctl, mw, settle, clock) {
     assert(await js(mw, "__test.workout() && document.querySelector('#woDay .on').dataset.d") === 'd1', `${pre || 'zh-'}chooser opens on today's plan day`);
     if (lang === 'en') await scan(mw, 'chooser');
     await shot(mw, `${pre}60-workout-chooser`, `${pre}完整訓練：選第幾天(預設今天)`);
+    const def = await js(mw, "document.querySelectorAll('#woList .wo-row').length + '|' + document.querySelectorAll('#woList .wo-row.on').length + '|' + document.getElementById('woSum').textContent");
+    assert(/^27\|9\|9 (個動作|exercises)(約|About) \d+ (分鐘|min)$/.test(def), `${pre || 'zh-'}chooser: 27 rows, today's 9 ticked, count + time, no 加練 (${def})`);
     await js(mw, "__test.workout('d2')");
-    const meta = await js(mw, "document.getElementById('woName').textContent + '|' + document.getElementById('woMeta').textContent");
-    assert(/\|8 (個動作|exercises)/.test(meta) && /(加練|Extra Workout)$/.test(meta), `${pre || 'zh-'}chooser 第 2 天: 8 moves, time, 加練 (${meta})`);
+    const meta = await js(mw, "document.querySelector('#woDay .on').dataset.d + '|' + document.getElementById('woSum').textContent");
+    assert(/^d2\|14 (個動作|exercises)/.test(meta) && /(加練|Extra Workout)$/.test(meta), `${pre || 'zh-'}chooser 第 2 天: 14 rows, time, 加練 (${meta})`);
     await shot(mw, `${pre}61-workout-chooser-extra`, `${pre}完整訓練：選別天 = 加練`);
+    // a custom pick across days: no preset lit, live count, today's moves keep it off 加練
+    await js(mw, `__test.workout(${JSON.stringify(PICK)})`);
+    const cust = await js(mw, "!document.querySelector('#woDay .on') + '|' + document.querySelectorAll('#woList .wo-row.on').length + '|' + document.getElementById('woSum').textContent + '|' + document.getElementById('woStart').disabled");
+    assert(/^true\|6\|6 (個動作|exercises)(約|About) \d+ (分鐘|min)\|false$/.test(cust), `${pre || 'zh-'}custom pick: no preset, 6 ticked, not 加練, 開始 on (${cust})`);
+    if (lang === 'en') await scan(mw, 'custom chooser');
+    await shot(mw, `${pre}61b-workout-chooser-custom`, `${pre}完整訓練：自選(跨天勾選)`);
+    // tick / untick by click; nothing ticked → 開始 off
+    await js(mw, "document.querySelector('#woList .wo-row[data-k=\"pushup\"]').click(); true");
+    assert(!(await js(mw, '__test.workoutSel()')).includes('pushup'), 'clicking a ticked row unticks it');
+    await js(mw, '__test.workout([])');
+    assert(await js(mw, "document.getElementById('woStart').disabled") === true, 'nothing ticked → 開始 disabled');
     await js(mw, '__test.close()');
   }
   await js(mw, "window.bf.saveSettings({ theme: 'dark', lang: 'zh' }).then(() => true)");
@@ -956,6 +971,36 @@ async function fullWorkout(ctl, mw, settle, clock) {
   const row = await js(mw, "[...document.querySelectorAll('#detail .urow')].map((r) => r.textContent).filter((x) => x.startsWith('加練')).join('|')");
   assert(/^加練　第 2 天3 組\d+ 分鐘$/.test(row), `history day detail shows 加練 (${row})`);
   await shot(mw, '67-history-extra', '記錄：當天明細的加練');
+
+  // real path 4: a custom pick on a fresh 第 1 天 — today's moves count, the rest is 加練, remembered
+  ctl.data.days[TODAY] = D.createDay(TODAY, s, plan, T.parseHM('12:40'));
+  const fday = ctl.data.days[TODAY];
+  assert(ctl.openSession(PICK) && !ctl.currentBreak.extra, 'custom pick with today\'s moves = 完整訓練 (not 加練)');
+  const payM = ctl.currentBreak.payload;
+  assert(payM.items.map((i) => i.unitId).join(',') === 'pushup,incline_pushup,squat,core_round_1,stretch' && payM.extraUnits.join(',') === 'squat,core_round_1,stretch'
+    && payM.dayTitle === '自選訓練' && payM.dayLabel === '第 1 天、第 2 天、第 3 天', `custom payload: plan order, stretch last, 加練 units, 自選 (${payM.items.map((i) => i.unitId)} / ${payM.extraUnits} / ${payM.dayLabel})`);
+  const owD = ctl.overlayWins[0];
+  await ready(owD);
+  await js(owD, "__test.show('intro', { remaining: 8 })");
+  await shot(owD, '68-session-intro-custom', '完整訓練：自選開場');
+  for (let i = 0; i < 5; i++) await js(owD, "window.bf.setDone('pushup', 10)");
+  for (let i = 0; i < 2; i++) await js(owD, "window.bf.setDone('squat', 12)");
+  await js(owD, "window.bf.setDone('stretch', 0)");
+  clock.set(new Date(2026, 8, 24, 13, 0, 0));
+  await js(owD, "setTimeout(() => window.bf.end('abort'), 0); true");
+  await delay(400);
+  const exM = D.extraSessions(fday);
+  assert(D.doneSets(fday) === 5 && D.stretchDone(fday) === false && fday.status === 'pending' && exM.length === 1 && exM[0].sets === 2 && exM[0].stretch && exM[0].days.join() === 'd1,d2,d3',
+    `mixed: 5 sets toward today, 2 + stretch as 加練 (${JSON.stringify(exM)}), day pending`);
+  assert(ctl.getState().session.last.join() === 'pushup,incline_pushup,stretch:chest,squat,stretch:quad,core_round_1', 'custom pick remembered for today');
+  await js(mw, 'window.bf.saveSettings({}).then(() => true)');
+  await settle(mw);
+  assert(await js(mw, "__test.close(); __test.tab('today'); __test.workout() && __test.workoutSel().length") === 6, 'chooser reopens on the remembered pick');
+  await js(mw, '__test.close()');
+  await js(mw, `__test.tab('history'); __test.select('${TODAY}').then(() => __test.scroll(0))`);
+  await delay(250);
+  const rowM = await js(mw, "[...document.querySelectorAll('#detail .urow')].map((r) => r.textContent).filter((x) => x.startsWith('加練')).join('|')");
+  assert(/^加練　第 1 天、第 2 天、第 3 天2 組\d+ 分鐘$/.test(rowM), `history: 自選 加練 across days (${rowM})`);
   await js(mw, "__test.tab('today')");
 }
 

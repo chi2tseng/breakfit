@@ -11,7 +11,7 @@
       // main window
       navToday: '今天', navHistory: '記錄', navSettings: '設定',
       breakNow: '現在就休息', library: '動作示範庫',
-      fullWorkout: '完整訓練', fullWorkoutMenu: '完整訓練…', extraSession: '加練', aboutMin: '約 {n} 分鐘', movesN: '{n} 個動作', movesN1: '{n} 個動作', roundsN: '{n} 輪', roundsN1: '{n} 輪',
+      fullWorkout: '完整訓練', fullWorkoutMenu: '完整訓練…', extraSession: '加練', customWorkout: '自選訓練', aboutMin: '約 {n} 分鐘', movesN: '{n} 個動作', movesN1: '{n} 個動作', roundsN: '{n} 輪', roundsN1: '{n} 輪',
       sessionDone: '訓練完成', thisSession: '這次 {n} 組', leaveSessionQ: '結束訓練？', minN: '{n} 分鐘',
       d1: '第 1 天', d2: '第 2 天', d3: '第 3 天', rest: '休息', restDay: '休息日', noTraining: '今天不用練', dayOff: '非上班日',
       setsUnit: '組', setsOf: '{a}/{b} 組', progressOf: '{a} / {b} 組', pausedTillTomorrow: '已暫停到明天',
@@ -51,7 +51,7 @@
     en: {
       navToday: 'Today', navHistory: 'History', navSettings: 'Settings',
       breakNow: 'Break Now', library: 'Exercises',
-      fullWorkout: 'Full Workout', fullWorkoutMenu: 'Full Workout…', extraSession: 'Extra Workout', aboutMin: 'About {n} min', movesN: '{n} exercises', movesN1: '{n} exercise', roundsN: '{n} rounds', roundsN1: '{n} round',
+      fullWorkout: 'Full Workout', fullWorkoutMenu: 'Full Workout…', extraSession: 'Extra Workout', customWorkout: 'Custom Workout', aboutMin: 'About {n} min', movesN: '{n} exercises', movesN1: '{n} exercise', roundsN: '{n} rounds', roundsN1: '{n} round',
       sessionDone: 'Workout Complete', thisSession: '{n} Sets Done', leaveSessionQ: 'End this workout?', minN: '{n} min',
       d1: 'Day 1', d2: 'Day 2', d3: 'Day 3', rest: 'Rest', restDay: 'Rest Day', noTraining: 'No Workout Today', dayOff: 'Day Off',
       setsUnit: 'sets', setsOf: '{a}/{b} sets', progressOf: '{a} / {b} sets', pausedTillTomorrow: 'Paused Until Tomorrow',

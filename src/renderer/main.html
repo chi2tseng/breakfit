@@ -120,16 +120,19 @@
       </div>
     </div>
   </div>
-  <!-- 完整訓練 chooser: which day, then 開始 (SPEC §8) -->
+  <!-- 完整訓練 chooser: a day preset, then tick / untick any move across days, then 開始 (SPEC §5b) -->
   <div id="workout" hidden>
     <div class="wo-card" role="dialog" aria-modal="true" aria-labelledby="woTitle">
       <h2 id="woTitle" data-i18n="fullWorkout"></h2>
-      <div class="seg" id="woDay"><button data-d="d1" data-i18n="d1"></button><button data-d="d2" data-i18n="d2"></button><button data-d="d3" data-i18n="d3"></button></div>
-      <div class="wo-info"><div class="wo-name" id="woName"></div><div class="wo-meta" id="woMeta"></div></div>
+      <div class="seg" id="woDay"><button data-d="d1" data-i18n="d1"></button><button data-d="d2" data-i18n="d2"></button><button data-d="d3" data-i18n="d3"></button><button data-d="stretch" data-i18n="stretch"></button></div>
+      <div class="wo-list" id="woList" role="group" aria-labelledby="woTitle"></div>
       <div class="field wo-view"><label data-i18n="breakView"></label><div class="seg" id="woView"><button data-v="pip" data-i18n="viewPip"></button><button data-v="window" data-i18n="viewWindow"></button><button data-v="full" data-i18n="viewFull"></button></div></div>
-      <div class="wo-btns">
-        <button class="btn" id="woCancel" data-i18n="cancel"></button>
-        <button class="btn primary" id="woStart"><span aria-hidden="true" class="ms fill">play_arrow</span><span data-i18n="start"></span></button>
+      <div class="wo-foot">
+        <div class="wo-sum" id="woSum" aria-live="polite"></div>
+        <div class="wo-btns">
+          <button class="btn" id="woCancel" data-i18n="cancel"></button>
+          <button class="btn primary" id="woStart"><span aria-hidden="true" class="ms fill">play_arrow</span><span data-i18n="start"></span></button>
+        </div>
       </div>
     </div>
   </div>
